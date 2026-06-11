@@ -7593,7 +7593,9 @@ end)
 
                 setmetatable(Groupbox, BaseGroupbox)
 
-                task.defer(function()
+                task.spawn(function()
+                    RunService.RenderStepped:Wait()
+                    RunService.RenderStepped:Wait()
                     Groupbox:Resize()
                 end)
                 Tab.Groupboxes[Info.Name] = Groupbox
