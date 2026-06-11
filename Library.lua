@@ -7544,13 +7544,24 @@ local CollapseButton = New("TextButton", {
                     Padding = UDim.new(0, 8),
                     Parent = GroupboxContainer,
                 })
-                New("UIPadding", {
+New("UIPadding", {
                     PaddingBottom = UDim.new(0, 7),
                     PaddingLeft = UDim.new(0, 7),
                     PaddingRight = UDim.new(0, 7),
                     PaddingTop = UDim.new(0, 7),
                     Parent = GroupboxContainer,
                 })
+
+                CollapseButton.MouseButton1Click:Connect(function()
+                    IsOpen = not IsOpen
+                    GroupboxContainer.Visible = IsOpen
+                    Arrow.Text = IsOpen and "▲" or "▼"
+                    if IsOpen then
+                        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                    else
+                        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+                    end
+                end)
             end
 
             local Groupbox = {
@@ -7571,12 +7582,7 @@ function Groupbox:Resize()
     end
 end
 
-CollapseButton.MouseButton1Click:Connect(function()
-    IsOpen = not IsOpen
-    GroupboxContainer.Visible = IsOpen
-    Arrow.Text = IsOpen and "▲" or "▼"
-    Groupbox:Resize()
-end)
+
 
             setmetatable(Groupbox, BaseGroupbox)
 
