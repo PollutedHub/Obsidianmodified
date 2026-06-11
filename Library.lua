@@ -7595,11 +7595,12 @@ end)
                 setmetatable(Groupbox, BaseGroupbox)
 
 task.defer(function()
-    if not Arrow or not GroupboxContainer then return end
-    IsOpen = true
-    GroupboxContainer.Visible = true
-    Arrow.Text = "▲"
-    Groupbox:Resize()
+    pcall(function()
+        IsOpen = true
+        GroupboxContainer.Visible = true
+        Arrow.Text = "▲"
+        Groupbox:Resize()
+    end)
 end)
                 Tab.Groupboxes[Info.Name] = Groupbox
 
