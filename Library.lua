@@ -7510,6 +7510,34 @@ function Library:CreateWindow(WindowInfo)
                     Parent = GroupboxLabel,
                 })
 
+local IsOpen = true
+
+local Arrow = New("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    Position = UDim2.new(1, -8, 0.5, 0),
+    Size = UDim2.fromOffset(16, 16),
+    Text = "▲",
+    TextSize = 10,
+    ZIndex = GroupboxHolder.ZIndex + 1,
+    Parent = GroupboxLabel,
+})
+
+local CollapseButton = New("TextButton", {
+    BackgroundTransparency = 1,
+    Size = UDim2.fromScale(1, 1),
+    Text = "",
+    ZIndex = GroupboxHolder.ZIndex + 1,
+    Parent = GroupboxLabel,
+})
+
+CollapseButton.MouseButton1Click:Connect(function()
+    IsOpen = not IsOpen
+    GroupboxContainer.Visible = IsOpen
+    Arrow.Text = IsOpen and "▲" or "▼"
+    Groupbox:Resize()
+end)
+
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
                     Position = UDim2.fromOffset(0, 35),
