@@ -7531,12 +7531,7 @@ local CollapseButton = New("TextButton", {
     Parent = GroupboxLabel,
 })
 
-CollapseButton.MouseButton1Click:Connect(function()
-    IsOpen = not IsOpen
-    GroupboxContainer.Visible = IsOpen
-    Arrow.Text = IsOpen and "▲" or "▼"
-    Groupbox:Resize()
-end)
+
 
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
@@ -7575,6 +7570,13 @@ function Groupbox:Resize()
         GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
     end
 end
+
+CollapseButton.MouseButton1Click:Connect(function()
+    IsOpen = not IsOpen
+    GroupboxContainer.Visible = IsOpen
+    Arrow.Text = IsOpen and "▲" or "▼"
+    Groupbox:Resize()
+end)
 
             setmetatable(Groupbox, BaseGroupbox)
 
