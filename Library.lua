@@ -7584,10 +7584,12 @@ end
 
 
 
-            setmetatable(Groupbox, BaseGroupbox)
+                setmetatable(Groupbox, BaseGroupbox)
 
-            Groupbox:Resize()
-            Tab.Groupboxes[Info.Name] = Groupbox
+                task.defer(function()
+                    Groupbox:Resize()
+                end)
+                Tab.Groupboxes[Info.Name] = Groupbox
 
             return Groupbox
         end
