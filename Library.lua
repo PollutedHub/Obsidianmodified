@@ -7510,7 +7510,7 @@ GroupboxHolder = New("Frame", {
                     Parent = GroupboxLabel,
                 })
 
-local IsOpen = false
+local IsOpen = true
 
 local Arrow = New("TextLabel", {
     AnchorPoint = Vector2.new(1, 0.5),
