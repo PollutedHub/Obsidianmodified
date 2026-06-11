@@ -7584,6 +7584,11 @@ function Groupbox:Resize()
     end
 end
 
+GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    if IsOpen then
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+    end
+end)
 
 
                 setmetatable(Groupbox, BaseGroupbox)
