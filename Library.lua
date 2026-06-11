@@ -7568,9 +7568,13 @@ end)
                 Elements = {},
             }
 
-            function Groupbox:Resize()
-                GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-            end
+function Groupbox:Resize()
+    if IsOpen then
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+    else
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+    end
+end
 
             setmetatable(Groupbox, BaseGroupbox)
 
