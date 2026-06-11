@@ -6104,6 +6104,92 @@ do
         return DepGroupbox
     end
 
+function Funcs:AddSection(Name, DefaultOpen)
+    local Groupbox = self
+    local Container = Groupbox.Container
+    local IsOpen = DefaultOpen ~= false
+
+    local SectionHolder = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        Parent = Container,
+    })
+
+    local Header = New("TextButton", {
+        BackgroundColor3 = "MainColor",
+        Size = UDim2.new(1, 0, 0, 24),
+        Text = "",
+        Parent = SectionHolder,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+        Parent = Header,
+    })
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Parent = Header,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(8, 0),
+        Size = UDim2.new(1, -30, 1, 0),
+        Text = Name,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = Header,
+    })
+
+    local Arrow = New("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        Text = IsOpen and "▲" or "▼",
+        TextSize = 10,
+        Parent = Header,
+    })
+
+    local ContentHolder = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        Position = UDim2.fromOffset(0, 26),
+        Visible = IsOpen,
+        Parent = SectionHolder,
+    })
+    New("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        Parent = ContentHolder,
+    })
+    New("UIPadding", {
+        PaddingTop = UDim.new(0, 4),
+        Parent = ContentHolder,
+    })
+
+    Header.MouseButton1Click:Connect(function()
+        IsOpen = not IsOpen
+        ContentHolder.Visible = IsOpen
+        Arrow.Text = IsOpen and "▲" or "▼"
+        Groupbox:Resize()
+    end)
+
+    local Section = {
+        Container = ContentHolder,
+        DependencyBoxes = {},
+        Elements = {},
+        Tab = Groupbox.Tab,
+    }
+
+    function Section:Resize()
+        Groupbox:Resize()
+    end
+
+    setmetatable(Section, BaseGroupbox)
+    return Section
+end
+
     BaseGroupbox.__index = Funcs
     BaseGroupbox.__namecall = function(_, Key, ...)
         return Funcs[Key](...)
