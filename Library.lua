@@ -7463,11 +7463,11 @@ function Library:CreateWindow(WindowInfo)
             local GroupboxList
 
             do
-                GroupboxHolder = New("Frame", {
-                    BackgroundColor3 = "BackgroundColor",
-                    Size = UDim2.fromScale(1, 0),
-                    Parent = BoxHolder,
-                })
+GroupboxHolder = New("Frame", {
+    BackgroundColor3 = "BackgroundColor",
+    Size = UDim2.new(1, 0, 0, 34),
+    Parent = BoxHolder,
+})
                 table.insert(
                     Library.Corners,
                     New("UICorner", {
@@ -7533,12 +7533,13 @@ local CollapseButton = New("TextButton", {
 
 
 
-                GroupboxContainer = New("Frame", {
-                    BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(0, 35),
-                    Size = UDim2.new(1, 0, 1, -35),
-                    Parent = GroupboxHolder,
-                })
+GroupboxContainer = New("Frame", {
+    BackgroundTransparency = 1,
+    Position = UDim2.fromOffset(0, 35),
+    Size = UDim2.new(1, 0, 1, -35),
+    Visible = false,
+    Parent = GroupboxHolder,
+})
 
                 GroupboxList = New("UIListLayout", {
                     Padding = UDim.new(0, 8),
@@ -7593,14 +7594,12 @@ end)
 
                 setmetatable(Groupbox, BaseGroupbox)
 
-task.spawn(function()
-                    RunService.RenderStepped:Wait()
-                    RunService.RenderStepped:Wait()
-                    IsOpen = true
-                    GroupboxContainer.Visible = true
-                    Arrow.Text = "▲"
-                    Groupbox:Resize()
-                end)
+task.defer(function()
+    IsOpen = true
+    GroupboxContainer.Visible = true
+    Arrow.Text = "▲"
+    Groupbox:Resize()
+end)
                 Tab.Groupboxes[Info.Name] = Groupbox
 
             return Groupbox
