@@ -7510,7 +7510,7 @@ function Library:CreateWindow(WindowInfo)
                     Parent = GroupboxLabel,
                 })
 
-local IsOpen = true
+local IsOpen = false
 
 local Arrow = New("TextLabel", {
     AnchorPoint = Vector2.new(1, 0.5),
@@ -7593,9 +7593,12 @@ end)
 
                 setmetatable(Groupbox, BaseGroupbox)
 
-                task.spawn(function()
+task.spawn(function()
                     RunService.RenderStepped:Wait()
                     RunService.RenderStepped:Wait()
+                    IsOpen = true
+                    GroupboxContainer.Visible = true
+                    Arrow.Text = "▲"
                     Groupbox:Resize()
                 end)
                 Tab.Groupboxes[Info.Name] = Groupbox
