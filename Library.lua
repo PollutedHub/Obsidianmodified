@@ -7595,6 +7595,7 @@ end)
                 setmetatable(Groupbox, BaseGroupbox)
 
 task.defer(function()
+    if not Arrow then return end
     IsOpen = true
     GroupboxContainer.Visible = true
     Arrow.Text = "▲"
