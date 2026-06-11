@@ -7552,15 +7552,17 @@ New("UIPadding", {
                     Parent = GroupboxContainer,
                 })
 
-                CollapseButton.MouseButton1Click:Connect(function()
+CollapseButton.MouseButton1Click:Connect(function()
                     IsOpen = not IsOpen
                     GroupboxContainer.Visible = IsOpen
                     Arrow.Text = IsOpen and "▲" or "▼"
-                    if IsOpen then
-                        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-                    else
-                        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-                    end
+                    task.defer(function()
+                        if IsOpen then
+                            GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                        else
+                            GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+                        end
+                    end)
                 end)
             end
 
