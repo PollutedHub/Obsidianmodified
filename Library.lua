@@ -319,6 +319,9 @@ local Templates = {
         ShowCustomCursor = true,
         Font = Enum.Font.Code,
         ToggleKeybind = Enum.KeyCode.RightControl,
+        GreenExecutors = {},
+        OrangeExecutors = {"xeno", "solara"},
+        RedExecutors = {"jjsploit"},
 
         ShowMobileButtons = true,
         MobileButtonsSide = "Left",
@@ -6896,7 +6899,7 @@ function Library:CreateWindow(WindowInfo)
         })
 
         -- Status Circle
-        local StatusCircle = New("Frame", {
+local StatusCircle = New("Frame", {
             AnchorPoint = Vector2.new(0, 0.5),
             BackgroundColor3 = Color3.fromRGB(0, 255, 100),
             Position = UDim2.new(0, 8, 0.5, 0),
@@ -6909,30 +6912,85 @@ function Library:CreateWindow(WindowInfo)
             Parent = StatusCircle,
         })
 
-        local ExecutorName = (identifyexecutor and identifyexecutor())
+        local StatusGlow = New("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(28, 28),
+            Image = "rbxasset://textures/ui/Animation/icon_radial_outline.png", -- soft round glow texture
+            ImageColor3 = Color3.fromRGB(0, 255, 100),
+            ImageTransparency = 0.5,
+            ZIndex = BottomBar.ZIndex,
+            Visible = false,
+            Parent = StatusCircle,
+        })
+
+local ExecutorName = (identifyexecutor and identifyexecutor())
             or (getexecutorname and getexecutorname())
             or ""
         ExecutorName = ExecutorName:lower()
 
-        local OrangeExecutors = {"xeno", "solara"}
-        local RedExecutors = {"jjsploit"}
+        local GreenExecutors = WindowInfo.GreenExecutors
+        local OrangeExecutors = WindowInfo.OrangeExecutors
+        local RedExecutors = WindowInfo.RedExecutors
 
         local CircleColor = Color3.fromRGB(0, 255, 100)
+        local IsGreen = true
+
         for _, Name in OrangeExecutors do
             if ExecutorName:match(Name) then
                 CircleColor = Color3.fromRGB(255, 165, 0)
+                IsGreen = false
                 break
             end
         end
         for _, Name in RedExecutors do
             if ExecutorName:match(Name) then
                 CircleColor = Color3.fromRGB(255, 50, 50)
+                IsGreen = false
                 break
+            end
+        end
+        if IsGreen then
+            for _, Name in GreenExecutors do
+                if ExecutorName:match(Name) then
+                    CircleColor = Color3.fromRGB(0, 255, 100)
+                    IsGreen = true
+                    break
+                end
             end
         end
 
         StatusCircle.BackgroundColor3 = CircleColor
 
+        if IsGreen then
+            StatusGlow.Visible = true
+            StatusGlow.ImageColor3 = CircleColor
+
+            task.spawn(function()
+                while StatusGlow and StatusGlow.Parent do
+                    TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        Size = UDim2.fromOffset(13, 13),
+                        BackgroundTransparency = 0.2,
+                    }):Play()
+                    TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        ImageTransparency = 0.1,
+                        Size = UDim2.fromOffset(34, 34),
+                    }):Play()
+                    task.wait(0.8)
+
+                    TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        Size = UDim2.fromOffset(10, 10),
+                        BackgroundTransparency = 0,
+                    }):Play()
+                    TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        ImageTransparency = 0.5,
+                        Size = UDim2.fromOffset(28, 28),
+                    }):Play()
+                    task.wait(0.8)
+                end
+            end)
+        end
         --// Resize Button
         if WindowInfo.Resizable then
             ResizeButton = New("TextButton", {
