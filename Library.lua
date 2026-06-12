@@ -7666,11 +7666,13 @@ CollapseButton.MouseButton1Click:Connect(function()
 Arrow.ImageRectOffset = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
 Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
                     task.defer(function()
-                        if IsOpen then
-                            GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-                        else
-                            GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-                        end
+                    if IsOpen then
+                        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                        RunService.RenderStepped:Wait()
+                        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                    else
+                        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+                    end
                     end)
                 end)
             end
