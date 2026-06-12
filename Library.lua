@@ -9046,7 +9046,7 @@ end)
     local BgImage = Instance.new("ImageLabel")
     BgImage.BackgroundTransparency = 1
     BgImage.Size = UDim2.fromScale(1, 1)
-    BgImage.Image = "rbxassetid://118913199973901"
+    BgImage.Image = "rbxassetid://133979285618025"
     BgImage.ScaleType = Enum.ScaleType.Fit
     BgImage.ZIndex = ToggleButton.Button.ZIndex - 1
     BgImage.Parent = ToggleButton.Button
