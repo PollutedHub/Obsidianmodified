@@ -8202,7 +8202,8 @@ function Tab:Show()
 
     TabContainer.Visible = true
     TabContainer.GroupTransparency = 1
-    TweenService:Create(TabContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+
+    TweenService:Create(TabContainer, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         GroupTransparency = 0,
     }):Play()
 
@@ -8228,13 +8229,16 @@ function Tab:Hide()
         }):Play()
     end
 
-    local FadeOut = TweenService:Create(TabContainer, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+    local ThisContainer = TabContainer
+    local FadeOut = TweenService:Create(ThisContainer, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
         GroupTransparency = 1,
     })
     FadeOut:Play()
-    FadeOut.Completed:Connect(function()
-        TabContainer.Visible = false
-        TabContainer.GroupTransparency = 0
+    FadeOut.Completed:Connect(function(playbackState)
+        if playbackState == Enum.PlaybackState.Completed then
+            ThisContainer.Visible = false
+            ThisContainer.GroupTransparency = 0
+        end
     end)
 
     Window:HideTabInfo()
