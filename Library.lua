@@ -1017,11 +1017,14 @@ function Library:SetDPIScale(DPIScale: number)
         UIScale.Scale = Library.DPIScale - (tonumber(Library.ScalesOffset[UIScale]) or 0)
     end
 
-    for _, Option in Options do
-        if Option.Type == "Dropdown" then
-            Option:RecalculateListSize()
+for _, Option in Options do
+    if Option.Type == "Dropdown" then
+        if Option.Menu and Option.Menu.Active then
+            Option.Menu:Close()
         end
+        Option:RecalculateListSize()
     end
+end
 
     for _, Notification in Library.Notifications do
         Notification:Resize()
@@ -6912,19 +6915,17 @@ local StatusCircle = New("Frame", {
             Parent = StatusCircle,
         })
 
-local StatusGlow = New("Frame", {
+        local StatusGlow = New("ImageLabel", {
             AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = Color3.fromRGB(0, 255, 100),
-            BackgroundTransparency = 0.6,
+            BackgroundTransparency = 1,
             Position = UDim2.fromScale(0.5, 0.5),
-            Size = UDim2.fromOffset(22, 22),
+            Size = UDim2.fromOffset(28, 28),
+            Image = "rbxasset://textures/ui/Animation/icon_radial_outline.png", -- soft round glow texture
+            ImageColor3 = Color3.fromRGB(0, 255, 100),
+            ImageTransparency = 0.5,
             ZIndex = StatusCircle.ZIndex - 1,
             Visible = false,
             Parent = StatusCircle,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
-            Parent = StatusGlow,
         })
 
 local ExecutorName = (identifyexecutor and identifyexecutor())
@@ -6965,31 +6966,33 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
 
 StatusCircle.BackgroundColor3 = CircleColor
         StatusGlow.Visible = true
-        StatusGlow.BackgroundColor3 = CircleColor
+        StatusGlow.ImageColor3 = CircleColor
 
-        task.spawn(function()
-            while StatusGlow and StatusGlow.Parent do
-                TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                    Size = UDim2.fromOffset(13, 13),
-                    BackgroundTransparency = 0.2,
-                }):Play()
-                TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                    BackgroundTransparency = 0.3,
-                    Size = UDim2.fromOffset(30, 30),
-                }):Play()
-                task.wait(0.8)
+        if true then
+            task.spawn(function()
+                while StatusGlow and StatusGlow.Parent do
+                    TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        Size = UDim2.fromOffset(13, 13),
+                        BackgroundTransparency = 0.2,
+                    }):Play()
+                    TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        ImageTransparency = 0.1,
+                        Size = UDim2.fromOffset(34, 34),
+                    }):Play()
+                    task.wait(0.8)
 
-                TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                    Size = UDim2.fromOffset(10, 10),
-                    BackgroundTransparency = 0,
-                }):Play()
-                TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                    BackgroundTransparency = 0.6,
-                    Size = UDim2.fromOffset(22, 22),
-                }):Play()
-                task.wait(0.8)
-            end
-        end)
+                    TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        Size = UDim2.fromOffset(10, 10),
+                        BackgroundTransparency = 0,
+                    }):Play()
+                    TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                        ImageTransparency = 0.5,
+                        Size = UDim2.fromOffset(28, 28),
+                    }):Play()
+                    task.wait(0.8)
+                end
+            end)
+        end
         --// Resize Button
         if WindowInfo.Resizable then
             ResizeButton = New("TextButton", {
@@ -7003,11 +7006,18 @@ StatusCircle.BackgroundColor3 = CircleColor
             })
 
             Library:MakeResizable(MainFrame, ResizeButton, function()
-                for _, Tab in Library.Tabs do
-                    Tab:Resize(true)
-                end
-            end)
+    for _, Tab in Library.Tabs do
+        Tab:Resize(true)
+    end
+    for _, Option in Options do
+        if Option.Type == "Dropdown" then
+            if Option.Menu and Option.Menu.Active then
+                Option.Menu:Close()
+            end
+            Option:RecalculateListSize()
         end
+    end
+end)
 
         New("ImageLabel", {
             Image = ResizeIcon and ResizeIcon.Url or "",
@@ -7704,9 +7714,7 @@ end)
 
 task.defer(function()
     pcall(function()
-        IsOpen = true
-        GroupboxContainer.Visible = true
-        Arrow.Text = "▲"
+        GroupboxContainer.Visible = IsOpen
         Groupbox:Resize()
     end)
 end)
