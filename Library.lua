@@ -1017,11 +1017,14 @@ function Library:SetDPIScale(DPIScale: number)
         UIScale.Scale = Library.DPIScale - (tonumber(Library.ScalesOffset[UIScale]) or 0)
     end
 
-    for _, Option in Options do
-        if Option.Type == "Dropdown" then
-            Option:RecalculateListSize()
+for _, Option in Options do
+    if Option.Type == "Dropdown" then
+        if Option.Menu and Option.Menu.Active then
+            Option.Menu:Close()
         end
+        Option:RecalculateListSize()
     end
+end
 
     for _, Notification in Library.Notifications do
         Notification:Resize()
@@ -7003,11 +7006,18 @@ StatusCircle.BackgroundColor3 = CircleColor
             })
 
             Library:MakeResizable(MainFrame, ResizeButton, function()
-                for _, Tab in Library.Tabs do
-                    Tab:Resize(true)
-                end
-            end)
+    for _, Tab in Library.Tabs do
+        Tab:Resize(true)
+    end
+    for _, Option in Options do
+        if Option.Type == "Dropdown" then
+            if Option.Menu and Option.Menu.Active then
+                Option.Menu:Close()
+            end
+            Option:RecalculateListSize()
         end
+    end
+end)
 
         New("ImageLabel", {
             Image = ResizeIcon and ResizeIcon.Url or "",
@@ -8005,22 +8015,17 @@ end)
             return Tab:AddTabbox({ Side = 2, Name = Name })
         end
 
-function Tab:Hover(Hovering)
+        function Tab:Hover(Hovering)
             if Library.ActiveTab == Tab then
                 return
             end
 
-            TweenService:Create(TabButton, Library.TweenInfo, {
-                BackgroundTransparency = Hovering and 0.5 or 1,
-            }):Play()
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = Hovering and 0.25 or 0.5,
-                TextSize = Hovering and 18 or 16,
             }):Play()
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = Hovering and 0.25 or 0.5,
-                    Size = Hovering and UDim2.fromScale(1.15, 1.15) or UDim2.fromScale(1, 1),
                 }):Play()
             end
         end
