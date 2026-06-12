@@ -6929,7 +6929,7 @@ local StatusCircle = New("Frame", {
         })
 
 local DownloadIcon = Library:GetIcon("download")
-local UpdateIcon = New("ImageLabel", {
+local UpdateButton = New("ImageButton", {
     AnchorPoint = Vector2.new(0, 0.5),
     BackgroundTransparency = 1,
     Position = UDim2.new(0, 24, 0.5, 0),
@@ -6941,7 +6941,16 @@ local UpdateIcon = New("ImageLabel", {
     ZIndex = BottomBar.ZIndex + 1,
     Parent = BottomBar,
 })
+local UpdateIcon = UpdateButton
 
+UpdateButton.MouseButton1Click:Connect(function()
+    if UpdateIcon.ImageColor3 ~= Color3.fromRGB(0, 255, 100) then
+        return
+    end
+
+    Library:Unload()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/PollutedHub/Obsidianmodified/refs/heads/main/Library.lua"))()
+end)
 task.spawn(function()
     while not Library.Unloaded do
         local success, result = pcall(function()
