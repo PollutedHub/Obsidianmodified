@@ -6141,15 +6141,19 @@ function Funcs:AddSection(Name, DefaultOpen)
         Parent = Header,
     })
 
-    local Arrow = New("TextLabel", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -8, 0.5, 0),
-        Size = UDim2.fromOffset(16, 16),
-        Text = IsOpen and "▲" or "▼",
-        TextSize = 10,
-        Parent = Header,
-    })
+local SectionArrowDownIcon = Library:GetIcon("arrow-big-down")
+local SectionArrowUpIcon = Library:GetIcon("arrow-big-up")
+local Arrow = New("ImageLabel", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    Image = SectionArrowUpIcon and SectionArrowUpIcon.Url or "",
+    ImageColor3 = "FontColor",
+    ImageRectOffset = SectionArrowUpIcon and SectionArrowUpIcon.ImageRectOffset or Vector2.zero,
+    ImageRectSize = SectionArrowUpIcon and SectionArrowUpIcon.ImageRectSize or Vector2.zero,
+    Position = UDim2.new(1, -16, 0.5, 0),
+    Size = UDim2.fromOffset(14, 14),
+    Parent = Header,
+})
 
     local ContentHolder = New("Frame", {
         BackgroundTransparency = 1,
@@ -6171,7 +6175,9 @@ function Funcs:AddSection(Name, DefaultOpen)
     Header.MouseButton1Click:Connect(function()
         IsOpen = not IsOpen
         ContentHolder.Visible = IsOpen
-        Arrow.Text = IsOpen and "▲" or "▼"
+        Arrow.Image = IsOpen and (SectionArrowUpIcon and SectionArrowUpIcon.Url or "") or (SectionArrowDownIcon and SectionArrowDownIcon.Url or "")
+Arrow.ImageRectOffset = IsOpen and (SectionArrowUpIcon and SectionArrowUpIcon.ImageRectOffset or Vector2.zero) or (SectionArrowDownIcon and SectionArrowDownIcon.ImageRectOffset or Vector2.zero)
+Arrow.ImageRectSize = IsOpen and (SectionArrowUpIcon and SectionArrowUpIcon.ImageRectSize or Vector2.zero) or (SectionArrowDownIcon and SectionArrowDownIcon.ImageRectSize or Vector2.zero)
         Groupbox:Resize()
     end)
 
@@ -7152,7 +7158,7 @@ function Library:CreateWindow(WindowInfo)
             })
 
             --// Tab Container \\--
-            TabContainer = New("CanvasGroup", {
+            TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 1),
                 Visible = false,
@@ -7512,13 +7518,17 @@ GroupboxHolder = New("Frame", {
 
 local IsOpen = true
 
-local Arrow = New("TextLabel", {
+local ArrowDownIcon = Library:GetIcon("arrow-big-down")
+local ArrowUpIcon = Library:GetIcon("arrow-big-up")
+local Arrow = New("ImageLabel", {
     AnchorPoint = Vector2.new(1, 0.5),
     BackgroundTransparency = 1,
-    Position = UDim2.new(1, -8, 0.5, 0),
-    Size = UDim2.fromOffset(16, 16),
-    Text = "▲",
-    TextSize = 10,
+    Image = ArrowUpIcon and ArrowUpIcon.Url or "",
+    ImageColor3 = "FontColor",
+    ImageRectOffset = ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero,
+    ImageRectSize = ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero,
+    Position = UDim2.new(1, -16, 0.5, 0),
+    Size = UDim2.fromOffset(14, 14),
     ZIndex = GroupboxHolder.ZIndex + 1,
     Parent = GroupboxLabel,
 })
@@ -7556,7 +7566,9 @@ New("UIPadding", {
 CollapseButton.MouseButton1Click:Connect(function()
                     IsOpen = not IsOpen
                     GroupboxContainer.Visible = IsOpen
-                    Arrow.Text = IsOpen and "▲" or "▼"
+                    Arrow.Image = IsOpen and (ArrowUpIcon and ArrowUpIcon.Url or "") or (ArrowDownIcon and ArrowDownIcon.Url or "")
+Arrow.ImageRectOffset = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
+Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
                     task.defer(function()
                         if IsOpen then
                             GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
@@ -8179,72 +8191,56 @@ end)
             end
         end
 
-function Tab:Show()
-    if Library.ActiveTab then
-        Library.ActiveTab:Hide()
-    end
+        function Tab:Show()
+            if Library.ActiveTab then
+                Library.ActiveTab:Hide()
+            end
 
-    TweenService:Create(TabButton, Library.TweenInfo, {
-        BackgroundTransparency = 0,
-    }):Play()
-    TweenService:Create(TabLabel, Library.TweenInfo, {
-        TextTransparency = 0,
-    }):Play()
-    if TabIcon then
-        TweenService:Create(TabIcon, Library.TweenInfo, {
-            ImageTransparency = 0,
-        }):Play()
-    end
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = 0,
+            }):Play()
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = 0,
+            }):Play()
+            if TabIcon then
+                TweenService:Create(TabIcon, Library.TweenInfo, {
+                    ImageTransparency = 0,
+                }):Play()
+            end
+            TabContainer.Visible = true
 
-    if Description then
-        Window:ShowTabInfo(Name, Description)
-    end
+            if Description then
+                Window:ShowTabInfo(Name, Description)
+            end
 
-    TabContainer.Visible = true
-    TabContainer.GroupTransparency = 1
+            Tab:RefreshSides()
 
-    TweenService:Create(TabContainer, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        GroupTransparency = 0,
-    }):Play()
+            Library.ActiveTab = Tab
 
-    Tab:RefreshSides()
-
-    Library.ActiveTab = Tab
-
-    if Library.Searching then
-        Library:UpdateSearch(Library.SearchText)
-    end
-end
-
-function Tab:Hide()
-    TweenService:Create(TabButton, Library.TweenInfo, {
-        BackgroundTransparency = 1,
-    }):Play()
-    TweenService:Create(TabLabel, Library.TweenInfo, {
-        TextTransparency = 0.5,
-    }):Play()
-    if TabIcon then
-        TweenService:Create(TabIcon, Library.TweenInfo, {
-            ImageTransparency = 0.5,
-        }):Play()
-    end
-
-    local ThisContainer = TabContainer
-    local FadeOut = TweenService:Create(ThisContainer, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        GroupTransparency = 1,
-    })
-    FadeOut:Play()
-    FadeOut.Completed:Connect(function(playbackState)
-        if playbackState == Enum.PlaybackState.Completed then
-            ThisContainer.Visible = false
-            ThisContainer.GroupTransparency = 0
+            if Library.Searching then
+                Library:UpdateSearch(Library.SearchText)
+            end
         end
-    end)
 
-    Window:HideTabInfo()
+        function Tab:Hide()
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = 1,
+            }):Play()
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = 0.5,
+            }):Play()
+            if TabIcon then
+                TweenService:Create(TabIcon, Library.TweenInfo, {
+                    ImageTransparency = 0.5,
+                }):Play()
+            end
+            TabContainer.Visible = false
 
-    Library.ActiveTab = nil
-end
+            Window:HideTabInfo()
+
+            Library.ActiveTab = nil
+        end
+
         function Tab:SetVisible(Visible: boolean)
             TabButton.Visible = Visible
 
