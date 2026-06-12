@@ -8005,17 +8005,22 @@ end)
             return Tab:AddTabbox({ Side = 2, Name = Name })
         end
 
-        function Tab:Hover(Hovering)
+function Tab:Hover(Hovering)
             if Library.ActiveTab == Tab then
                 return
             end
 
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = Hovering and 0.5 or 1,
+            }):Play()
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = Hovering and 0.25 or 0.5,
+                TextSize = Hovering and 18 or 16,
             }):Play()
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = Hovering and 0.25 or 0.5,
+                    Size = Hovering and UDim2.fromScale(1.15, 1.15) or UDim2.fromScale(1, 1),
                 }):Play()
             end
         end
