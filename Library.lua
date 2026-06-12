@@ -6898,7 +6898,7 @@ function Library:CreateWindow(WindowInfo)
             Parent = BottomBar,
         })
 
-local LocalVersion = "1.0.1"
+local LocalVersion = "1.0.3"
 
 
         -- Status Circle
