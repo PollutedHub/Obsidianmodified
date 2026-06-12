@@ -9035,31 +9035,31 @@ end)
         task.spawn(Library.Toggle)
     end
 
-    if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
-            Library:Toggle()
-        end, true, true)
+   if Library.IsMobile then
+    local ToggleButton = Library:AddDraggableButton("", function()
+        Library:Toggle()
+    end, true, true)
 
-        local LockButton = Library:AddDraggableButton("Lock", function(self)
-            Library.CantDragForced = not Library.CantDragForced
-            self:SetText(Library.CantDragForced and "Unlock" or "Lock")
-        end, true, true)
+    ToggleButton.Button.Size = UDim2.fromOffset(40, 40)
+    ToggleButton.Button.Text = ""
 
-        if WindowInfo.MobileButtonsSide == "Right" then
-            ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
-            ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
+    local BgImage = Instance.new("ImageLabel")
+    BgImage.BackgroundTransparency = 1
+    BgImage.Size = UDim2.fromScale(1, 1)
+    BgImage.Image = "rbxassetid://118913199973901"
+    BgImage.ScaleType = Enum.ScaleType.Fit
+    BgImage.ZIndex = ToggleButton.Button.ZIndex - 1
+    BgImage.Parent = ToggleButton.Button
 
-            LockButton.Button.Position = UDim2.new(1, -6, 0, 46)
-            LockButton.Button.AnchorPoint = Vector2.new(1, 0)
-        else
-            LockButton.Button.Position = UDim2.fromOffset(6, 46)
-        end
-
-        if WindowInfo.ShowMobileButtons == false then
-            ToggleButton.Button.Visible = false
-            LockButton.Button.Visible = false
-        end
+    if WindowInfo.MobileButtonsSide == "Right" then
+        ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
+        ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
     end
+
+    if WindowInfo.ShowMobileButtons == false then
+        ToggleButton.Button.Visible = false
+    end
+end
 
     --// Execution \\--
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
