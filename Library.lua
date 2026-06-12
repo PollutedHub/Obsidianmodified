@@ -2123,7 +2123,7 @@ function Library:SetIconModule(module: IconModule)
 
     -- Top ten fixes 🚀
     CheckIcon = Library:GetIcon("check")
-    ArrowIcon = Library:GetIcon("chevron-up")
+    ArrowIcon = Library:GetIcon("")
     ResizeIcon = Library:GetIcon("move-diagonal-2")
     KeyIcon = Library:GetIcon("key")
     MoveIcon = Library:GetIcon("move")
