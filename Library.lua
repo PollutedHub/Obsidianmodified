@@ -7034,6 +7034,135 @@ StatusCircle.BackgroundColor3 = CircleColor
             Parent = Tabs,
         })
 
+local TabEntries = {}
+local TabDragState = { Active = false, Button = nil }
+
+local function RefreshLayoutOrders()
+    for i, entry in ipairs(TabEntries) do
+        entry.button.LayoutOrder = i
+    end
+end
+
+local function GetInsertIndex(mouseY)
+    local best = #TabEntries
+    for i, entry in ipairs(TabEntries) do
+        local mid = entry.button.AbsolutePosition.Y + entry.button.AbsoluteSize.Y * 0.5
+        if mouseY < mid then
+            best = i - 1
+            break
+        end
+    end
+    return math.clamp(best, 1, math.max(1, #TabEntries))
+end
+
+local InsertLine = New("Frame", {
+    BackgroundColor3 = "AccentColor",
+    BorderSizePixel = 0,
+    Size = UDim2.new(1, -8, 0, 2),
+    Position = UDim2.fromOffset(4, 0),
+    Visible = false,
+    ZIndex = 20,
+    Parent = Tabs,
+})
+
+local DragHighlight = New("Frame", {
+    BackgroundColor3 = "AccentColor",
+    BackgroundTransparency = 0.75,
+    BorderSizePixel = 0,
+    Size = UDim2.fromScale(1, 1),
+    Visible = false,
+    ZIndex = 19,
+    Parent = Tabs,
+})
+table.insert(Library.Corners, New("UICorner", {
+    CornerRadius = UDim.new(0, Library.CornerRadius),
+    Parent = DragHighlight,
+}))
+
+local function StopDrag()
+    if not TabDragState.Active then return end
+    DragHighlight.Visible = false
+    InsertLine.Visible = false
+    TabDragState.Active = false
+    TabDragState.Button = nil
+end
+
+local function UpdateDrag(mouseY)
+    if not TabDragState.Active then return end
+    local dragBtn = TabDragState.Button
+    local from
+    for i, entry in ipairs(TabEntries) do
+        if entry.button == dragBtn then from = i break end
+    end
+    if not from then return end
+
+    local idx = GetInsertIndex(mouseY)
+    if from ~= idx then
+        local entry = table.remove(TabEntries, from)
+        table.insert(TabEntries, idx, entry)
+        RefreshLayoutOrders()
+    end
+
+    local refBtn = TabEntries[idx] and TabEntries[idx].button
+    if refBtn then
+        local relY = refBtn.AbsolutePosition.Y - Tabs.AbsolutePosition.Y + Tabs.CanvasPosition.Y
+        InsertLine.Position = UDim2.fromOffset(4, relY - 1)
+    end
+end
+
+local function RegisterTabButton(button, tab)
+    table.insert(TabEntries, { button = button, tab = tab })
+    button.LayoutOrder = #TabEntries
+
+    Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
+        if Library.Unloaded or not TabDragState.Active or TabDragState.Button ~= button then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+        UpdateDrag(input.Position.Y)
+    end))
+
+    Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
+        if Library.Unloaded or not TabDragState.Active or TabDragState.Button ~= button then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        StopDrag()
+    end))
+
+    local holdTimer = nil
+    local dragging = false
+
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then return end
+
+        dragging = false
+        holdTimer = task.delay(2, function()
+            holdTimer = nil
+            dragging = true
+            TabDragState.Active = true
+            TabDragState.Button = button
+            DragHighlight.Size = UDim2.fromScale(1, 1)
+            DragHighlight.Parent = button
+            DragHighlight.Visible = true
+            InsertLine.Visible = true
+        end)
+
+        local movedConn, endedConn
+        movedConn = input:GetPropertyChangedSignal("Position"):Connect(function()
+            if dragging then UpdateDrag(input.Position.Y) end
+        end)
+        endedConn = input.Changed:Connect(function()
+            if input.UserInputState ~= Enum.UserInputState.End then return end
+            if holdTimer then task.cancel(holdTimer) holdTimer = nil end
+            movedConn:Disconnect()
+            endedConn:Disconnect()
+            if dragging then
+                dragging = false
+                StopDrag()
+            end
+        end)
+    end)
+end
+
         --// Container \\--
         Container = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
@@ -8005,17 +8134,22 @@ end)
             return Tab:AddTabbox({ Side = 2, Name = Name })
         end
 
-        function Tab:Hover(Hovering)
+function Tab:Hover(Hovering)
             if Library.ActiveTab == Tab then
                 return
             end
 
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = Hovering and 0.5 or 1,
+            }):Play()
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = Hovering and 0.25 or 0.5,
+                TextSize = Hovering and 18 or 16,
             }):Play()
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = Hovering and 0.25 or 0.5,
+                    Size = Hovering and UDim2.fromScale(1.15, 1.15) or UDim2.fromScale(1, 1),
                 }):Play()
             end
         end
@@ -8090,6 +8224,8 @@ end)
             Tab:Hover(false)
         end)
         TabButton.MouseButton1Click:Connect(Tab.Show)
+RegisterTabButton(TabButton, Tab)
+
 
         Library.Tabs[Name] = Tab
 
@@ -8355,6 +8491,8 @@ end)
             Tab:Hover(false)
         end)
         TabButton.MouseButton1Click:Connect(Tab.Show)
+RegisterTabButton(TabButton, Tab)
+
 
         Tab.Container = TabContainer
         setmetatable(Tab, BaseGroupbox)
