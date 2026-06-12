@@ -8222,11 +8222,19 @@ function Tab:Hover(Hovering)
             end
         end
 
-        --// Execution \\--
+--// Execution \\--
         if not Library.ActiveTab then
             Tab:Show()
         end
 
+        TabButton.MouseEnter:Connect(function()
+            Tab:Hover(true)
+        end)
+        TabButton.MouseLeave:Connect(function()
+            Tab:Hover(false)
+        end)
+        TabButton.MouseButton1Click:Connect(Tab.Show)
+        RegisterTabButton(TabButton, Tab)
         TabButton.MouseEnter:Connect(function()
             Tab:Hover(true)
         end)
