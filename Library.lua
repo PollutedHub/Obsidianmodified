@@ -1007,7 +1007,7 @@ function Library:UpdateColorsUsingRegistry()
 end
 
 function Library:SetDPIScale(DPIScale: number)
-    Library.DPIScale = DPIScale / 100
+    Library.DPIScale = DPIScale / 70
     Library.MinSize = Library.OriginalMinSize * Library.DPIScale
 
 	for _, UIScale in Library.Scales do
@@ -2123,7 +2123,7 @@ function Library:SetIconModule(module: IconModule)
 
     -- Top ten fixes 🚀
     CheckIcon = Library:GetIcon("check")
-    ArrowIcon = Library:GetIcon("")
+    ArrowIcon = Library:GetIcon("chevron-up")
     ResizeIcon = Library:GetIcon("move-diagonal-2")
     KeyIcon = Library:GetIcon("key")
     MoveIcon = Library:GetIcon("move")
