@@ -6898,6 +6898,9 @@ function Library:CreateWindow(WindowInfo)
             Parent = BottomBar,
         })
 
+local LocalVersion = "1.0.0"
+
+
         -- Status Circle
 local StatusCircle = New("Frame", {
             AnchorPoint = Vector2.new(0, 0.5),
@@ -6924,6 +6927,37 @@ local StatusCircle = New("Frame", {
             Visible = false,
             Parent = StatusCircle,
         })
+
+local DownloadIcon = Library:GetIcon("download")
+local UpdateIcon = New("ImageLabel", {
+    AnchorPoint = Vector2.new(0, 0.5),
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 24, 0.5, 0),
+    Size = UDim2.fromOffset(14, 14),
+    Image = DownloadIcon and DownloadIcon.Url or "",
+    ImageColor3 = Color3.fromRGB(100, 100, 100),
+    ImageRectOffset = DownloadIcon and DownloadIcon.ImageRectOffset or Vector2.zero,
+    ImageRectSize = DownloadIcon and DownloadIcon.ImageRectSize or Vector2.zero,
+    ZIndex = BottomBar.ZIndex + 1,
+    Parent = BottomBar,
+})
+
+task.spawn(function()
+    local success, result = pcall(function()
+        return game:HttpGet("https://raw.githubusercontent.com/PollutedHub/Obsidianmodified/main/version.txt")
+    end)
+
+    if success and result then
+        local remoteVersion = result:gsub("%s+", "")
+        if remoteVersion == LocalVersion then
+            UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
+        else
+            UpdateIcon.ImageColor3 = Color3.fromRGB(255, 165, 0)
+        end
+    else
+        UpdateIcon.ImageColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end)
 
 local ExecutorName = (identifyexecutor and identifyexecutor())
             or (getexecutorname and getexecutorname())
