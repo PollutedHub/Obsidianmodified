@@ -6885,6 +6885,7 @@ function Library:CreateWindow(WindowInfo)
         )
 
         --// Footer
+--// Footer
         FooterLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
@@ -6893,6 +6894,44 @@ function Library:CreateWindow(WindowInfo)
             TextTransparency = 0.5,
             Parent = BottomBar,
         })
+
+        -- Status Circle
+        local StatusCircle = New("Frame", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(0, 255, 100),
+            Position = UDim2.new(0, 8, 0.5, 0),
+            Size = UDim2.fromOffset(10, 10),
+            ZIndex = BottomBar.ZIndex + 1,
+            Parent = BottomBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = StatusCircle,
+        })
+
+        local ExecutorName = (identifyexecutor and identifyexecutor())
+            or (getexecutorname and getexecutorname())
+            or ""
+        ExecutorName = ExecutorName:lower()
+
+        local OrangeExecutors = {"xeno", "solara"}
+        local RedExecutors = {"jjsploit"}
+
+        local CircleColor = Color3.fromRGB(0, 255, 100)
+        for _, Name in OrangeExecutors do
+            if ExecutorName:match(Name) then
+                CircleColor = Color3.fromRGB(255, 165, 0)
+                break
+            end
+        end
+        for _, Name in RedExecutors do
+            if ExecutorName:match(Name) then
+                CircleColor = Color3.fromRGB(255, 50, 50)
+                break
+            end
+        end
+
+        StatusCircle.BackgroundColor3 = CircleColor
 
         --// Resize Button
         if WindowInfo.Resizable then
