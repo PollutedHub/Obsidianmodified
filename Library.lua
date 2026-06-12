@@ -7695,7 +7695,7 @@ function Groupbox:Resize()
 end
 
 GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    if IsOpen then
+    if IsOpen and GroupboxContainer.Visible then
         GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
     end
 end)
