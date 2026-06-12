@@ -6961,11 +6961,12 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
             end
         end
 
-StatusCircle.BackgroundColor3 = CircleColor
-        StatusGlow.Visible = true
-        StatusGlow.ImageColor3 = CircleColor
+        StatusCircle.BackgroundColor3 = CircleColor
 
-        if true then
+        if IsGreen then
+            StatusGlow.Visible = true
+            StatusGlow.ImageColor3 = CircleColor
+
             task.spawn(function()
                 while StatusGlow and StatusGlow.Parent do
                     TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
