@@ -7020,7 +7020,7 @@ StatusCircle.BackgroundColor3 = CircleColor
             Parent = ResizeButton,
         })
 
-        --// Tabs \\--
+      --// Tabs \\--
         Tabs = New("ScrollingFrame", {
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = "BackgroundColor",
@@ -7033,6 +7033,7 @@ StatusCircle.BackgroundColor3 = CircleColor
         New("UIListLayout", {
             Parent = Tabs,
         })
+    end
 
 local TabEntries = {}
 local TabDragState = { Active = false, Button = nil }
@@ -7181,7 +7182,6 @@ end
             PaddingTop = UDim.new(0, 0),
             Parent = Container,
         })
-    end
 
     --// Window Table \\--
     local Window = {}
