@@ -7152,7 +7152,7 @@ function Library:CreateWindow(WindowInfo)
             })
 
             --// Tab Container \\--
-            TabContainer = New("Frame", {
+            TabContainer = New("CanvasGroup", {
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 1),
                 Visible = false,
@@ -8179,56 +8179,68 @@ end)
             end
         end
 
-        function Tab:Show()
-            if Library.ActiveTab then
-                Library.ActiveTab:Hide()
-            end
+function Tab:Show()
+    if Library.ActiveTab then
+        Library.ActiveTab:Hide()
+    end
 
-            TweenService:Create(TabButton, Library.TweenInfo, {
-                BackgroundTransparency = 0,
-            }):Play()
-            TweenService:Create(TabLabel, Library.TweenInfo, {
-                TextTransparency = 0,
-            }):Play()
-            if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0,
-                }):Play()
-            end
-            TabContainer.Visible = true
+    TweenService:Create(TabButton, Library.TweenInfo, {
+        BackgroundTransparency = 0,
+    }):Play()
+    TweenService:Create(TabLabel, Library.TweenInfo, {
+        TextTransparency = 0,
+    }):Play()
+    if TabIcon then
+        TweenService:Create(TabIcon, Library.TweenInfo, {
+            ImageTransparency = 0,
+        }):Play()
+    end
 
-            if Description then
-                Window:ShowTabInfo(Name, Description)
-            end
+    if Description then
+        Window:ShowTabInfo(Name, Description)
+    end
 
-            Tab:RefreshSides()
+    TabContainer.Visible = true
+    TabContainer.GroupTransparency = 1
+    TweenService:Create(TabContainer, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        GroupTransparency = 0,
+    }):Play()
 
-            Library.ActiveTab = Tab
+    Tab:RefreshSides()
 
-            if Library.Searching then
-                Library:UpdateSearch(Library.SearchText)
-            end
-        end
+    Library.ActiveTab = Tab
 
-        function Tab:Hide()
-            TweenService:Create(TabButton, Library.TweenInfo, {
-                BackgroundTransparency = 1,
-            }):Play()
-            TweenService:Create(TabLabel, Library.TweenInfo, {
-                TextTransparency = 0.5,
-            }):Play()
-            if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0.5,
-                }):Play()
-            end
-            TabContainer.Visible = false
+    if Library.Searching then
+        Library:UpdateSearch(Library.SearchText)
+    end
+end
 
-            Window:HideTabInfo()
+function Tab:Hide()
+    TweenService:Create(TabButton, Library.TweenInfo, {
+        BackgroundTransparency = 1,
+    }):Play()
+    TweenService:Create(TabLabel, Library.TweenInfo, {
+        TextTransparency = 0.5,
+    }):Play()
+    if TabIcon then
+        TweenService:Create(TabIcon, Library.TweenInfo, {
+            ImageTransparency = 0.5,
+        }):Play()
+    end
 
-            Library.ActiveTab = nil
-        end
+    local FadeOut = TweenService:Create(TabContainer, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        GroupTransparency = 1,
+    })
+    FadeOut:Play()
+    FadeOut.Completed:Connect(function()
+        TabContainer.Visible = false
+        TabContainer.GroupTransparency = 0
+    end)
 
+    Window:HideTabInfo()
+
+    Library.ActiveTab = nil
+end
         function Tab:SetVisible(Visible: boolean)
             TabButton.Visible = Visible
 
