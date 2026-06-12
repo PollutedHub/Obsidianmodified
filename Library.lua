@@ -6949,7 +6949,7 @@ UpdateButton.MouseButton1Click:Connect(function()
     end
 
     Library:Unload()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/PollutedHub/Obsidianmodified/refs/heads/main/Library.lua"))()
+    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/8a5f22ded2e85931357d3479ff77078b.lua"))()
 end)
 task.spawn(function()
     while not Library.Unloaded do
