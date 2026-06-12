@@ -6943,19 +6943,23 @@ local UpdateIcon = New("ImageLabel", {
 })
 
 task.spawn(function()
-    local success, result = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/PollutedHub/Obsidianmodified/main/version.txt")
-    end)
+    while not Library.Unloaded do
+        local success, result = pcall(function()
+            return game:HttpGet("https://raw.githubusercontent.com/PollutedHub/Obsidianmodified/main/version.txt")
+        end)
 
-    if success and result then
-        local remoteVersion = result:gsub("%s+", "")
-        if remoteVersion == LocalVersion then
-            UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
+        if success and result then
+            local remoteVersion = result:gsub("%s+", "")
+            if remoteVersion == LocalVersion then
+                UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
+            else
+                UpdateIcon.ImageColor3 = Color3.fromRGB(255, 165, 0)
+            end
         else
-            UpdateIcon.ImageColor3 = Color3.fromRGB(255, 165, 0)
+            UpdateIcon.ImageColor3 = Color3.fromRGB(255, 50, 50)
         end
-    else
-        UpdateIcon.ImageColor3 = Color3.fromRGB(255, 50, 50)
+
+        task.wait(30)
     end
 end)
 
