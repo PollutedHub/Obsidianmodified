@@ -6912,17 +6912,19 @@ local StatusCircle = New("Frame", {
             Parent = StatusCircle,
         })
 
-        local StatusGlow = New("ImageLabel", {
+local StatusGlow = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundTransparency = 1,
+            BackgroundColor3 = Color3.fromRGB(0, 255, 100),
+            BackgroundTransparency = 0.6,
             Position = UDim2.fromScale(0.5, 0.5),
-            Size = UDim2.fromOffset(28, 28),
-            Image = "rbxasset://textures/ui/Animation/icon_radial_outline.png", -- soft round glow texture
-            ImageColor3 = Color3.fromRGB(0, 255, 100),
-            ImageTransparency = 0.5,
+            Size = UDim2.fromOffset(22, 22),
             ZIndex = StatusCircle.ZIndex - 1,
             Visible = false,
             Parent = StatusCircle,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = StatusGlow,
         })
 
 local ExecutorName = (identifyexecutor and identifyexecutor())
@@ -6963,33 +6965,31 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
 
 StatusCircle.BackgroundColor3 = CircleColor
         StatusGlow.Visible = true
-        StatusGlow.ImageColor3 = CircleColor
+        StatusGlow.BackgroundColor3 = CircleColor
 
-        if true then
-            task.spawn(function()
-                while StatusGlow and StatusGlow.Parent do
-                    TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                        Size = UDim2.fromOffset(13, 13),
-                        BackgroundTransparency = 0.2,
-                    }):Play()
-                    TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                        ImageTransparency = 0.1,
-                        Size = UDim2.fromOffset(34, 34),
-                    }):Play()
-                    task.wait(0.8)
+        task.spawn(function()
+            while StatusGlow and StatusGlow.Parent do
+                TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Size = UDim2.fromOffset(13, 13),
+                    BackgroundTransparency = 0.2,
+                }):Play()
+                TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    BackgroundTransparency = 0.3,
+                    Size = UDim2.fromOffset(30, 30),
+                }):Play()
+                task.wait(0.8)
 
-                    TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                        Size = UDim2.fromOffset(10, 10),
-                        BackgroundTransparency = 0,
-                    }):Play()
-                    TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                        ImageTransparency = 0.5,
-                        Size = UDim2.fromOffset(28, 28),
-                    }):Play()
-                    task.wait(0.8)
-                end
-            end)
-        end
+                TweenService:Create(StatusCircle, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    Size = UDim2.fromOffset(10, 10),
+                    BackgroundTransparency = 0,
+                }):Play()
+                TweenService:Create(StatusGlow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    BackgroundTransparency = 0.6,
+                    Size = UDim2.fromOffset(22, 22),
+                }):Play()
+                task.wait(0.8)
+            end
+        end)
         --// Resize Button
         if WindowInfo.Resizable then
             ResizeButton = New("TextButton", {
