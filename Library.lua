@@ -7558,11 +7558,13 @@ StatusCircle.BackgroundColor3 = CircleColor
                 Parent = BoxHolder,
             })
 
-            local GroupboxHolder
+lua            local GroupboxHolder
             local GroupboxLabel
 
             local GroupboxContainer
             local GroupboxList
+            local IsOpen = true
+            local UpdateCollapseState
 
             do
 GroupboxHolder = New("Frame", {
@@ -7612,8 +7614,6 @@ GroupboxHolder = New("Frame", {
                     Parent = GroupboxLabel,
                 })
 
-local IsOpen = true
-
 local ArrowDownIcon = Library:GetIcon("arrow-big-down")
 local ArrowUpIcon = Library:GetIcon("arrow-big-up")
 local Arrow = New("ImageLabel", {
@@ -7637,44 +7637,44 @@ local CollapseButton = New("TextButton", {
     Parent = GroupboxLabel,
 })
 
-
-
 GroupboxContainer = New("Frame", {
     BackgroundTransparency = 1,
     Position = UDim2.fromOffset(0, 35),
     Size = UDim2.new(1, 0, 1, -35),
-    Visible = false,
+    Visible = IsOpen,
     Parent = GroupboxHolder,
 })
 
-                GroupboxList = New("UIListLayout", {
-                    Padding = UDim.new(0, 8),
-                    Parent = GroupboxContainer,
-                })
+GroupboxList = New("UIListLayout", {
+    Padding = UDim.new(0, 8),
+    Parent = GroupboxContainer,
+})
 New("UIPadding", {
-                    PaddingBottom = UDim.new(0, 7),
-                    PaddingLeft = UDim.new(0, 7),
-                    PaddingRight = UDim.new(0, 7),
-                    PaddingTop = UDim.new(0, 7),
-                    Parent = GroupboxContainer,
-                })
+    PaddingBottom = UDim.new(0, 7),
+    PaddingLeft = UDim.new(0, 7),
+    PaddingRight = UDim.new(0, 7),
+    PaddingTop = UDim.new(0, 7),
+    Parent = GroupboxContainer,
+})
+
+function UpdateCollapseState()
+    GroupboxContainer.Visible = IsOpen
+
+    Arrow.Image = IsOpen and (ArrowUpIcon and ArrowUpIcon.Url or "") or (ArrowDownIcon and ArrowDownIcon.Url or "")
+    Arrow.ImageRectOffset = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
+    Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
+
+    if IsOpen then
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+    else
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+    end
+end
 
 CollapseButton.MouseButton1Click:Connect(function()
-                    IsOpen = not IsOpen
-                    GroupboxContainer.Visible = IsOpen
-                    Arrow.Image = IsOpen and (ArrowUpIcon and ArrowUpIcon.Url or "") or (ArrowDownIcon and ArrowDownIcon.Url or "")
-Arrow.ImageRectOffset = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
-Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
-                    task.defer(function()
-                    if IsOpen then
-                        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-                        RunService.RenderStepped:Wait()
-                        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-                    else
-                        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-                    end
-                    end)
-                end)
+    IsOpen = not IsOpen
+    UpdateCollapseState()
+end)
             end
 
             local Groupbox = {
@@ -7688,28 +7688,17 @@ Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or V
             }
 
 function Groupbox:Resize()
-    if IsOpen then
-        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-    else
-        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-    end
+    UpdateCollapseState()
 end
 
 GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     if IsOpen then
-        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+        UpdateCollapseState()
     end
 end)
 
-
                 setmetatable(Groupbox, BaseGroupbox)
 
-task.defer(function()
-    pcall(function()
-        GroupboxContainer.Visible = IsOpen
-        Groupbox:Resize()
-    end)
-end)
                 Tab.Groupboxes[Info.Name] = Groupbox
 
             return Groupbox
