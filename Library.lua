@@ -7708,6 +7708,7 @@ task.defer(function()
         IsOpen = true
         GroupboxContainer.Visible = true
         Arrow.Text = "▲"
+        task.wait()
         Groupbox:Resize()
     end)
 end)
