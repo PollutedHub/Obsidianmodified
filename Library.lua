@@ -6920,7 +6920,7 @@ local StatusCircle = New("Frame", {
             Image = "rbxasset://textures/ui/Animation/icon_radial_outline.png", -- soft round glow texture
             ImageColor3 = Color3.fromRGB(0, 255, 100),
             ImageTransparency = 0.5,
-            ZIndex = BottomBar.ZIndex,
+            ZIndex = StatusCircle.ZIndex - 1,
             Visible = false,
             Parent = StatusCircle,
         })
