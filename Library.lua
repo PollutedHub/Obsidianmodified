@@ -9041,6 +9041,7 @@ end)
     end, true, true)
 
     ToggleButton.Button.Size = UDim2.fromOffset(40, 40)
+	ToggleButton.Button.BackgroundTransparency = 1
     ToggleButton.Button.Text = ""
 
     local BgImage = Instance.new("ImageLabel")
