@@ -7704,9 +7704,7 @@ end)
 
 task.defer(function()
     pcall(function()
-        IsOpen = true
-        GroupboxContainer.Visible = true
-        Arrow.Text = "▲"
+        GroupboxContainer.Visible = IsOpen
         Groupbox:Resize()
     end)
 end)
