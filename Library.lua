@@ -6541,6 +6541,16 @@ function Library:Notify(...)
 end
 
 function Library:CreateWindow(WindowInfo)
+local TabEntries
+    local TabDragState
+    local RefreshLayoutOrders
+    local GetInsertIndex
+    local InsertLine
+    local DragHighlight
+    local StopDrag
+    local UpdateDrag
+    local RegisterTabButton
+
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
     if RunService:IsStudio() and ViewportSize.X <= 5 and ViewportSize.Y <= 5 then
@@ -7035,16 +7045,16 @@ StatusCircle.BackgroundColor3 = CircleColor
         })
     end
 
-local TabEntries = {}
-local TabDragState = { Active = false, Button = nil }
+TabEntries = {}
+TabDragState = { Active = false, Button = nil }
 
-local function RefreshLayoutOrders()
+function RefreshLayoutOrders()
     for i, entry in ipairs(TabEntries) do
         entry.button.LayoutOrder = i
     end
 end
 
-local function GetInsertIndex(mouseY)
+function GetInsertIndex(mouseY)
     local best = #TabEntries
     for i, entry in ipairs(TabEntries) do
         local mid = entry.button.AbsolutePosition.Y + entry.button.AbsoluteSize.Y * 0.5
@@ -7056,7 +7066,7 @@ local function GetInsertIndex(mouseY)
     return math.clamp(best, 1, math.max(1, #TabEntries))
 end
 
-local InsertLine = New("Frame", {
+InsertLine = New("Frame", {
     BackgroundColor3 = "AccentColor",
     BorderSizePixel = 0,
     Size = UDim2.new(1, -8, 0, 2),
@@ -7066,7 +7076,7 @@ local InsertLine = New("Frame", {
     Parent = Tabs,
 })
 
-local DragHighlight = New("Frame", {
+DragHighlight = New("Frame", {
     BackgroundColor3 = "AccentColor",
     BackgroundTransparency = 0.75,
     BorderSizePixel = 0,
@@ -7080,7 +7090,7 @@ table.insert(Library.Corners, New("UICorner", {
     Parent = DragHighlight,
 }))
 
-local function StopDrag()
+function StopDrag()
     if not TabDragState.Active then return end
     DragHighlight.Visible = false
     InsertLine.Visible = false
@@ -7088,7 +7098,7 @@ local function StopDrag()
     TabDragState.Button = nil
 end
 
-local function UpdateDrag(mouseY)
+function UpdateDrag(mouseY)
     if not TabDragState.Active then return end
     local dragBtn = TabDragState.Button
     local from
@@ -7111,7 +7121,7 @@ local function UpdateDrag(mouseY)
     end
 end
 
-local function RegisterTabButton(button, tab)
+function RegisterTabButton(button, tab)
     table.insert(TabEntries, { button = button, tab = tab })
     button.LayoutOrder = #TabEntries
 
@@ -8212,11 +8222,19 @@ function Tab:Hover(Hovering)
             end
         end
 
-        --// Execution \\--
+--// Execution \\--
         if not Library.ActiveTab then
             Tab:Show()
         end
 
+        TabButton.MouseEnter:Connect(function()
+            Tab:Hover(true)
+        end)
+        TabButton.MouseLeave:Connect(function()
+            Tab:Hover(false)
+        end)
+        TabButton.MouseButton1Click:Connect(Tab.Show)
+        RegisterTabButton(TabButton, Tab)
         TabButton.MouseEnter:Connect(function()
             Tab:Hover(true)
         end)
