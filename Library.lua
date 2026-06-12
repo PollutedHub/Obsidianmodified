@@ -1017,14 +1017,11 @@ function Library:SetDPIScale(DPIScale: number)
         UIScale.Scale = Library.DPIScale - (tonumber(Library.ScalesOffset[UIScale]) or 0)
     end
 
-for _, Option in Options do
-    if Option.Type == "Dropdown" then
-        if Option.Menu and Option.Menu.Active then
-            Option.Menu:Close()
+    for _, Option in Options do
+        if Option.Type == "Dropdown" then
+            Option:RecalculateListSize()
         end
-        Option:RecalculateListSize()
     end
-end
 
     for _, Notification in Library.Notifications do
         Notification:Resize()
@@ -7006,18 +7003,11 @@ StatusCircle.BackgroundColor3 = CircleColor
             })
 
             Library:MakeResizable(MainFrame, ResizeButton, function()
-    for _, Tab in Library.Tabs do
-        Tab:Resize(true)
-    end
-    for _, Option in Options do
-        if Option.Type == "Dropdown" then
-            if Option.Menu and Option.Menu.Active then
-                Option.Menu:Close()
-            end
-            Option:RecalculateListSize()
+                for _, Tab in Library.Tabs do
+                    Tab:Resize(true)
+                end
+            end)
         end
-    end
-end)
 
         New("ImageLabel", {
             Image = ResizeIcon and ResizeIcon.Url or "",
@@ -7714,7 +7704,9 @@ end)
 
 task.defer(function()
     pcall(function()
-        GroupboxContainer.Visible = IsOpen
+        IsOpen = true
+        GroupboxContainer.Visible = true
+        Arrow.Text = "▲"
         Groupbox:Resize()
     end)
 end)
