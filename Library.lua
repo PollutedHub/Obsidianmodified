@@ -6950,11 +6950,11 @@ task.spawn(function()
 
         if success and result then
             local remoteVersion = result:gsub("%s+", "")
-            if remoteVersion == LocalVersion then
-                UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
-            else
-                UpdateIcon.ImageColor3 = Color3.fromRGB(255, 165, 0)
-            end
+if remoteVersion == LocalVersion then
+    UpdateIcon.ImageColor3 = Color3.fromRGB(100, 100, 100)
+else
+    UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
+end
         else
             UpdateIcon.ImageColor3 = Color3.fromRGB(255, 50, 50)
         end
