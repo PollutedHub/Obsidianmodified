@@ -6929,6 +6929,7 @@ local StatusCircle = New("Frame", {
         })
 
 local DownloadIcon = Library:GetIcon("download")
+
 local UpdateButton = New("ImageButton", {
     AnchorPoint = Vector2.new(0, 0.5),
     BackgroundTransparency = 1,
@@ -6941,7 +6942,9 @@ local UpdateButton = New("ImageButton", {
     ZIndex = BottomBar.ZIndex + 1,
     Parent = BottomBar,
 })
+
 local UpdateIcon = UpdateButton
+local LastNotifiedVersion
 
 UpdateButton.MouseButton1Click:Connect(function()
     if UpdateIcon.ImageColor3 ~= Color3.fromRGB(0, 255, 100) then
@@ -6951,6 +6954,7 @@ UpdateButton.MouseButton1Click:Connect(function()
     Library:Unload()
     loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/8a5f22ded2e85931357d3479ff77078b.lua"))()
 end)
+
 task.spawn(function()
     while not Library.Unloaded do
         local success, result = pcall(function()
@@ -6959,18 +6963,26 @@ task.spawn(function()
 
         if success and result then
             local remoteVersion = result:gsub("%s+", "")
-print("Local:", LocalVersion)
-print("Remote:", remoteVersion)
-if remoteVersion == LocalVersion then
-    UpdateIcon.ImageColor3 = Color3.fromRGB(100, 100, 100)
-else
-    UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
-end
+
+            if remoteVersion == LocalVersion then
+                UpdateIcon.ImageColor3 = Color3.fromRGB(100, 100, 100)
+            else
+                UpdateIcon.ImageColor3 = Color3.fromRGB(0, 255, 100)
+
+                if LastNotifiedVersion ~= remoteVersion then
+                    LastNotifiedVersion = remoteVersion
+
+                    Library:Notify(
+                        "UI Update Found Version: " .. remoteVersion,
+                        10
+                    )
+                end
+            end
         else
             UpdateIcon.ImageColor3 = Color3.fromRGB(255, 50, 50)
         end
 
-        task.wait(30)
+        task.wait(5)
     end
 end)
 
