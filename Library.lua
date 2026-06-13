@@ -6607,6 +6607,104 @@ function Library:CreateWindow(WindowInfo)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
+local function SaveTabOrder()
+        if not writefile then return end
+        local Order = {}
+        for _, Button in Tabs:GetChildren() do
+            if Button:IsA("TextButton") and Button.Name ~= "" then
+                Order[Button.Name] = Button.LayoutOrder
+            end
+        end
+        local Success, Err = pcall(writefile, "ObsidianTabOrder.json", game:GetService("HttpService"):JSONEncode(Order))
+        if not Success then
+            warn("Failed to save tab order:", Err)
+        end
+    end
+
+local TabOrderCounter = 0
+        local DraggingTab = nil
+        local DraggingButton = nil
+
+        local function SetupTabDrag(Button)
+TabOrderCounter = TabOrderCounter + 1
+        Button.LayoutOrder = TabOrderCounter
+        Button.Name = "TabButton_" .. TabOrderCounter
+
+            local DragStartY = nil
+            local IsDragging = false
+            local DragThreshold = 6
+
+            Button.InputBegan:Connect(function(Input)
+                if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                    and Input.UserInputType ~= Enum.UserInputType.Touch then
+                    return
+                end
+                DragStartY = Input.Position.Y
+                IsDragging = false
+            end)
+
+           UserInputService.InputChanged:Connect(function(Input)
+                if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
+                    and Input.UserInputType ~= Enum.UserInputType.Touch)
+                    or DragStartY == nil then
+                    return
+                end
+
+                if not IsDragging then
+                    if math.abs(Input.Position.Y - DragStartY) < DragThreshold then
+                        return
+                    end
+                    IsDragging = true
+                    DraggingButton = Button
+                end
+
+                local MouseY = Input.Position.Y
+                for _, OtherButton in Tabs:GetChildren() do
+                    if not OtherButton:IsA("TextButton") or OtherButton == Button then
+                        continue
+                    end
+                    local AbsY = OtherButton.AbsolutePosition.Y
+                    local AbsH = OtherButton.AbsoluteSize.Y
+                    if MouseY >= AbsY and MouseY <= AbsY + AbsH then
+                        local MyOrder = Button.LayoutOrder
+                        Button.LayoutOrder = OtherButton.LayoutOrder
+                        OtherButton.LayoutOrder = MyOrder
+                        break
+                    end
+                end
+            end)
+
+            Button.InputEnded:Connect(function(Input)
+                if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                    and Input.UserInputType ~= Enum.UserInputType.Touch then
+                    return
+                end
+                if IsDragging then
+                    IsDragging = false
+                    DraggingButton = nil
+                    DragStartY = nil
+                    SaveTabOrder()
+                    return
+                end
+                DragStartY = nil
+            end)
+        end
+
+
+
+    local function LoadTabOrder()
+        if not readfile or not isfile then return end
+        local Success, Data = pcall(readfile, "ObsidianTabOrder.json")
+        if not Success or not Data then return end
+        local Success2, Order = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(Data)
+        end)
+        if not Success2 or not Order then return end
+        return Order
+    end
+
+    local SavedTabOrder = LoadTabOrder()
+
     do
         Library.KeybindFrame, Library.KeybindContainer = Library:AddDraggableMenu("Keybinds")
         Library.KeybindFrame.AnchorPoint = Vector2.new(0, 0.5)
@@ -6952,7 +7050,7 @@ UpdateButton.MouseButton1Click:Connect(function()
     end
 
     Library:Unload()
-    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/e8580ba6e94aeaa7aa2486f060167f85.lua"))()
+    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/544f64759db6021216af8ca483bb53c4.lua"))()
 end)
 
 task.spawn(function()
@@ -7095,6 +7193,7 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
         New("UIListLayout", {
             Parent = Tabs,
         })
+
 
         --// Container \\--
         Container = New("Frame", {
@@ -7275,6 +7374,13 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
                 Text = "",
                 Parent = Tabs,
             })
+
+            SetupTabDrag(TabButton)
+
+            if SavedTabOrder and SavedTabOrder[TabButton.Name] then
+                TabButton.LayoutOrder = SavedTabOrder[TabButton.Name]
+            end
+
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
@@ -8194,6 +8300,13 @@ end)
                 Text = "",
                 Parent = Tabs,
             })
+
+            SetupTabDrag(TabButton)
+
+if SavedTabOrder and SavedTabOrder[TabButton.Name] then
+                TabButton.LayoutOrder = SavedTabOrder[TabButton.Name]
+            end
+
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
