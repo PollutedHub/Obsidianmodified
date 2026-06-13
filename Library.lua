@@ -7096,6 +7096,73 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
             Parent = Tabs,
         })
 
+local TabOrderCounter = 0
+        local DraggingTab = nil
+        local DraggingButton = nil
+
+        local function SetupTabDrag(Button)
+            TabOrderCounter = TabOrderCounter + 1
+            Button.LayoutOrder = TabOrderCounter
+
+            local DragStartY = nil
+            local IsDragging = false
+            local DragThreshold = 6
+
+            Button.InputBegan:Connect(function(Input)
+                if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                    and Input.UserInputType ~= Enum.UserInputType.Touch then
+                    return
+                end
+                DragStartY = Input.Position.Y
+                IsDragging = false
+            end)
+
+            Button.InputChanged:Connect(function(Input)
+                if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
+                    and Input.UserInputType ~= Enum.UserInputType.Touch)
+                    or DragStartY == nil then
+                    return
+                end
+
+                if not IsDragging then
+                    if math.abs(Input.Position.Y - DragStartY) < DragThreshold then
+                        return
+                    end
+                    IsDragging = true
+                    DraggingButton = Button
+                end
+
+                local MouseY = Input.Position.Y
+                for _, OtherButton in Tabs:GetChildren() do
+                    if not OtherButton:IsA("TextButton") or OtherButton == Button then
+                        continue
+                    end
+                    local AbsY = OtherButton.AbsolutePosition.Y
+                    local AbsH = OtherButton.AbsoluteSize.Y
+                    if MouseY >= AbsY and MouseY <= AbsY + AbsH then
+                        local MyOrder = Button.LayoutOrder
+                        Button.LayoutOrder = OtherButton.LayoutOrder
+                        OtherButton.LayoutOrder = MyOrder
+                        break
+                    end
+                end
+            end)
+
+            Button.InputEnded:Connect(function(Input)
+                if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                    and Input.UserInputType ~= Enum.UserInputType.Touch then
+                    return
+                end
+                if IsDragging then
+                    IsDragging = false
+                    DraggingButton = nil
+                    DragStartY = nil
+                    return
+                end
+                DragStartY = nil
+            end)
+        end
+
         --// Container \\--
         Container = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
@@ -7275,6 +7342,9 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
                 Text = "",
                 Parent = Tabs,
             })
+
+            SetupTabDrag(TabButton)
+
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
@@ -8194,6 +8264,8 @@ end)
                 Text = "",
                 Parent = Tabs,
             })
+
+            SetupTabDrag(TabButton)
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
