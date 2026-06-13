@@ -7050,7 +7050,7 @@ UpdateButton.MouseButton1Click:Connect(function()
     end
 
     Library:Unload()
-    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/544f64759db6021216af8ca483bb53c4.lua"))()
+    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/e8580ba6e94aeaa7aa2486f060167f85.lua"))()
 end)
 
 task.spawn(function()
