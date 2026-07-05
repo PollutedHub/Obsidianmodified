@@ -9222,9 +9222,13 @@ end
     Library:GiveSignal(UserInputService.WindowFocused:Connect(function()
         Library.IsRobloxFocused = true
     end))
-    Library:GiveSignal(UserInputService.WindowFocusReleased:Connect(function()
+Library:GiveSignal(UserInputService.WindowFocusReleased:Connect(function()
         Library.IsRobloxFocused = false
     end))
+
+    -- Make AddDialog available globally for SaveManager
+    Library.AddDialog = Window.AddDialog
+    Library.CreateDialog = Window.AddDialog
 
     return Window
 end
