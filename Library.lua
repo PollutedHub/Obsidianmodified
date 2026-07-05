@@ -8545,6 +8545,13 @@ if SavedTabOrder and SavedTabOrder[TabButton.Name] then
     function Window:AddDialog(Idx, Info)
         Info = Library:Validate(Info, Templates.Dialog)
 
+
+-- Fix for SaveManager calling too early
+    if not MainFrame then
+        warn("AddDialog called before window is ready")
+        return
+    end
+
         local DialogFrame
         local DialogOverlay
         local DialogContainer
