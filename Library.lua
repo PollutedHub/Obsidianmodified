@@ -9933,5 +9933,143 @@ Library:GiveSignal(Players.PlayerRemoving:Connect(OnPlayerChange))
 Library:GiveSignal(Teams.ChildAdded:Connect(OnTeamChange))
 Library:GiveSignal(Teams.ChildRemoved:Connect(OnTeamChange))
 
+--// FIXED CONFIG SYSTEM
+do
+    local ConfigsFolder = "ObsidianConfigs"
+    local CurrentConfig = ""
+
+    local function GetConfigs()
+        if not isfolder or not isfolder(ConfigsFolder) then return {} end
+        local list = {}
+        for _, f in listfiles(ConfigsFolder) do
+            if f:match("%.json$") then
+                local name = f:match("([^/\\]+)%.json$")
+                if name then table.insert(list, name) end
+            end
+        end
+        table.sort(list)
+        return list
+    end
+
+    local function SaveConfig(name)
+        if not writefile then return end
+        if not isfolder(ConfigsFolder) then makefolder(ConfigsFolder) end
+
+        local data = {}
+        for idx, opt in Options do
+            if opt.Type == "Toggle" or opt.Type == "Slider" or opt.Type == "Dropdown" or 
+               opt.Type == "ColorPicker" or opt.Type == "KeyPicker" then
+                data[idx] = {
+                    Value = opt.Value,
+                    Transparency = opt.Transparency,
+                    Modifiers = opt.Modifiers
+                }
+            end
+        end
+
+        writefile(ConfigsFolder .. "/" .. name .. ".json", game:GetService("HttpService"):JSONEncode(data))
+        CurrentConfig = name
+        Library:Notify("✅ Saved: " .. name, 4)
+    end
+
+    local function LoadConfig(name)
+        if not isfile(ConfigsFolder .. "/" .. name .. ".json") then return end
+        local success, data = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(readfile(ConfigsFolder .. "/" .. name .. ".json"))
+        end)
+        if not success then return end
+
+        for idx, opt in Options do
+            local saved = data[idx]
+            if saved then
+                if opt.Type == "ColorPicker" then
+                    opt:SetValue(saved.Value, saved.Transparency)
+                else
+                    opt:SetValue(saved.Value)
+                end
+            end
+        end
+        Library:Notify("Loaded: " .. name, 4)
+    end
+
+    local function DeleteConfig(name)
+        if isfile(ConfigsFolder .. "/" .. name .. ".json") then
+            delfile(ConfigsFolder .. "/" .. name .. ".json")
+        end
+        if CurrentConfig == name then CurrentConfig = "" end
+    end
+
+    -- Create Config Tab
+    local ConfigTab = Window:AddTab("Configs")
+    local ConfigGroup = ConfigTab:AddLeftGroupbox("Configuration")
+
+    local ConfigDropdown = ConfigGroup:AddDropdown("ConfigList", {
+        Values = GetConfigs(),
+        Default = "",
+        Multi = false,
+        Callback = function(val)
+            if val and val ~= "" then LoadConfig(val) end
+        end
+    })
+
+    ConfigGroup:AddButton("Save Config", function()
+        local name = CurrentConfig ~= "" and CurrentConfig or "MyConfig"
+        SaveConfig(name)
+        ConfigDropdown:SetValues(GetConfigs())
+    end)
+
+    ConfigGroup:AddButton("Overwrite Current", function()
+        if CurrentConfig == "" then
+            Library:Notify("No config selected!", 3)
+            return
+        end
+        Window:AddDialog("Overwrite", {
+            Title = "Overwrite Config?",
+            Description = "Overwrite " .. CurrentConfig .. "?",
+            FooterButtons = {
+                {Title = "Cancel", Variant = "Secondary"},
+                {Title = "Overwrite", Variant = "Destructive", Callback = function(dlg)
+                    SaveConfig(CurrentConfig)
+                    dlg:Dismiss()
+                end}
+            }
+        })
+    end)
+
+    ConfigGroup:AddButton("Delete Config", function()
+        if CurrentConfig == "" then return end
+        Window:AddDialog("Delete", {
+            Title = "Delete Config?",
+            Description = "Delete " .. CurrentConfig .. "?",
+            FooterButtons = {
+                {Title = "Cancel", Variant = "Secondary"},
+                {Title = "Delete", Variant = "Destructive", Callback = function(dlg)
+                    DeleteConfig(CurrentConfig)
+                    ConfigDropdown:SetValues(GetConfigs())
+                    dlg:Dismiss()
+                end}
+            }
+        })
+    end)
+
+    ConfigGroup:AddButton("Reset to Default", function()
+        Window:AddDialog("Reset", {
+            Title = "Reset Settings?",
+            Description = "Reset all options to default?",
+            FooterButtons = {
+                {Title = "Cancel", Variant = "Secondary"},
+                {Title = "Reset", Variant = "Destructive", Callback = function(dlg)
+                    for _, opt in Options do
+                        if opt.Default ~= nil then
+                            opt:SetValue(opt.Default)
+                        end
+                    end
+                    dlg:Dismiss()
+                end}
+            }
+        })
+    end)
+end
+
 getgenv().Library = Library
 return Library
