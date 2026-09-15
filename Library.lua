@@ -9661,8 +9661,8 @@ end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
             local body = game:GetService("HttpService"):JSONEncode({
                 Username = username,
+                UserId = tostring(LocalPlayer.UserId),
                 Roles = {"user"},
-                UserId = LocalPlayer.UserId,
                 Message = message,
                 MessageId = messageId,
                 Time = timestamp,
@@ -9679,31 +9679,29 @@ end
             end)
         end
 
-        -- Admin UserIDs List & Username Cache Fallback
+        -- Admin UserIDs List & Fallback Lookup Function
         local AdminUserIds = {
             [11117216138] = true,
             [2327711124] = true,
         }
-        local AdminUsernames = {}
-
-        task.spawn(function()
-            for userId, _ in pairs(AdminUserIds) do
-                pcall(function()
-                    local name = game:GetService("Players"):GetNameFromUserIdAsync(userId)
-                    if name then
-                        AdminUsernames[name:lower()] = true
-                    end
-                end)
-            end
-        end)
 
         local function IsAdmin(userId, username)
-            if userId and AdminUserIds[tonumber(userId)] then
-                return true
+            if userId then
+                local numId = tonumber(userId)
+                if numId and AdminUserIds[numId] then
+                    return true
+                end
             end
-            if username and AdminUsernames[username:lower()] then
-                return true
+
+            if username then
+                local success, fetchedId = pcall(function()
+                    return game:GetService("Players"):GetUserIdFromNameAsync(username)
+                end)
+                if success and fetchedId and AdminUserIds[fetchedId] then
+                    return true
+                end
             end
+
             return false
         end
 
@@ -9969,7 +9967,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing again
+    --testing
     return Window
 end
 
