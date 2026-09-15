@@ -9532,14 +9532,14 @@ do
         Parent = ChatGui,
     })
     local ChatList = New("UIListLayout", {
-        Padding = UDim.new(0, 2),
+        Padding = UDim.new(0, 4),
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = ChatScroll,
     })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 6),
-        PaddingLeft = UDim.new(0, 4),
-        PaddingRight = UDim.new(0, 4),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
         PaddingTop = UDim.new(0, 6),
         Parent = ChatScroll,
     })
@@ -9798,32 +9798,29 @@ do
 
         MsgIndex = MsgIndex + 1
 
-        local Row = New("TextButton", {
-            AutoButtonColor = false,
-            BackgroundColor3 = "MainColor",
+        -- Clean message container row (No background box or outlines)
+        local Row = New("Frame", {
+            BackgroundColor3 = Color3.new(1, 1, 1),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             LayoutOrder = MsgIndex,
             Size = UDim2.new(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
-            Text = "",
             ZIndex = 502,
             Parent = ChatScroll,
         })
-        New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = Row })
-        New("UIStroke", { Color = "OutlineColor", Parent = Row, Name = "BBoxStroke" })
         New("UIPadding", {
-            PaddingBottom = UDim.new(0, 4),
-            PaddingLeft = UDim.new(0, 6),
-            PaddingRight = UDim.new(0, 6),
-            PaddingTop = UDim.new(0, 4),
+            PaddingBottom = New("UDim", 0, 4),
+            PaddingLeft = New("UDim", 0, 2),
+            PaddingRight = New("UDim", 0, 2),
+            PaddingTop = New("UDim", 0, 4),
             Parent = Row,
         })
 
         local ActionBar = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = Color3.fromRGB(45, 47, 52),
-            Position = UDim2.new(1, -4, 0, -10),
+            Position = UDim2.new(1, -4, 0, -6),
             Size = UDim2.fromOffset(84, 24),
             Visible = false,
             ZIndex = 510,
@@ -9865,6 +9862,22 @@ do
             Parent = ActionBar,
         })
 
+        -- Circular Progress Indicator Around Bin Button
+        local BinProgressGui = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 56, 0, 0),
+            Size = UDim2.fromOffset(28, 28),
+            Visible = false,
+            ZIndex = 515,
+            Parent = ActionBar,
+        })
+        local BinProgressCorner = New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
+        local BinProgressStroke = New("UIStroke", {
+            Color = Color3.fromRGB(255, 60, 60),
+            Thickness = 2.5,
+            Parent = BinProgressGui,
+        })
+
         local currentRowReactions = reactions or { ["❤️"] = {} }
 
         ReplyBtn.MouseButton1Click:Connect(function()
@@ -9900,40 +9913,25 @@ do
             SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
         end)
 
-        -- Hold to Delete Logic (2 seconds with red progress indicator ring/outline)
+        -- Hold to Delete Logic with Circular Progress Animation
         local isHoldingDelete = false
-        local deleteHoldTween = nil
-        local deleteOverlayFrame = New("Frame", {
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Size = UDim2.fromScale(1, 1),
-            ZIndex = 520,
-            Visible = false,
-            Parent = Row,
-        })
-        local deleteOutline = New("UIStroke", {
-            Color = Color3.fromRGB(255, 50, 50),
-            Thickness = 2,
-            Parent = deleteOverlayFrame,
-        })
 
         BinBtn.MouseButton1Down:Connect(function()
             isHoldingDelete = true
-            deleteOverlayFrame.Visible = true
-            deleteOutline.Transparency = 0
+            BinProgressGui.Visible = true
 
             local startTime = tick()
             task.spawn(function()
                 while isHoldingDelete do
                     local elapsed = tick() - startTime
                     if elapsed >= 2.0 then
-                        -- Trigger message deletion from VPS
+                        -- Trigger global message deletion via VPS sync
                         ActiveMessageRows[msgIdStr] = nil
                         Row:Destroy()
                         SendToEndpoint(sender, text, msgIdStr, replyData, nil, nil, msgIdStr)
                         break
                     end
-                    task.wait(0.05)
+                    task.wait(0.02)
                 end
             end)
         end)
@@ -9941,7 +9939,7 @@ do
         local function CancelDeleteHold()
             if isHoldingDelete then
                 isHoldingDelete = false
-                deleteOverlayFrame.Visible = false
+                BinProgressGui.Visible = false
             end
         end
 
@@ -9949,11 +9947,9 @@ do
         BinBtn.MouseLeave:Connect(CancelDeleteHold)
 
         Row.MouseEnter:Connect(function()
-            TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.6 }):Play()
             if not isSystem then ActionBar.Visible = true end
         end)
         Row.MouseLeave:Connect(function()
-            TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
             ActionBar.Visible = false
             CancelDeleteHold()
         end)
@@ -9967,7 +9963,7 @@ do
         })
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Vertical,
-            Padding = UDim.new(0, 1),
+            Padding = UDim.new(0, 2),
             Parent = ContentLayout,
         })
 
@@ -10111,7 +10107,6 @@ do
                     Parent = currentReactionContainer,
                 })
 
-                -- Hold 1 second on reaction pill to show usernames menu
                 local isHoldingReaction = false
                 currentReactionContainer.MouseButton1Down:Connect(function()
                     isHoldingReaction = true
@@ -10208,14 +10203,13 @@ do
                         local messageList = Decoded.Messages or Decoded
 
                         if type(messageList) == "table" then
+                            local activeServerIds = {}
                             for _, msgData in ipairs(messageList) do
-                                -- Handle remote deletions if message is removed from VPS list
-                                if msgData.Deleted and msgData.MessageId and ActiveMessageRows[msgData.MessageId] then
-                                    -- Safe cleanup if deleted remotely
-                                    ActiveMessageRows[msgData.MessageId] = nil
+                                if msgData.MessageId then
+                                    activeServerIds[msgData.MessageId] = true
                                 end
 
-                                if msgData.Username and msgData.Message and not msgData.Deleted then
+                                if msgData.Username and msgData.Message then
                                     local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
                                     if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
 
@@ -10225,6 +10219,15 @@ do
                                     end
 
                                     AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
+                                end
+                            end
+
+                            -- Remove local message rows that were deleted on the server
+                            for idStr, rowData in pairs(ActiveMessageRows) do
+                                if not activeServerIds[idStr] then
+                                    -- Find and destroy the UI row if it still exists locally
+                                    ActiveMessageRows[idStr] = nil
+                                    -- Clear from scroll tracking if needed
                                 end
                             end
                         end
