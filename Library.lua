@@ -9826,7 +9826,7 @@ end
 
             local ReplyBtn = New("TextButton", {
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 0, 0, 0),
+                Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(0.5, 1),
                 Text = "↩",
                 TextColor3 = Color3.fromRGB(200, 200, 200),
@@ -9848,29 +9848,39 @@ end
 
             ReplyBtn.MouseButton1Click:Connect(function()
                 ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
-                ReplyBannerText.Text = "Replying to " + sender -- Lua uses .. for concatenation
                 ReplyBannerText.Text = "Replying to " .. sender
                 UpdateInputLayout()
                 ChatInput:CaptureFocus()
             end)
 
             HeartBtn.MouseButton1Click:Connect(function()
-                local currentRx = reactions or {}
+                -- Deep copy/clone existing reactions table safely
+                local currentRx = {}
+                if reactions and reactions["❤️"] then
+                    currentRx["❤️"] = {}
+                    for _, u in ipairs(reactions["❤️"]) do
+                        table.insert(currentRx["❤️"], u)
+                    end
+                end
+                
                 currentRx["❤️"] = currentRx["❤️"] or {}
                 
                 -- Toggle heart for local user
-                local found = false
+                local foundIndex = nil
                 for i, user in ipairs(currentRx["❤️"]) do
                     if user == LocalPlayer.Name then
-                        table.remove(currentRx["❤️"], i)
-                        found = true
+                        foundIndex = i
                         break
                     end
                 end
-                if not found then
+
+                if foundIndex then
+                    table.remove(currentRx["❤️"], foundIndex)
+                else
                     table.insert(currentRx["❤️"], LocalPlayer.Name)
                 end
 
+                -- Send update back using the exact Message ID of this specific row
                 SendToEndpoint(sender, text, msgIdStr, replyData, currentRx)
             end)
 
@@ -10162,7 +10172,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing14
+    --testing15
     return Window
 end
 
