@@ -9486,20 +9486,24 @@ end
             Parent = ChatTitleBar,
         })
 
-        -- Close button (Fixed visibility and text color)
+        -- Close button (Fixed visibility, background, and "X" text)
         local ChatCloseBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundColor3 = "BackgroundColor",
+            BackgroundColor3 = "MainColor",
             Position = UDim2.new(1, -8, 0.5, 0),
-            Size = UDim2.fromOffset(22, 22),
-            Text = "✕",
+            Size = UDim2.fromOffset(24, 24),
+            Text = "X",
             TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 14,
+            TextSize, TextSize = 13,
             ZIndex = 510,
             Parent = ChatTitleBar,
         })
         New("UICorner", {
             CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = ChatCloseBtn,
+        })
+        New("UIStroke", {
+            Color = "OutlineColor",
             Parent = ChatCloseBtn,
         })
 
@@ -9644,45 +9648,11 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-        -- HTTP & Optimized ID Generation
+        -- HTTP & Instant ID Generation
         local HttpRequest = request or http_request or (syn and syn.request) or nil
-        local UsedMessageIds = {}
 
         local function GetUniqueMessageId()
-            if not HttpRequest then return tostring(math.random(1000, 9999)) end
-
-            -- Fetch existing IDs once to prevent lagging requests inside a loop
-            local Success, Result = pcall(function()
-                return HttpRequest({
-                    Url = "http://167.99.144.89:8081/chatbox",
-                    Method = "GET",
-                    Headers = { ["Content-Type"] = "application/json" },
-                })
-            end)
-
-            if Success and Result and Result.Body then
-                local Decoded = pcall(function()
-                    return game:GetService("HttpService"):JSONDecode(Result.Body)
-                end)
-                if type(Decoded) == "table" then
-                    for _, entry in ipairs(Decoded) do
-                        if entry.MessageId then
-                            UsedMessageIds[tostring(entry.MessageId)] = true
-                        end
-                    end
-                end
-            end
-
-            -- Generate locally and instantly
-            local Id
-            local Attempts = 0
-            repeat
-                Id = tostring(math.random(1000, 9999))
-                Attempts += 1
-            until not UsedMessageIds[Id] or Attempts > 100
-
-            UsedMessageIds[Id] = true
-            return Id
+            return tostring(math.random(1000, 9999))
         end
 
         local function SendToEndpoint(username, message, messageId)
@@ -9744,12 +9714,13 @@ end
                 Parent = Row,
             })
 
+            -- Usernames rendered in Red
             New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = sender,
-                TextColor3 = isSystem and Color3.fromRGB(255, 100, 100) or Library.Scheme.AccentColor,
+                TextColor3 = Color3.fromRGB(255, 90, 90),
                 TextSize = 13,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9802,15 +9773,10 @@ end
             local CurrentMsg = Msg
             ChatInput.Text = ""
 
-            task.spawn(function()
-                local UniqueId = GetUniqueMessageId()
-                if UniqueId then
-                    AddMessage(LocalPlayer.Name, CurrentMsg, false)
-                    SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
-                else
-                    AddMessage("System", "Failed to generate a unique message ID, try again.", true)
-                end
-            end)
+            -- Instant local display and send
+            local UniqueId = GetUniqueMessageId()
+            AddMessage(LocalPlayer.Name, CurrentMsg, false)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
@@ -9922,10 +9888,11 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    
+    --test to know if updated2
+
     return Window
 end
---test to know if updated
+
 function Library:CreateLoading(LoadingInfo)
     if Library.ActiveLoading then
         warn("Loading GUI already exists, you cannot create multiple Loading GUIs.")
