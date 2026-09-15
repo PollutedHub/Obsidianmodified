@@ -10073,8 +10073,7 @@ end
                             return game:GetService("HttpService"):JSONDecode(Result.Body)
                         end)
                         if Success and type(Decoded) == "table" then
-                            -- Check if the response includes messages and pings
-                            local messageList = Decoded.Messages or Decoded -- Fallback if array directly
+                            local messageList = Decoded.Messages or Decoded
                             
                             if type(messageList) == "table" then
                                 for _, msgData in ipairs(messageList) do
@@ -10095,22 +10094,52 @@ end
                             -- Handle Pings Payload from VPS
                             local pingsList = Decoded.Pings
                             if type(pingsList) == "table" then
+                                local unreadPingsCount = 0
+                                local lastSender = ""
+                                local hasNewPings = false
+
                                 for _, pingObj in ipairs(pingsList) do
-                                    -- Check if this ping is targeted at the local player and hasn't been processed yet
                                     if pingObj.TargetUser and pingObj.TargetUser:lower() == LocalPlayer.Name:lower() then
                                         local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
                                         if not ProcessedPings[pingSig] then
                                             ProcessedPings[pingSig] = true
-                                            
-                                            -- Use configuration table format so the sound applies exclusively here
-                                            Library:Notify({
-                                                Title = "Chat Mention",
-                                                Description = "Ping received off " .. pingObj.Sender,
-                                                Time = 4,
-                                                SoundId = 18595195017
-                                            })
+                                            unreadPingsCount = unreadPingsCount + 1
+                                            lastSender = pingObj.Sender
+                                            hasNewPings = true
                                         end
                                     end
+                                end
+
+                                if unreadPingsCount > 0 then
+                                    if unreadPingsCount == 1 then
+                                        Library:Notify({
+                                            Title = "Chat Mention",
+                                            Description = "Ping received off " .. lastSender,
+                                            Time = 4,
+                                            SoundId = 18595195017
+                                        })
+                                    else
+                                        Library:Notify({
+                                            Title = "Chat Mentions",
+                                            Description = "You have " .. unreadPingsCount .. " unread pings.",
+                                            Time = 4,
+                                            SoundId = 18595195017
+                                        })
+                                    end
+                                end
+
+                                -- If we processed new pings, instruct the VPS to clear them for this user
+                                if hasNewPings then
+                                    task.spawn(function()
+                                        pcall(function()
+                                            HttpRequest({
+                                                Url = "http://167.99.144.89:8081/chatbox/pings",
+                                                Method = "DELETE",
+                                                Headers = { ["Content-Type"] = "application/json" },
+                                                Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
+                                            })
+                                        end)
+                                    end)
                                 end
                             end
                         end
