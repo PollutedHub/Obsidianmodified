@@ -10088,13 +10088,8 @@ end
                             Parent = currentReactionContainer,
                         })
 
-                        -- Menu showing who reacted when holding or left-clicking the pill
                         local function ShowReactorMenu()
-                            if activeReactorMenu then
-                                activeReactorMenu:Destroy()
-                                activeReactorMenu = nil
-                                return
-                            end
+                            if activeReactorMenu then return end
 
                             activeReactorMenu = New("Frame", {
                                 AutomaticSize = Enum.AutomaticSize.Y,
@@ -10147,18 +10142,30 @@ end
                             end
                         end
 
-                        currentReactionContainer.MouseButton1Click:Connect(ShowReactorMenu)
+                        local function HideReactorMenu()
+                            if activeReactorMenu then
+                                activeReactorMenu:Destroy()
+                                activeReactorMenu = nil
+                            end
+                        end
 
                         local isHoldingPill = false
                         currentReactionContainer.MouseButton1Down:Connect(function()
                             isHoldingPill = true
-                            task.delay(0.4, function()
-                                if isHoldingPill then
-                                    ShowReactorMenu()
-                                end
-                            end)
+                            ShowReactorMenu()
                         end)
-                        currentReactionContainer.MouseButton1Up:Connect(function() isHoldingPill = false end)
+
+                        currentReactionContainer.MouseButton1Up:Connect(function()
+                            isHoldingPill = false
+                            HideReactorMenu()
+                        end)
+
+                        currentReactionContainer.MouseLeave:Connect(function()
+                            if isHoldingPill then
+                                isHoldingPill = false
+                                HideReactorMenu()
+                            end
+                        end)
                     end
                 end
             end
@@ -10437,7 +10444,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing29
+    --testing30
     return Window
 end
 
