@@ -9779,8 +9779,9 @@ end
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
             local msgIdStr = messageId or tostring(math.random(1000,9999))
-            local rxCount = (reactions and reactions["❤️"]) and #reactions["❤️"] or 0
-            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr .. "|" .. tostring(rxCount))
+            
+            -- Strict MessageId-based signature check to prevent duplication
+            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
             
             if ProcessedSignatures[signature] then return end
             ProcessedSignatures[signature] = true
@@ -9854,18 +9855,14 @@ end
             end)
 
             HeartBtn.MouseButton1Click:Connect(function()
-                -- Deep copy/clone existing reactions table safely
-                local currentRx = {}
+                local currentRx = { ["❤️"] = {} }
+                
                 if reactions and reactions["❤️"] then
-                    currentRx["❤️"] = {}
                     for _, u in ipairs(reactions["❤️"]) do
                         table.insert(currentRx["❤️"], u)
                     end
                 end
                 
-                currentRx["❤️"] = currentRx["❤️"] or {}
-                
-                -- Toggle heart for local user
                 local foundIndex = nil
                 for i, user in ipairs(currentRx["❤️"]) do
                     if user == LocalPlayer.Name then
@@ -9880,7 +9877,6 @@ end
                     table.insert(currentRx["❤️"], LocalPlayer.Name)
                 end
 
-                -- Send update back using the exact Message ID of this specific row
                 SendToEndpoint(sender, text, msgIdStr, replyData, currentRx)
             end)
 
@@ -10027,7 +10023,7 @@ end
             ReplyTarget = nil
             UpdateInputLayout()
 
-            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId) .. "|0"
+            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
             AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil)
         end
@@ -10048,10 +10044,8 @@ end
                         if Success and type(Decoded) == "table" then
                             for _, msgData in ipairs(Decoded) do
                                 if msgData.Username and msgData.Message then
-                                    local rxCount = (msgData.Reactions and msgData.Reactions["❤️"]) and #msgData.Reactions["❤️"] or 0
                                     local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
                                     if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
-                                    sig = sig .. "|" .. tostring(rxCount)
                                     
                                     local replyData = nil
                                     if msgData.ReplyToId then
@@ -10172,7 +10166,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing15
+    --testing19
     return Window
 end
 
