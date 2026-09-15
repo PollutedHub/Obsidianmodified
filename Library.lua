@@ -10059,7 +10059,7 @@ end
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser)
         end
 
-        -- Initial Fetch & Polling
+-- Initial Fetch & Polling
         local function FetchMessages()
             pcall(function()
                 if HttpRequest then
@@ -10101,7 +10101,7 @@ end
                                         local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
                                         if not ProcessedPings[pingSig] then
                                             ProcessedPings[pingSig] = true
-                                            Library:Notify("Ping received off " .. pingObj.Sender, 4)
+                                            Library:Notify("Ping received off " .. pingObj.Sender, 4, 18595195017, 3)
                                         end
                                     end
                                 end
