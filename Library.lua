@@ -9857,7 +9857,36 @@ end
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
 
-        -- Background polling loop to fetch messages from other players automatically
+        -- Instant Initial Load Fetch (Pulls existing messages immediately upon running script)
+        task.spawn(function()
+            pcall(function()
+                if HttpRequest then
+                    local Result = HttpRequest({
+                        Url = "http://167.99.144.89:8081/chatbox",
+                        Method = "GET",
+                        Headers = { ["Content-Type"] = "application/json" },
+                    })
+                    if Result and Result.StatusCode == 200 and Result.Body then
+                        local Success, Decoded = pcall(function()
+                            return game:GetService("HttpService"):JSONDecode(Result.Body)
+                        end)
+                        if Success and type(Decoded) == "table" then
+                            for _, msgData in ipairs(Decoded) do
+                                local msgId = tostring(msgData.MessageId)
+                                if msgId and not ProcessedMessageIds[msgId] then
+                                    ProcessedMessageIds[msgId] = true
+                                    if msgData.Username and msgData.Message then
+                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end)
+
+        -- Background polling loop to continue fetching new messages every 2 seconds
         task.spawn(function()
             while true do
                 pcall(function()
@@ -9877,7 +9906,6 @@ end
                                     if msgId and not ProcessedMessageIds[msgId] then
                                         ProcessedMessageIds[msgId] = true
                                         if msgData.Username and msgData.Message then
-                                            -- Only add if it's from someone else to prevent double-displaying your own
                                             if msgData.Username ~= LocalPlayer.Name then
                                                 AddMessage(msgData.Username, msgData.Message, false, msgData.UserId)
                                             end
@@ -9888,7 +9916,7 @@ end
                         end
                     end
                 end)
-                task.wait(2) -- Checks for new messages every 2 seconds
+                task.wait(2)
             end
         end)
 
@@ -10001,8 +10029,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing2
-    
+    --testing3
     return Window
 end
 
