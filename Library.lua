@@ -9810,10 +9810,10 @@ end
                 Parent = ChatScroll,
             })
             New("UIPadding", {
-                PaddingBottom = New("UDim", 0, 4),
-                PaddingLeft = New("UDim", 0, 2),
-                PaddingRight = New("UDim", 0, 2),
-                PaddingTop = New("UDim", 0, 4),
+                PaddingBottom = UDim.new(0, 4),
+                PaddingLeft = UDim.new(0, 2),
+                PaddingRight = UDim.new(0, 2),
+                PaddingTop = UDim.new(0, 4),
                 Parent = Row,
             })
 
@@ -10335,7 +10335,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing26
+    --testing23
     return Window
 end
 
