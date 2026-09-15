@@ -9653,7 +9653,7 @@ end
         local ProcessedSignatures = {}
 
         local function GetUniqueMessageId()
-            return tostring(math.random(1000, 9999))
+            return tostring(math.random(100000, 999999))
         end
 
         local function SendToEndpoint(username, message, messageId)
@@ -9727,7 +9727,7 @@ end
         -- Messages with Discord-like Hover Box Effect
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId, customSignature)
-            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. tostring(os.time()))
+            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text))
             
             if ProcessedSignatures[signature] then return end
             ProcessedSignatures[signature] = true
@@ -9855,11 +9855,11 @@ end
             local CurrentMsg = Msg
             ChatInput.Text = ""
 
-            -- Use os.clock() alongside username and message content to guarantee unique signatures for short/single-char messages
-            local sig = LocalPlayer.Name .. "|" .. CurrentMsg .. "|" .. tostring(os.clock())
-            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, sig)
-            
+            -- Generate a unique ID first so both the local preview and server use the exact same signature identifier
             local UniqueId = GetUniqueMessageId()
+            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
+
+            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, sig)
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
 
@@ -9879,7 +9879,11 @@ end
                         if Success and type(Decoded) == "table" then
                             for _, msgData in ipairs(Decoded) do
                                 if msgData.Username and msgData.Message then
+                                    -- Use MessageId from server if available to ensure accurate signature matching
                                     local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
+                                    if msgData.MessageId then
+                                        sig = sig .. "|" .. tostring(msgData.MessageId)
+                                    end
                                     AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
                                 end
                             end
@@ -9907,6 +9911,9 @@ end
                                 for _, msgData in ipairs(Decoded) do
                                     if msgData.Username and msgData.Message then
                                         local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
+                                        if msgData.MessageId then
+                                            sig = sig .. "|" .. tostring(msgData.MessageId)
+                                        end
                                         AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
                                     end
                                 end
@@ -10027,7 +10034,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing10
+    --testing11
     return Window
 end
 
