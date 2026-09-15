@@ -9430,982 +9430,912 @@ end
         Library.IsRobloxFocused = false
     end))
 
-do
-    local ChatOpen = false
-    local ChatMessages = {}
-    local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
-    local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
+-- CHATBOX WINDOW
+    do
+        local ChatOpen = false
+        local ChatMessages = {}
+        local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
+        local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
 
-    local ChatGui = New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = "BackgroundColor",
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(380, 480),
-        Visible = false,
-        ZIndex = 500,
-        Parent = ScreenGui,
-    })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, Library.CornerRadius),
-        Parent = ChatGui,
-    })
-    New("UIStroke", {
-        Color = "OutlineColor",
-        Thickness = 1,
-        Parent = ChatGui,
-    })
-    table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
-
-    -- Title bar
-    local ChatTitleBar = New("Frame", {
-        BackgroundColor3 = "MainColor",
-        Size = UDim2.new(1, 0, 0, 36),
-        ZIndex = 501,
-        Parent = ChatGui,
-    })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, Library.CornerRadius),
-        Parent = ChatTitleBar,
-    })
-    New("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        BackgroundColor3 = "MainColor",
-        BorderSizePixel = 0,
-        Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(1, 0, 0, Library.CornerRadius),
-        ZIndex = 501,
-        Parent = ChatTitleBar,
-    })
-
-    New("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        Text = "Global Chat",
-        TextColor3 = "FontColor",
-        TextSize = 15,
-        ZIndex = 502,
-        Parent = ChatTitleBar,
-    })
-
-    -- Close button
-    local ChatCloseBtn = New("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundColor3 = "MainColor",
-        Position = UDim2.new(1, -8, 0.5, 0),
-        Size = UDim2.fromOffset(24, 24),
-        Text = "X",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 13,
-        ZIndex = 510,
-        Parent = ChatTitleBar,
-    })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-        Parent = ChatCloseBtn,
-    })
-    New("UIStroke", {
-        Color = "OutlineColor",
-        Parent = ChatCloseBtn,
-    })
-
-    -- Divider under title
-    New("Frame", {
-        BackgroundColor3 = "OutlineColor",
-        BorderSizePixel = 0,
-        Position = UDim2.fromOffset(0, 36),
-        Size = UDim2.new(1, 0, 0, 1),
-        ZIndex = 501,
-        Parent = ChatGui,
-    })
-
-    -- Messages scroll area
-    local ChatScroll = New("ScrollingFrame", {
-        AnchorPoint = Vector2.new(0, 0),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        CanvasSize = UDim2.fromScale(0, 0),
-        Position = UDim2.fromOffset(0, 37),
-        ScrollBarImageColor3 = "OutlineColor",
-        ScrollBarThickness = 3,
-        Size = UDim2.new(1, 0, 1, -83),
-        ZIndex = 501,
-        Parent = ChatGui,
-    })
-    local ChatList = New("UIListLayout", {
-        Padding = UDim.new(0, 4),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = ChatScroll,
-    })
-    New("UIPadding", {
-        PaddingBottom = UDim.new(0, 6),
-        PaddingLeft = UDim.new(0, 6),
-        PaddingRight = UDim.new(0, 6),
-        PaddingTop = UDim.new(0, 6),
-        Parent = ChatScroll,
-    })
-
-    -- Bottom divider above input container area
-    New("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        BackgroundColor3 = "OutlineColor",
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 1, -46),
-        Size = UDim2.new(1, 0, 0, 1),
-        ZIndex = 501,
-        Parent = ChatGui,
-    })
-
-    -- Input Bar Container (Dynamic height when replying)
-    local InputBar = New("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        BackgroundColor3 = "MainColor",
-        Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(1, 0, 0, 46),
-        ZIndex = 501,
-        Parent = ChatGui,
-    })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, Library.CornerRadius),
-        Parent = InputBar,
-    })
-    New("Frame", {
-        BackgroundColor3 = "MainColor",
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, Library.CornerRadius),
-        ZIndex = 501,
-        Parent = InputBar,
-    })
-
-    -- Reply Context Banner (Hidden by default)
-    local ReplyBanner = New("Frame", {
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 8, 0, 4),
-        Size = UDim2.new(1, -16, 0, 20),
-        Visible = false,
-        ZIndex = 502,
-        Parent = InputBar,
-    })
-    local ReplyBannerText = New("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, -24, 1, 0),
-        Text = "Replying to user",
-        TextColor3 = Color3.fromRGB(180, 180, 180),
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 503,
-        Parent = ReplyBanner,
-    })
-    local ReplyCancelBtn = New("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.fromOffset(18, 18),
-        Text = "✕",
-        TextColor3 = Color3.fromRGB(180, 180, 180),
-        TextSize = 12,
-        ZIndex = 503,
-        Parent = ReplyBanner,
-    })
-
-    local ChatInput = New("TextBox", {
-        AnchorPoint = Vector2.new(0, 0),
-        BackgroundColor3 = "BackgroundColor",
-        ClearTextOnFocus = false,
-        PlaceholderText = "Send a message...",
-        PlaceholderColor3 = "FontColor",
-        Position = UDim2.new(0, 8, 0, 8),
-        Size = UDim2.new(1, -72, 0, 28),
-        Text = "",
-        TextColor3 = "FontColor",
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 502,
-        Parent = InputBar,
-    })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-        Parent = ChatInput,
-    })
-    New("UIStroke", {
-        Color = "OutlineColor",
-        Parent = ChatInput,
-    })
-    New("UIPadding", {
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        Parent = ChatInput,
-    })
-
-    local SendBtn = New("TextButton", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundColor3 = "AccentColor",
-        Position = UDim2.new(1, -8, 0, 8),
-        Size = UDim2.fromOffset(54, 28),
-        Text = "Send",
-        TextColor3 = "FontColor",
-        TextSize = 13,
-        ZIndex = 502,
-        Parent = InputBar,
-    })
-    New("UICorner", {
-        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-        Parent = SendBtn,
-    })
-
-    local function UpdateInputLayout()
-        if ReplyTarget then
-            ReplyBanner.Visible = true
-            InputBar.Size = UDim2.new(1, 0, 0, 72)
-            ChatScroll.Size = UDim2.new(1, 0, 1, -109)
-            ChatInput.Position = UDim2.new(0, 8, 0, 32)
-            SendBtn.Position = UDim2.new(1, -8, 0, 32)
-            ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
-        else
-            ReplyBanner.Visible = false
-            InputBar.Size = UDim2.new(1, 0, 0, 46)
-            ChatScroll.Size = UDim2.new(1, 0, 1, -83)
-            ChatInput.Position = UDim2.new(0, 8, 0, 8)
-            SendBtn.Position = UDim2.new(1, -8, 0, 8)
-            ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
-        end
-    end
-
-    ReplyCancelBtn.MouseButton1Click:Connect(function()
-        ReplyTarget = nil
-        UpdateInputLayout()
-    end)
-
-    -- Resize handle
-    local ChatResizeBtn = New("TextButton", {
-        AnchorPoint = Vector2.new(1, 1),
-        BackgroundTransparency = 1,
-        Position = UDim2.fromScale(1, 1),
-        Size = UDim2.fromOffset(16, 16),
-        Text = "",
-        ZIndex = ChatGui.ZIndex + 1,
-        Parent = ChatGui,
-    })
-    if ResizeIcon then
-        New("ImageLabel", {
-            BackgroundTransparency = 1,
-            Image = ResizeIcon.Url,
-            ImageColor3 = "OutlineColor",
-            ImageRectOffset = ResizeIcon.ImageRectOffset,
-            ImageRectSize = ResizeIcon.ImageRectSize,
-            Size = UDim2.fromScale(1, 1),
-            ZIndex = ChatGui.ZIndex + 2,
-            Parent = ChatResizeBtn,
+        local ChatGui = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = "BackgroundColor",
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(380, 480),
+            Visible = false,
+            ZIndex = 500,
+            Parent = ScreenGui,
         })
-    end
-    Library:MakeResizable(ChatGui, ChatResizeBtn, function()
-        UpdateInputLayout()
-    end)
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = ChatGui,
+        })
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Thickness = 1,
+            Parent = ChatGui,
+        })
+        table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
 
-    Library:MakeDraggable(ChatGui, ChatTitleBar, true)
-
-    -- HTTP & ID Setup
-    local HttpRequest = request or http_request or (syn and syn.request) or nil
-    local ProcessedSignatures = {}
-    local ProcessedPings = {}
-
-    local function GetUniqueMessageId()
-        return tostring(math.random(100000, 999999))
-    end
-
-    local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser, deleteMessageId)
-        if not HttpRequest then return end
-        local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        local data = {
-            Username = username,
-            UserId = tostring(LocalPlayer.UserId),
-            Roles = {"user"},
-            Message = message,
-            MessageId = messageId,
-            Time = timestamp,
-            Reactions = reactions or {},
-            PingUser = targetPingUser,
-            DeleteId = deleteMessageId
-        }
-        if replyData then
-            data.ReplyToId = replyData.Id
-            data.ReplyToUser = replyData.Username
-            data.ReplyToText = replyData.Text
-        end
-
-        local body = game:GetService("HttpService"):JSONEncode(data)
-        task.spawn(function()
-            pcall(function()
-                HttpRequest({
-                    Url = "http://167.99.144.89:8081/chatbox",
-                    Method = "POST",
-                    Headers = { ["Content-Type"] = "application/json" },
-                    Body = body,
-                })
-            end)
-        end)
-    end
-
-    -- Admin Lookup
-    local AdminUserIds = {
-        [11117216138] = true,
-        [2327711124] = true,
-    }
-
-    local function IsAdmin(userId, username)
-        if userId then
-            local numId = tonumber(userId)
-            if numId and AdminUserIds[numId] then return true end
-        end
-        if username then
-            local success, fetchedId = pcall(function()
-                return game:GetService("Players"):GetUserIdFromNameAsync(username)
-            end)
-            if success and fetchedId and AdminUserIds[fetchedId] then return true end
-        end
-        return false
-    end
-
-    local LastMessageTime = 0
-    local SpamCooldown = 2
-    local BannedWords = {}
-
-    local function ContainsBannedWord(Msg)
-        local Lower = Msg:lower()
-        if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
-        for _, Word in BannedWords do
-            if Lower:match(Word:lower()) then return true end
-        end
-        return false
-    end
-
-    local UpdateMessageReactions
-
-    -- Add Message Function
-    local MsgIndex = 0
-    local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
-        local msgIdStr = messageId or tostring(math.random(1000,9999))
-
-        if ActiveMessageRows[msgIdStr] then
-            if ActiveMessageRows[msgIdStr].UpdateReactions then
-                ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
-            end
-            return
-        end
-
-        local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
-        if ProcessedSignatures[signature] then return end
-        ProcessedSignatures[signature] = true
-
-        MsgIndex = MsgIndex + 1
-
-        -- Clean message container row (No background box or outlines)
-        local Row = New("Frame", {
-            BackgroundColor3 = Color3.new(1, 1, 1),
-            BackgroundTransparency = 1,
+        -- Title bar
+        local ChatTitleBar = New("Frame", {
+            BackgroundColor3 = "MainColor",
+            Size = UDim2.new(1, 0, 0, 36),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = ChatTitleBar,
+        })
+        New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
             BorderSizePixel = 0,
-            LayoutOrder = MsgIndex,
-            Size = UDim2.new(1, 0, 0, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+            ZIndex = 501,
+            Parent = ChatTitleBar,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "Global Chat",
+            TextColor3 = "FontColor",
+            TextSize = 15,
             ZIndex = 502,
+            Parent = ChatTitleBar,
+        })
+
+        -- Close button
+        local ChatCloseBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(24, 24),
+            Text = "X",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 13,
+            ZIndex = 510,
+            Parent = ChatTitleBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = ChatCloseBtn,
+        })
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = ChatCloseBtn,
+        })
+
+        -- Divider under title
+        New("Frame", {
+            BackgroundColor3 = "OutlineColor",
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(0, 36),
+            Size = UDim2.new(1, 0, 0, 1),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+
+        -- Messages scroll area
+        local ChatScroll = New("ScrollingFrame", {
+            AnchorPoint = Vector2.new(0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            CanvasSize = UDim2.fromScale(0, 0),
+            Position = UDim2.fromOffset(0, 37),
+            ScrollBarImageColor3 = "OutlineColor",
+            ScrollBarThickness = 3,
+            Size = UDim2.new(1, 0, 1, -83),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+        local ChatList = New("UIListLayout", {
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
             Parent = ChatScroll,
         })
         New("UIPadding", {
-            PaddingBottom = New("UDim", 0, 4),
-            PaddingLeft = New("UDim", 0, 2),
-            PaddingRight = New("UDim", 0, 2),
-            PaddingTop = New("UDim", 0, 4),
-            Parent = Row,
+            PaddingBottom = UDim.new(0, 6),
+            PaddingLeft = UDim.new(0, 6),
+            PaddingRight = UDim.new(0, 6),
+            PaddingTop = UDim.new(0, 6),
+            Parent = ChatScroll,
         })
 
-        local ActionBar = New("Frame", {
+        -- Bottom divider above input container area
+        New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "OutlineColor",
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 0, 1, -46),
+            Size = UDim2.new(1, 0, 0, 1),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+
+        -- Input Bar Container (Dynamic height when replying)
+        local InputBar = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 46),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = InputBar,
+        })
+        New("Frame", {
+            BackgroundColor3 = "MainColor",
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+            ZIndex = 501,
+            Parent = InputBar,
+        })
+
+        -- Reply Context Banner (Hidden by default)
+        local ReplyBanner = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 0, 4),
+            Size = UDim2.new(1, -16, 0, 20),
+            Visible = false,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        local ReplyBannerText = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -24, 1, 0),
+            Text = "Replying to user",
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 503,
+            Parent = ReplyBanner,
+        })
+        local ReplyCancelBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, 0, 0.5, 0),
+            Size = UDim2.fromOffset(18, 18),
+            Text = "✕",
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextSize = 12,
+            ZIndex = 503,
+            Parent = ReplyBanner,
+        })
+
+        local ChatInput = New("TextBox", {
+            AnchorPoint = Vector2.new(0, 0),
+            BackgroundColor3 = "BackgroundColor",
+            ClearTextOnFocus = false,
+            PlaceholderText = "Send a message...",
+            PlaceholderColor3 = "FontColor",
+            Position = UDim2.new(0, 8, 0, 8),
+            Size = UDim2.new(1, -72, 0, 28),
+            Text = "",
+            TextColor3 = "FontColor",
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = ChatInput,
+        })
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = ChatInput,
+        })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            Parent = ChatInput,
+        })
+
+        local SendBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0),
-            BackgroundColor3 = Color3.fromRGB(45, 47, 52),
-            Position = UDim2.new(1, -4, 0, -6),
-            Size = UDim2.fromOffset(84, 24),
-            Visible = false,
-            ZIndex = 510,
-            Parent = Row,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ActionBar })
-        New("UIStroke", { Color = "OutlineColor", Parent = ActionBar })
-
-        local ReplyBtn = New("TextButton", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 0, 0, 0),
-            Size = UDim2.new(0, 28, 1, 0),
-            Text = "↩",
-            TextColor3 = Color3.fromRGB(200, 200, 200),
+            BackgroundColor3 = "AccentColor",
+            Position = UDim2.new(1, -8, 0, 8),
+            Size = UDim2.fromOffset(54, 28),
+            Text = "Send",
+            TextColor3 = "FontColor",
             TextSize = 13,
-            ZIndex = 511,
-            Parent = ActionBar,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = SendBtn,
         })
 
-        local HeartBtn = New("TextButton", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 28, 0, 0),
-            Size = UDim2.new(0, 28, 1, 0),
-            Text = "❤️",
-            TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextSize = 11,
-            ZIndex = 511,
-            Parent = ActionBar,
-        })
-
-        local BinBtn = New("TextButton", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 56, 0, 0),
-            Size = UDim2.new(0, 28, 1, 0),
-            Text = "🗑️",
-            TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextSize = 11,
-            ZIndex = 511,
-            Parent = ActionBar,
-        })
-
-        -- Circular Progress Indicator Around Bin Button
-        local BinProgressGui = New("Frame", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 56, 0, 0),
-            Size = UDim2.fromOffset(28, 28),
-            Visible = false,
-            ZIndex = 515,
-            Parent = ActionBar,
-        })
-        local BinProgressCorner = New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
-        local BinProgressStroke = New("UIStroke", {
-            Color = Color3.fromRGB(255, 60, 60),
-            Thickness = 2.5,
-            Parent = BinProgressGui,
-        })
-
-        local currentRowReactions = reactions or { ["❤️"] = {} }
-
-        ReplyBtn.MouseButton1Click:Connect(function()
-            ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
-            ReplyBannerText.Text = "Replying to " .. sender
-            UpdateInputLayout()
-            ChatInput:CaptureFocus()
-        end)
-
-        HeartBtn.MouseButton1Click:Connect(function()
-            local currentRx = { ["❤️"] = {} }
-            if currentRowReactions and currentRowReactions["❤️"] then
-                for _, u in ipairs(currentRowReactions["❤️"]) do
-                    table.insert(currentRx["❤️"], u)
-                end
-            end
-
-            local foundIndex = nil
-            for i, user in ipairs(currentRx["❤️"]) do
-                if user == LocalPlayer.Name then
-                    foundIndex = i
-                    break
-                end
-            end
-
-            if foundIndex then
-                table.remove(currentRx["❤️"], foundIndex)
+        local function UpdateInputLayout()
+            if ReplyTarget then
+                ReplyBanner.Visible = true
+                InputBar.Size = UDim2.new(1, 0, 0, 72)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -109)
+                ChatInput.Position = UDim2.new(0, 8, 0, 32)
+                SendBtn.Position = UDim2.new(1, -8, 0, 32)
+                ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
-                table.insert(currentRx["❤️"], LocalPlayer.Name)
-            end
-
-            currentRowReactions = currentRx
-            SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
-        end)
-
-        -- Hold to Delete Logic with Circular Progress Animation
-        local isHoldingDelete = false
-
-        BinBtn.MouseButton1Down:Connect(function()
-            isHoldingDelete = true
-            BinProgressGui.Visible = true
-
-            local startTime = tick()
-            task.spawn(function()
-                while isHoldingDelete do
-                    local elapsed = tick() - startTime
-                    if elapsed >= 2.0 then
-                        -- Trigger global message deletion via VPS sync
-                        ActiveMessageRows[msgIdStr] = nil
-                        Row:Destroy()
-                        SendToEndpoint(sender, text, msgIdStr, replyData, nil, nil, msgIdStr)
-                        break
-                    end
-                    task.wait(0.02)
-                end
-            end)
-        end)
-
-        local function CancelDeleteHold()
-            if isHoldingDelete then
-                isHoldingDelete = false
-                BinProgressGui.Visible = false
+                ReplyBanner.Visible = false
+                InputBar.Size = UDim2.new(1, 0, 0, 46)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -83)
+                ChatInput.Position = UDim2.new(0, 8, 0, 8)
+                SendBtn.Position = UDim2.new(1, -8, 0, 8)
+                ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
             end
         end
 
-        BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
-        BinBtn.MouseLeave:Connect(CancelDeleteHold)
-
-        Row.MouseEnter:Connect(function()
-            if not isSystem then ActionBar.Visible = true end
-        end)
-        Row.MouseLeave:Connect(function()
-            ActionBar.Visible = false
-            CancelDeleteHold()
+        ReplyCancelBtn.MouseButton1Click:Connect(function()
+            ReplyTarget = nil
+            UpdateInputLayout()
         end)
 
-        local ContentLayout = New("Frame", {
+        -- Resize handle
+        local ChatResizeBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 1),
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            ZIndex = 503,
-            Parent = Row,
+            Position = UDim2.fromScale(1, 1),
+            Size = UDim2.fromOffset(16, 16),
+            Text = "",
+            ZIndex = ChatGui.ZIndex + 1,
+            Parent = ChatGui,
         })
-        New("UIListLayout", {
-            FillDirection = Enum.FillDirection.Vertical,
-            Padding = UDim.new(0, 2),
-            Parent = ContentLayout,
-        })
+        if ResizeIcon then
+            New("ImageLabel", {
+                BackgroundTransparency = 1,
+                Image = ResizeIcon.Url,
+                ImageColor3 = "OutlineColor",
+                ImageRectOffset = ResizeIcon.ImageRectOffset,
+                ImageRectSize = ResizeIcon.ImageRectSize,
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = ChatGui.ZIndex + 2,
+                Parent = ChatResizeBtn,
+            })
+        end
+        Library:MakeResizable(ChatGui, ChatResizeBtn, function()
+            UpdateInputLayout()
+        end)
 
-        if replyData and replyData.Username and replyData.Text then
+        Library:MakeDraggable(ChatGui, ChatTitleBar, true)
+
+        -- HTTP & ID Setup
+        local HttpRequest = request or http_request or (syn and syn.request) or nil
+        local ProcessedSignatures = {}
+        local ProcessedPings = {}
+
+        local function GetUniqueMessageId()
+            return tostring(math.random(100000, 999999))
+        end
+
+        local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser, deleteMessageId)
+            if not HttpRequest then return end
+            local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            local data = {
+                Username = username,
+                UserId = tostring(LocalPlayer.UserId),
+                Roles = {"user"},
+                Message = message,
+                MessageId = messageId,
+                Time = timestamp,
+                Reactions = reactions or {},
+                PingUser = targetPingUser,
+                DeleteId = deleteMessageId
+            }
+            if replyData then
+                data.ReplyToId = replyData.Id
+                data.ReplyToUser = replyData.Username
+                data.ReplyToText = replyData.Text
+            end
+
+            local body = game:GetService("HttpService"):JSONEncode(data)
+            task.spawn(function()
+                pcall(function()
+                    HttpRequest({
+                        Url = "http://167.99.144.89:8081/chatbox",
+                        Method = "POST",
+                        Headers = { ["Content-Type"] = "application/json" },
+                        Body = body,
+                    })
+                end)
+            end)
+        end
+
+        -- Admin Lookup
+        local AdminUserIds = {
+            [11117216138] = true,
+            [2327711124] = true,
+        }
+
+        local function IsAdmin(userId, username)
+            if userId then
+                local numId = tonumber(userId)
+                if numId and AdminUserIds[numId] then return true end
+            end
+            if username then
+                local success, fetchedId = pcall(function()
+                    return game:GetService("Players"):GetUserIdFromNameAsync(username)
+                end)
+                if success and fetchedId and AdminUserIds[fetchedId] then return true end
+            end
+            return false
+        end
+
+        local LastMessageTime = 0
+        local SpamCooldown = 2
+        local BannedWords = {}
+
+        local function ContainsBannedWord(Msg)
+            local Lower = Msg:lower()
+            if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
+            for _, Word in BannedWords do
+                if Lower:match(Word:lower()) then return true end
+            end
+            return false
+        end
+
+        local UpdateMessageReactions
+
+        -- Add Message Function
+        local MsgIndex = 0
+        local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
+            local msgIdStr = messageId or tostring(math.random(1000,9999))
+
+            if ActiveMessageRows[msgIdStr] then
+                if ActiveMessageRows[msgIdStr].UpdateReactions then
+                    ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
+                end
+                return
+            end
+
+            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
+            if ProcessedSignatures[signature] then return end
+            ProcessedSignatures[signature] = true
+
+            MsgIndex = MsgIndex + 1
+
+            local Row = New("Frame", {
+                BackgroundColor3 = Color3.new(1, 1, 1),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                LayoutOrder = MsgIndex,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                ZIndex = 502,
+                Parent = ChatScroll,
+            })
+            New("UIPadding", {
+                PaddingBottom = New("UDim", 0, 4),
+                PaddingLeft = New("UDim", 0, 2),
+                PaddingRight = New("UDim", 0, 2),
+                PaddingTop = New("UDim", 0, 4),
+                Parent = Row,
+            })
+
+            local ActionBar = New("Frame", {
+                AnchorPoint = Vector2.new(1, 0),
+                BackgroundColor3 = Color3.fromRGB(45, 47, 52),
+                Position = UDim2.new(1, -4, 0, -6),
+                Size = UDim2.fromOffset(84, 24),
+                Visible = false,
+                ZIndex = 510,
+                Parent = Row,
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ActionBar })
+            New("UIStroke", { Color = "OutlineColor", Parent = ActionBar })
+
+            local ReplyBtn = New("TextButton", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.new(0, 28, 1, 0),
+                Text = "↩",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextSize = 13,
+                ZIndex = 511,
+                Parent = ActionBar,
+            })
+
+            local HeartBtn = New("TextButton", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 28, 0, 0),
+                Size = UDim2.new(0, 28, 1, 0),
+                Text = "❤️",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextSize = 11,
+                ZIndex = 511,
+                Parent = ActionBar,
+            })
+
+            local BinBtn = New("TextButton", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 56, 0, 0),
+                Size = UDim2.new(0, 28, 1, 0),
+                Text = "🗑️",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextSize = 11,
+                ZIndex = 511,
+                Parent = ActionBar,
+            })
+
+            -- Circular Progress Indicator Around Bin Button
+            local BinProgressGui = New("Frame", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 56, 0, 0),
+                Size = UDim2.fromOffset(28, 28),
+                Visible = false,
+                ZIndex = 515,
+                Parent = ActionBar,
+            })
+            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
+            New("UIStroke", {
+                Color = Color3.fromRGB(255, 60, 60),
+                Thickness = 2.5,
+                Parent = BinProgressGui,
+            })
+
+            local currentRowReactions = reactions or { ["❤️"] = {} }
+
+            ReplyBtn.MouseButton1Click:Connect(function()
+                ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
+                ReplyBannerText.Text = "Replying to " .. sender
+                UpdateInputLayout()
+                ChatInput:CaptureFocus()
+            end)
+
+            HeartBtn.MouseButton1Click:Connect(function()
+                local currentRx = { ["❤️"] = {} }
+                if currentRowReactions and currentRowReactions["❤️"] then
+                    for _, u in ipairs(currentRowReactions["❤️"]) do
+                        table.insert(currentRx["❤️"], u)
+                    end
+                end
+
+                local foundIndex = nil
+                for i, user in ipairs(currentRx["❤️"]) do
+                    if user == LocalPlayer.Name then
+                        foundIndex = i
+                        break
+                    end
+                end
+
+                if foundIndex then
+                    table.remove(currentRx["❤️"], foundIndex)
+                else
+                    table.insert(currentRx["❤️"], LocalPlayer.Name)
+                end
+
+                currentRowReactions = currentRx
+                SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
+            end)
+
+            -- Hold to Delete Logic with Circular Progress Animation
+            local isHoldingDelete = false
+
+            BinBtn.MouseButton1Down:Connect(function()
+                isHoldingDelete = true
+                BinProgressGui.Visible = true
+
+                local startTime = tick()
+                task.spawn(function()
+                    while isHoldingDelete do
+                        local elapsed = tick() - startTime
+                        if elapsed >= 2.0 then
+                            ActiveMessageRows[msgIdStr] = nil
+                            Row:Destroy()
+                            SendToEndpoint(sender, text, msgIdStr, replyData, nil, nil, msgIdStr)
+                            break
+                        end
+                        task.wait(0.02)
+                    end
+                end)
+            end)
+
+            local function CancelDeleteHold()
+                if isHoldingDelete then
+                    isHoldingDelete = false
+                    BinProgressGui.Visible = false
+                end
+            end
+
+            BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
+            BinBtn.MouseLeave:Connect(CancelDeleteHold)
+
+            Row.MouseEnter:Connect(function()
+                if not isSystem then ActionBar.Visible = true end
+            end)
+            Row.MouseLeave:Connect(function()
+                ActionBar.Visible = false
+                CancelDeleteHold()
+            end)
+
+            local ContentLayout = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                ZIndex = 503,
+                Parent = Row,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                Padding = UDim.new(0, 2),
+                Parent = ContentLayout,
+            })
+
+            if replyData and replyData.Username and replyData.Text then
+                New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 0),
+                    Text = "┌ ↩ " .. replyData.Username .. ": " .. replyData.Text,
+                    TextColor3 = Color3.fromRGB(150, 150, 150),
+                    TextSize = 12,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    ZIndex = 504,
+                    Parent = ContentLayout,
+                })
+            end
+
+            local NameColor
+            if isSystem then
+                NameColor = Color3.fromRGB(255, 100, 100)
+            elseif sender == LocalPlayer.Name then
+                NameColor = Library.Scheme.AccentColor
+            else
+                NameColor = Color3.fromRGB(255, 90, 90)
+            end
+
+            local DisplayName = sender
+            if not isSystem and IsAdmin(senderUserId, sender) then
+                DisplayName = sender .. " 👑"
+            end
+
             New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
-                Text = "┌ ↩ " .. replyData.Username .. ": " .. replyData.Text,
-                TextColor3 = Color3.fromRGB(150, 150, 150),
-                TextSize = 12,
-                TextTruncate = Enum.TextTruncate.AtEnd,
+                Text = DisplayName,
+                TextColor3 = NameColor,
+                TextSize = 13,
+                TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 504,
                 Parent = ContentLayout,
             })
-        end
 
-        local NameColor
-        if isSystem then
-            NameColor = Color3.fromRGB(255, 100, 100)
-        elseif sender == LocalPlayer.Name then
-            NameColor = Library.Scheme.AccentColor
-        else
-            NameColor = Color3.fromRGB(255, 90, 90)
-        end
-
-        local DisplayName = sender
-        if not isSystem and IsAdmin(senderUserId, sender) then
-            DisplayName = sender .. " 👑"
-        end
-
-        New("TextLabel", {
-            AutomaticSize = Enum.AutomaticSize.Y,
-            BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 0),
-            Text = DisplayName,
-            TextColor3 = NameColor,
-            TextSize = 13,
-            TextWrapped = true,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 504,
-            Parent = ContentLayout,
-        })
-
-        New("TextLabel", {
-            AutomaticSize = Enum.AutomaticSize.Y,
-            BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 0),
-            Text = text,
-            TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
-            TextSize = 14,
-            TextWrapped = true,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 504,
-            Parent = ContentLayout,
-        })
-
-        local currentReactionContainer = nil
-        local activeUsernamesMenu = nil
-
-        local function HideUsernamesMenu()
-            if activeUsernamesMenu then
-                activeUsernamesMenu:Destroy()
-                activeUsernamesMenu = nil
-            end
-        end
-
-        local function ShowUsernamesMenu(usersTable, relativePositionObject)
-            HideUsernamesMenu()
-            if not usersTable or #usersTable == 0 then return end
-
-            activeUsernamesMenu = New("Frame", {
-                BackgroundColor3 = Color3.fromRGB(30, 32, 38),
-                AutomaticSize = Enum.AutomaticSize.XY,
-                Position = UDim2.new(0, 0, 1, 4),
-                ZIndex = 600,
-                Parent = relativePositionObject,
-            })
-            New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeUsernamesMenu })
-            New("UIStroke", { Color = Color3.fromRGB(80, 80, 90), Parent = activeUsernamesMenu })
-            New("UIPadding", {
-                PaddingBottom = UDim.new(0, 6),
-                PaddingLeft = UDim.new(0, 8),
-                PaddingRight = UDim.new(0, 8),
-                PaddingTop = UDim.new(0, 6),
-                Parent = activeUsernamesMenu,
+            New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                Text = text,
+                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
+                TextSize = 14,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 504,
+                Parent = ContentLayout,
             })
 
-            local menuList = New("UIListLayout", {
-                FillDirection = Enum.FillDirection.Vertical,
-                Padding = UDim.new(0, 3),
-                Parent = activeUsernamesMenu,
-            })
+            local currentReactionContainer = nil
 
-            for _, username in ipairs(usersTable) do
-                New("TextLabel", {
-                    BackgroundTransparency = 1,
-                    AutomaticSize = Enum.AutomaticSize.XY,
-                    Text = username,
-                    TextColor3 = Color3.fromRGB(230, 230, 230),
-                    TextSize = 12,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    ZIndex = 601,
-                    Parent = activeUsernamesMenu,
-                })
-            end
-        end
-
-        local function RenderReactionPill(rxData)
-            if currentReactionContainer then
-                currentReactionContainer:Destroy()
-                currentReactionContainer = nil
-            end
-            HideUsernamesMenu()
-
-            if rxData and rxData["❤️"] and #rxData["❤️"] > 0 then
-                currentReactionContainer = New("TextButton", {
-                    AutoButtonColor = false,
-                    AutomaticSize = Enum.AutomaticSize.XY,
-                    BackgroundColor3 = Color3.fromRGB(40, 42, 48),
-                    Size = UDim2.fromOffset(0, 20),
-                    Text = "",
-                    ZIndex = 504,
-                    Parent = ContentLayout,
-                })
-                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
-                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
-                New("UIPadding", {
-                    PaddingLeft = UDim.new(0, 6),
-                    PaddingRight = UDim.new(0, 6),
-                    Parent = currentReactionContainer,
-                })
-                New("TextLabel", {
-                    BackgroundTransparency = 1,
-                    Size = UDim2.fromScale(1, 1),
-                    Text = "❤️  " .. tostring(#rxData["❤️"]),
-                    TextColor3 = Color3.fromRGB(200, 200, 200),
-                    TextSize = 12,
-                    ZIndex = 505,
-                    Parent = currentReactionContainer,
-                })
-
-                local isHoldingReaction = false
-                currentReactionContainer.MouseButton1Down:Connect(function()
-                    isHoldingReaction = true
-                    task.delay(1.0, function()
-                        if isHoldingReaction then
-                            ShowUsernamesMenu(rxData["❤️"], currentReactionContainer)
-                        end
-                    end)
-                end)
-
-                local function CancelReactionHold()
-                    isHoldingReaction = false
+            local function RenderReactionPill(rxData)
+                if currentReactionContainer then
+                    currentReactionContainer:Destroy()
+                    currentReactionContainer = nil
                 end
-                currentReactionContainer.MouseButton1Up:Connect(CancelReactionHold)
-                currentReactionContainer.MouseLeave:Connect(function()
-                    CancelReactionHold()
-                    HideUsernamesMenu()
-                end)
+
+                if rxData and rxData["❤️"] and #rxData["❤️"] > 0 then
+                    currentReactionContainer = New("Frame", {
+                        AutomaticSize = Enum.AutomaticSize.XY,
+                        BackgroundColor3 = Color3.fromRGB(40, 42, 48),
+                        Size = UDim2.fromOffset(0, 20),
+                        ZIndex = 504,
+                        Parent = ContentLayout,
+                    })
+                    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
+                    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
+                    New("UIPadding", {
+                        PaddingLeft = UDim.new(0, 6),
+                        PaddingRight = UDim.new(0, 6),
+                        Parent = currentReactionContainer,
+                    })
+                    New("TextLabel", {
+                        BackgroundTransparency = 1,
+                        Size = UDim2.fromScale(1, 1),
+                        Text = "❤️  " .. tostring(#rxData["❤️"]),
+                        TextColor3 = Color3.fromRGB(200, 200, 200),
+                        TextSize = 12,
+                        ZIndex = 505,
+                        Parent = currentReactionContainer,
+                    })
+                end
             end
+
+            RenderReactionPill(reactions)
+
+            ActiveMessageRows[msgIdStr] = {
+                UpdateReactions = function(newRx)
+                    currentRowReactions = newRx or { ["❤️"] = {} }
+                    RenderReactionPill(currentRowReactions)
+                end
+            }
+
+            table.insert(ChatMessages, { Sender = sender, Text = text })
+
+            task.defer(function()
+                ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
+            end)
+
+            return Row
         end
 
-        RenderReactionPill(reactions)
+        local function SendMessage()
+            local Msg = ChatInput.Text
+            if not Msg or Msg:gsub("%s", "") == "" then return end
 
-        ActiveMessageRows[msgIdStr] = {
-            UpdateReactions = function(newRx)
-                currentRowReactions = newRx or { ["❤️"] = {} }
-                RenderReactionPill(currentRowReactions)
+            if #Msg > 100 then
+                AddMessage("System", "Message too long. Max 100 characters.", true)
+                return
             end
-        }
 
-        table.insert(ChatMessages, { Sender = sender, Text = text })
+            if tick() - LastMessageTime < SpamCooldown then
+                AddMessage("System", "Please wait before sending another message.", true)
+                return
+            end
 
-        task.defer(function()
-            ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
-        end)
+            if ContainsBannedWord(Msg) then
+                AddMessage("System", "Your message contains a banned word.", true)
+                return
+            end
 
-        return Row
-    end
+            LastMessageTime = tick()
+            local CurrentMsg = Msg
+            ChatInput.Text = ""
 
-    local function SendMessage()
-        local Msg = ChatInput.Text
-        if not Msg or Msg:gsub("%s", "") == "" then return end
+            local UniqueId = GetUniqueMessageId()
+            local currentReply = ReplyTarget
 
-        if #Msg > 100 then
-            AddMessage("System", "Message too long. Max 100 characters.", true)
-            return
+            ReplyTarget = nil
+            UpdateInputLayout()
+
+            -- Check if message contains a ping like @username
+            local targetPingUser = nil
+            for match in CurrentMsg:gmatch("@([%w_]+)") do
+                targetPingUser = match
+                break -- Send the first found ping target to backend
+            end
+
+            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
+            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil)
         end
 
-        if tick() - LastMessageTime < SpamCooldown then
-            AddMessage("System", "Please wait before sending another message.", true)
-            return
-        end
+        -- Initial Fetch & Polling
+        local function FetchMessages()
+            pcall(function()
+                if HttpRequest then
+                    local Result = HttpRequest({
+                        Url = "http://167.99.144.89:8081/chatbox",
+                        Method = "GET",
+                        Headers = { ["Content-Type"] = "application/json" },
+                    })
+                    if Result and Result.StatusCode == 200 and Result.Body then
+                        local Success, Decoded = pcall(function()
+                            return game:GetService("HttpService"):JSONDecode(Result.Body)
+                        end)
+                        if Success and type(Decoded) == "table" then
+                            local messageList = Decoded.Messages or Decoded
 
-        if ContainsBannedWord(Msg) then
-            AddMessage("System", "Your message contains a banned word.", true)
-            return
-        end
-
-        LastMessageTime = tick()
-        local CurrentMsg = Msg
-        ChatInput.Text = ""
-
-        local UniqueId = GetUniqueMessageId()
-        local currentReply = ReplyTarget
-
-        ReplyTarget = nil
-        UpdateInputLayout()
-
-        local targetPingUser = nil
-        for match in CurrentMsg:gmatch("@([%w_]+)") do
-            targetPingUser = match
-            break
-        end
-
-        local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
-        AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
-        SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil)
-    end
-
-    -- Initial Fetch & Polling
-    local function FetchMessages()
-        pcall(function()
-            if HttpRequest then
-                local Result = HttpRequest({
-                    Url = "http://167.99.144.89:8081/chatbox",
-                    Method = "GET",
-                    Headers = { ["Content-Type"] = "application/json" },
-                })
-                if Result and Result.StatusCode == 200 and Result.Body then
-                    local Success, Decoded = pcall(function()
-                        return game:GetService("HttpService"):JSONDecode(Result.Body)
-                    end)
-                    if Success and type(Decoded) == "table" then
-                        local messageList = Decoded.Messages or Decoded
-
-                        if type(messageList) == "table" then
-                            local activeServerIds = {}
-                            for _, msgData in ipairs(messageList) do
-                                if msgData.MessageId then
-                                    activeServerIds[msgData.MessageId] = true
-                                end
-
-                                if msgData.Username and msgData.Message then
-                                    local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
-                                    if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
-
-                                    local replyData = nil
-                                    if msgData.ReplyToId then
-                                        replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
+                            if type(messageList) == "table" then
+                                local activeServerIds = {}
+                                for _, msgData in ipairs(messageList) do
+                                    if msgData.MessageId then
+                                        activeServerIds[msgData.MessageId] = true
                                     end
 
-                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
+                                    if msgData.Username and msgData.Message then
+                                        local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
+                                        if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
+
+                                        local replyData = nil
+                                        if msgData.ReplyToId then
+                                            replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
+                                        end
+
+                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
+                                    end
+                                end
+
+                                -- Remove message rows globally for all users if deleted on the server
+                                for idStr, rowData in pairs(ActiveMessageRows) do
+                                    if not activeServerIds[idStr] then
+                                        ActiveMessageRows[idStr] = nil
+                                    end
                                 end
                             end
 
-                            -- Remove local message rows that were deleted on the server
-                            for idStr, rowData in pairs(ActiveMessageRows) do
-                                if not activeServerIds[idStr] then
-                                    -- Find and destroy the UI row if it still exists locally
-                                    ActiveMessageRows[idStr] = nil
-                                    -- Clear from scroll tracking if needed
-                                end
-                            end
-                        end
+                            -- Handle Pings Payload from VPS
+                            local pingsList = Decoded.Pings
+                            if type(pingsList) == "table" then
+                                local unreadPingsCount = 0
+                                local lastSender = ""
+                                local hasNewPings = false
+                                local localNameLower = LocalPlayer.Name:lower()
 
-                        local pingsList = Decoded.Pings
-                        if type(pingsList) == "table" then
-                            local unreadPingsCount = 0
-                            local lastSender = ""
-                            local hasNewPings = false
-                            local localNameLower = LocalPlayer.Name:lower()
+                                for _, pingObj in ipairs(pingsList) do
+                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
+                                        -- Check if this user has already been marked as delivered on the server
+                                        local isDelivered = false
+                                        if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
+                                            for _, user in ipairs(pingObj.deliveredUsers) do
+                                                if user:lower() == localNameLower then
+                                                    isDelivered = true
+                                                    break
+                                                end
+                                            end
+                                        end
 
-                            for _, pingObj in ipairs(pingsList) do
-                                if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
-                                    local isDelivered = false
-                                    if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
-                                        for _, user in ipairs(pingObj.deliveredUsers) do
-                                            if user:lower() == localNameLower then
-                                                isDelivered = true
-                                                break
+                                        if not isDelivered then
+                                            local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
+                                            if not ProcessedPings[pingSig] then
+                                                ProcessedPings[pingSig] = true
+                                                unreadPingsCount = unreadPingsCount + 1
+                                                lastSender = pingObj.Sender
+                                                hasNewPings = true
                                             end
                                         end
                                     end
+                                end
 
-                                    if not isDelivered then
-                                        local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
-                                        if not ProcessedPings[pingSig] then
-                                            ProcessedPings[pingSig] = true
-                                            unreadPingsCount = unreadPingsCount + 1
-                                            lastSender = pingObj.Sender
-                                            hasNewPings = true
-                                        end
+                                if unreadPingsCount > 0 then
+                                    if unreadPingsCount == 1 then
+                                        Library:Notify({
+                                            Title = "Chat Mention",
+                                            Description = "Ping received off " .. lastSender,
+                                            Time = 4,
+                                            SoundId = 18595195017
+                                        })
+                                    else
+                                        Library:Notify({
+                                            Title = "Chat Mentions",
+                                            Description = "You have " .. unreadPingsCount .. " unread pings.",
+                                            Time = 4,
+                                            SoundId = 18595195017
+                                        })
                                     end
                                 end
-                            end
 
-                            if unreadPingsCount > 0 then
-                                if unreadPingsCount == 1 then
-                                    Library:Notify({
-                                        Title = "Chat Mention",
-                                        Description = "Ping received off " .. lastSender,
-                                        Time = 4,
-                                        SoundId = 18595195017
-                                    })
-                                else
-                                    Library:Notify({
-                                        Title = "Chat Mentions",
-                                        Description = "You have " .. unreadPingsCount .. " unread pings.",
-                                        Time = 4,
-                                        SoundId = 18595195017
-                                    })
-                                end
-                            end
-
-                            if hasNewPings then
-                                task.spawn(function()
-                                    pcall(function()
-                                        HttpRequest({
-                                            Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
-                                            Method = "POST",
-                                            Headers = { ["Content-Type"] = "application/json" },
-                                            Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
-                                        })
+                                -- If we processed new pings, notify the VPS to mark them as delivered for this user
+                                if hasNewPings then
+                                    task.spawn(function()
+                                        pcall(function()
+                                            HttpRequest({
+                                                Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
+                                                Method = "POST",
+                                                Headers = { ["Content-Type"] = "application/json" },
+                                                Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
+                                            })
+                                        end)
                                     end)
-                                end)
+                                end
                             end
                         end
                     end
                 end
+            end)
+        end
+
+        task.spawn(FetchMessages)
+        task.spawn(function()
+            while true do
+                FetchMessages()
+                task.wait(2)
             end
         end)
-    end
 
-    task.spawn(FetchMessages)
-    task.spawn(function()
-        while true do
-            FetchMessages()
-            task.wait(2)
+        SendBtn.MouseButton1Click:Connect(SendMessage)
+        ChatInput.FocusLost:Connect(function(Enter)
+            if Enter then SendMessage() end
+        end)
+
+        ChatCloseBtn.MouseButton1Click:Connect(function()
+            ChatGui.Visible = false
+            ChatOpen = false
+            TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+            end
+        end)
+
+        -- Sidebar tab setup
+        local ChatTabButton = New("TextButton", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 40),
+            Text = "",
+            Parent = Tabs,
+        })
+        SetupTabDrag(ChatTabButton)
+
+        if SavedTabOrder and SavedTabOrder[ChatTabButton.Name] then
+            ChatTabButton.LayoutOrder = SavedTabOrder[ChatTabButton.Name]
         end
-    end)
 
-    SendBtn.MouseButton1Click:Connect(SendMessage)
-    ChatInput.FocusLost:Connect(function(Enter)
-        if Enter then SendMessage() end
-    end)
-
-    ChatCloseBtn.MouseButton1Click:Connect(function()
-        ChatGui.Visible = false
-        ChatOpen = false
-        TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
-        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
-        if ChatBtnIcon then
-            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
-        end
-    end)
-
-    -- Sidebar tab setup
-    local ChatTabButton = New("TextButton", {
-        BackgroundColor3 = "MainColor",
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 40),
-        Text = "",
-        Parent = Tabs,
-    })
-    SetupTabDrag(ChatTabButton)
-
-    if SavedTabOrder and SavedTabOrder[ChatTabButton.Name] then
-        ChatTabButton.LayoutOrder = SavedTabOrder[ChatTabButton.Name]
-    end
-
-    local ChatPadding = New("UIPadding", {
-        PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
-        PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
-        PaddingRight = UDim.new(0, IsCompact and 6 or 12),
-        PaddingTop = UDim.new(0, IsCompact and 6 or 11),
-        Parent = ChatTabButton,
-    })
-
-    local ChatBtnLabel = New("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(30, 0),
-        Size = UDim2.new(1, -30, 1, 0),
-        Text = "Chatbox",
-        TextSize = 16,
-        TextTransparency = 0.5,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Visible = not IsCompact,
-        Parent = ChatTabButton,
-    })
-
-    local ChatLucideIcon = Library:GetIcon("message-circle")
-    local ChatBtnIcon
-    if ChatLucideIcon then
-        ChatBtnIcon = New("ImageLabel", {
-            Image = ChatLucideIcon.Url,
-            ImageColor3 = "AccentColor",
-            ImageRectOffset = ChatLucideIcon.ImageRectOffset,
-            ImageRectSize = ChatLucideIcon.ImageRectSize,
-            ImageTransparency = 0.5,
-            ScaleType = Enum.ScaleType.Fit,
-            Size = UDim2.fromScale(1, 1),
-            SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+        local ChatPadding = New("UIPadding", {
+            PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
+            PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
+            PaddingRight = UDim.new(0, IsCompact and 6 or 12),
+            PaddingTop = UDim.new(0, IsCompact and 6 or 11),
             Parent = ChatTabButton,
         })
+
+        local ChatBtnLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(30, 0),
+            Size = UDim2.new(1, -30, 1, 0),
+            Text = "Chatbox",
+            TextSize = 16,
+            TextTransparency = 0.5,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Visible = not IsCompact,
+            Parent = ChatTabButton,
+        })
+
+        local ChatLucideIcon = Library:GetIcon("message-circle")
+        local ChatBtnIcon
+        if ChatLucideIcon then
+            ChatBtnIcon = New("ImageLabel", {
+                Image = ChatLucideIcon.Url,
+                ImageColor3 = "AccentColor",
+                ImageRectOffset = ChatLucideIcon.ImageRectOffset,
+                ImageRectSize = ChatLucideIcon.ImageRectSize,
+                ImageTransparency = 0.5,
+                ScaleType = Enum.ScaleType.Fit,
+                Size = UDim2.fromScale(1, 1),
+                SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+                Parent = ChatTabButton,
+            })
+        end
+
+        table.insert(Library.TabButtons, {
+            Label = ChatBtnLabel,
+            Padding = ChatPadding,
+            Icon = ChatBtnIcon,
+        })
+
+        ChatTabButton.MouseEnter:Connect(function()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.25 }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.25 }):Play()
+            end
+        end)
+        ChatTabButton.MouseLeave:Connect(function()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+            end
+        end)
+
+        ChatTabButton.MouseButton1Click:Connect(function()
+            ChatOpen = not ChatOpen
+            ChatGui.Visible = ChatOpen
+
+            TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = ChatOpen and 0 or 1 }):Play()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = ChatOpen and 0 or 0.5 }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = ChatOpen and 0 or 0.5 }):Play()
+            end
+        end)
+
+        Window.ChatAddMessage = AddMessage
     end
-
-    table.insert(Library.TabButtons, {
-        Label = ChatBtnLabel,
-        Padding = ChatPadding,
-        Icon = ChatBtnIcon,
-    })
-
-    ChatTabButton.MouseEnter:Connect(function()
-        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.25 }):Play()
-        if ChatBtnIcon then
-            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.25 }):Play()
-        end
-    end)
-    ChatTabButton.MouseLeave:Connect(function()
-        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
-        if ChatBtnIcon then
-            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
-        end
-    end)
-
-    ChatTabButton.MouseButton1Click:Connect(function()
-        ChatOpen = not ChatOpen
-        ChatGui.Visible = ChatOpen
-
-        TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = ChatOpen and 0 or 1 }):Play()
-        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = ChatOpen and 0 or 0.5 }):Play()
-        if ChatBtnIcon then
-            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = ChatOpen and 0 or 0.5 }):Play()
-        end
-    end)
-
-    Window.ChatAddMessage = AddMessage
-end
-    --testing23
+    --testing26
     return Window
 end
 
