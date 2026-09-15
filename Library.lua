@@ -9855,14 +9855,15 @@ end
             local CurrentMsg = Msg
             ChatInput.Text = ""
 
-            -- Instant local display and transmission with MessageId payload restored
-            local UniqueId = GetUniqueMessageId()
-            local sig = LocalPlayer.Name .. "|" .. CurrentMsg .. "|" .. tostring(os.time())
+            -- Instant local display with a stable signature based purely on username and content
+            local sig = LocalPlayer.Name .. "|" .. CurrentMsg
             AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, sig)
+            
+            local UniqueId = GetUniqueMessageId()
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
 
-        -- Instant Initial Load Fetch (Pulls all past messages using content signatures)
+        -- Instant Initial Load Fetch (Pulls past history safely)
         task.spawn(function()
             pcall(function()
                 if HttpRequest then
@@ -9878,7 +9879,7 @@ end
                         if Success and type(Decoded) == "table" then
                             for _, msgData in ipairs(Decoded) do
                                 if msgData.Username and msgData.Message then
-                                    local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message) .. "|" .. tostring(msgData.Time or "")
+                                    local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
                                     AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
                                 end
                             end
@@ -9888,7 +9889,7 @@ end
             end)
         end)
 
-        -- Background polling loop to continue fetching new live messages every 2 seconds
+        -- Background polling loop to catch new live messages from others (and prevent duplicates for your own)
         task.spawn(function()
             while true do
                 pcall(function()
@@ -9905,7 +9906,7 @@ end
                             if Success and type(Decoded) == "table" then
                                 for _, msgData in ipairs(Decoded) do
                                     if msgData.Username and msgData.Message then
-                                        local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message) .. "|" .. tostring(msgData.Time or "")
+                                        local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
                                         AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
                                     end
                                 end
@@ -10026,7 +10027,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing8
+    --testing9
     return Window
 end
 
