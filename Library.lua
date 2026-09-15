@@ -9855,8 +9855,8 @@ end
             local CurrentMsg = Msg
             ChatInput.Text = ""
 
-            -- Instant local display with a stable signature based purely on username and content
-            local sig = LocalPlayer.Name .. "|" .. CurrentMsg
+            -- Use os.clock() alongside username and message content to guarantee unique signatures for short/single-char messages
+            local sig = LocalPlayer.Name .. "|" .. CurrentMsg .. "|" .. tostring(os.clock())
             AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, sig)
             
             local UniqueId = GetUniqueMessageId()
@@ -9889,7 +9889,7 @@ end
             end)
         end)
 
-        -- Background polling loop to catch new live messages from others (and prevent duplicates for your own)
+        -- Background polling loop to catch new live messages from others
         task.spawn(function()
             while true do
                 pcall(function()
@@ -10027,7 +10027,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing9
+    --testing10
     return Window
 end
 
