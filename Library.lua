@@ -9437,7 +9437,7 @@ end
 
         local ChatGui = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundColor3 = "BackgroundColor",
             Position = UDim2.fromScale(0.5, 0.5),
             Size = UDim2.fromOffset(380, 480),
             Visible = false,
@@ -9449,7 +9449,7 @@ end
             Parent = ChatGui,
         })
         New("UIStroke", {
-            Color = Color3.fromRGB(40, 40, 40),
+            Color = "OutlineColor",
             Thickness = 1,
             Parent = ChatGui,
         })
@@ -9457,7 +9457,7 @@ end
 
         -- Title bar
         local ChatTitleBar = New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BackgroundColor3 = "MainColor",
             Size = UDim2.new(1, 0, 0, 36),
             ZIndex = 501,
             Parent = ChatGui,
@@ -9469,7 +9469,7 @@ end
         -- cover bottom rounded corners of title bar
         New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BackgroundColor3 = "MainColor",
             BorderSizePixel = 0,
             Position = UDim2.fromScale(0, 1),
             Size = UDim2.new(1, 0, 0, Library.CornerRadius),
@@ -9481,7 +9481,7 @@ end
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Text = "Global Chat",
-            TextColor3 = Color3.new(1, 1, 1),
+            TextColor3 = "FontColor",
             TextSize = 15,
             ZIndex = 502,
             Parent = ChatTitleBar,
@@ -9494,7 +9494,7 @@ end
             Position = UDim2.new(1, -10, 0.5, 0),
             Size = UDim2.fromOffset(20, 20),
             Text = "✕",
-            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextColor3 = "FontColor",
             TextSize = 14,
             ZIndex = 503,
             Parent = ChatTitleBar,
@@ -9502,7 +9502,7 @@ end
 
         -- Divider under title
         New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+            BackgroundColor3 = "OutlineColor",
             BorderSizePixel = 0,
             Position = UDim2.fromOffset(0, 36),
             Size = UDim2.new(1, 0, 0, 1),
@@ -9517,7 +9517,7 @@ end
             BackgroundTransparency = 1,
             CanvasSize = UDim2.fromScale(0, 0),
             Position = UDim2.fromOffset(0, 37),
-            ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60),
+            ScrollBarImageColor3 = "OutlineColor",
             ScrollBarThickness = 3,
             Size = UDim2.new(1, 0, 1, -83),
             ZIndex = 501,
@@ -9539,7 +9539,7 @@ end
         -- Bottom divider above input
         New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+            BackgroundColor3 = "OutlineColor",
             BorderSizePixel = 0,
             Position = UDim2.new(0, 0, 1, -46),
             Size = UDim2.new(1, 0, 0, 1),
@@ -9550,7 +9550,7 @@ end
         -- Input bar area
         local InputBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BackgroundColor3 = "MainColor",
             Position = UDim2.fromScale(0, 1),
             Size = UDim2.new(1, 0, 0, 46),
             ZIndex = 501,
@@ -9562,7 +9562,7 @@ end
         })
         -- cover top rounded corners of input bar
         New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BackgroundColor3 = "MainColor",
             BorderSizePixel = 0,
             Size = UDim2.new(1, 0, 0, Library.CornerRadius),
             ZIndex = 501,
@@ -9571,14 +9571,14 @@ end
 
         local ChatInput = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0.5),
-            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+            BackgroundColor3 = "BackgroundColor",
             ClearTextOnFocus = false,
-            PlaceholderText = "Send a message...",
-            PlaceholderColor3 = Color3.fromRGB(100, 100, 100),
+            PlaceholderText = "Send a message... (max 100 chars)",
+            PlaceholderColor3 = "FontColor",
             Position = UDim2.new(0, 8, 0.5, 0),
             Size = UDim2.new(1, -72, 0, 28),
             Text = "",
-            TextColor3 = Color3.new(1, 1, 1),
+            TextColor3 = "FontColor",
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 502,
@@ -9589,7 +9589,7 @@ end
             Parent = ChatInput,
         })
         New("UIStroke", {
-            Color = Color3.fromRGB(40, 40, 40),
+            Color = "OutlineColor",
             Parent = ChatInput,
         })
         New("UIPadding", {
@@ -9600,11 +9600,11 @@ end
 
         local SendBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundColor3 = Color3.fromRGB(125, 85, 255),
+            BackgroundColor3 = "AccentColor",
             Position = UDim2.new(1, -8, 0.5, 0),
             Size = UDim2.fromOffset(54, 28),
             Text = "Send",
-            TextColor3 = Color3.new(1, 1, 1),
+            TextColor3 = "FontColor",
             TextSize = 13,
             ZIndex = 502,
             Parent = InputBar,
@@ -9614,10 +9614,58 @@ end
             Parent = SendBtn,
         })
 
+        -- Resize handle
+        local ChatResizeBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 1),
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(1, 1),
+            Size = UDim2.fromOffset(16, 16),
+            Text = "",
+            ZIndex = ChatGui.ZIndex + 1,
+            Parent = ChatGui,
+        })
+        if ResizeIcon then
+            New("ImageLabel", {
+                BackgroundTransparency = 1,
+                Image = ResizeIcon.Url,
+                ImageColor3 = "OutlineColor",
+                ImageRectOffset = ResizeIcon.ImageRectOffset,
+                ImageRectSize = ResizeIcon.ImageRectSize,
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = ChatGui.ZIndex + 2,
+                Parent = ChatResizeBtn,
+            })
+        end
+        Library:MakeResizable(ChatGui, ChatResizeBtn, function()
+            ChatScroll.Size = UDim2.new(1, 0, 1, -83)
+        end)
+
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
+        -- Moderation
+        local LastMessageTime = 0
+        local SpamCooldown = 2
+
+        local BannedWords = {
+            -- add words here like: "badword",
+        }
+
+        local function ContainsBannedWord(Msg)
+            local Lower = Msg:lower()
+            -- hard r check (the specific slur ending in hard r)
+            if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then
+                return true
+            end
+            for _, Word in BannedWords do
+                if Lower:match(Word:lower()) then
+                    return true
+                end
+            end
+            return false
+        end
+
         local MsgIndex = 0
-        local function AddMessage(sender, text)
+        local function AddMessage(sender, text, isSystem)
             MsgIndex = MsgIndex + 1
             local Row = New("Frame", {
                 BackgroundTransparency = 1,
@@ -9638,7 +9686,7 @@ end
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = sender,
-                TextColor3 = Color3.fromRGB(125, 85, 255),
+                TextColor3 = isSystem and Color3.fromRGB(255, 100, 100) or "AccentColor",
                 TextSize = 13,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9651,7 +9699,7 @@ end
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = text,
-                TextColor3 = Color3.new(1, 1, 1),
+                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or "FontColor",
                 TextSize = 14,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9661,7 +9709,6 @@ end
 
             table.insert(ChatMessages, { Sender = sender, Text = text })
 
-            -- scroll to bottom
             task.defer(function()
                 ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
             end)
@@ -9672,8 +9719,25 @@ end
         local function SendMessage()
             local Msg = ChatInput.Text
             if not Msg or Msg:gsub("%s", "") == "" then return end
+
+            if #Msg > 100 then
+                AddMessage("System", "Message too long. Max 100 characters.", true)
+                return
+            end
+
+            if tick() - LastMessageTime < SpamCooldown then
+                AddMessage("System", "Please wait before sending another message.", true)
+                return
+            end
+
+            if ContainsBannedWord(Msg) then
+                AddMessage("System", "Your message contains a banned word.", true)
+                return
+            end
+
+            LastMessageTime = tick()
             ChatInput.Text = ""
-            AddMessage(LocalPlayer.Name, Msg)
+            AddMessage(LocalPlayer.Name, Msg, false)
         end
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
@@ -9771,10 +9835,9 @@ end
             end
         end)
 
-        -- expose so scripts can call AddMessage externally
         Window.ChatAddMessage = AddMessage
     end
-
+    
     return Window
 end
 
