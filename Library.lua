@@ -9434,6 +9434,7 @@ end
     do
         local ChatOpen = false
         local ChatMessages = {}
+        local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
 
         local ChatGui = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9543,7 +9544,7 @@ end
             Parent = ChatScroll,
         })
 
-        -- Bottom divider above input
+        -- Bottom divider above input container area
         New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "OutlineColor",
@@ -9554,7 +9555,7 @@ end
             Parent = ChatGui,
         })
 
-        -- Input bar
+        -- Input Bar Container (Dynamic height when replying)
         local InputBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "MainColor",
@@ -9575,13 +9576,44 @@ end
             Parent = InputBar,
         })
 
+        -- Reply Context Banner (Hidden by default)
+        local ReplyBanner = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 0, 4),
+            Size = UDim2.new(1, -16, 0, 20),
+            Visible = false,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        local ReplyBannerText = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -24, 1, 0),
+            Text = "Replying to user",
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 503,
+            Parent = ReplyBanner,
+        })
+        local ReplyCancelBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, 0, 0.5, 0),
+            Size = UDim2.fromOffset(18, 18),
+            Text = "✕",
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextSize = 12,
+            ZIndex = 503,
+            Parent = ReplyBanner,
+        })
+
         local ChatInput = New("TextBox", {
-            AnchorPoint = Vector2.new(0, 0.5),
+            AnchorPoint = Vector2.new(0, 0),
             BackgroundColor3 = "BackgroundColor",
             ClearTextOnFocus = false,
-            PlaceholderText = "Send a message... (max 100 chars)",
+            PlaceholderText = "Send a message...",
             PlaceholderColor3 = "FontColor",
-            Position = UDim2.new(0, 8, 0.5, 0),
+            Position = UDim2.new(0, 8, 0, 8),
             Size = UDim2.new(1, -72, 0, 28),
             Text = "",
             TextColor3 = "FontColor",
@@ -9605,9 +9637,9 @@ end
         })
 
         local SendBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
+            AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = "AccentColor",
-            Position = UDim2.new(1, -8, 0.5, 0),
+            Position = UDim2.new(1, -8, 0, 8),
             Size = UDim2.fromOffset(54, 28),
             Text = "Send",
             TextColor3 = "FontColor",
@@ -9619,6 +9651,29 @@ end
             CornerRadius = UDim.new(0, Library.CornerRadius / 2),
             Parent = SendBtn,
         })
+
+        local function UpdateInputLayout()
+            if ReplyTarget then
+                ReplyBanner.Visible = true
+                InputBar.Size = UDim2.new(1, 0, 0, 72)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -109)
+                ChatInput.Position = UDim2.new(0, 8, 0, 32)
+                SendBtn.Position = UDim2.new(1, -8, 0, 32)
+                ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
+            else
+                ReplyBanner.Visible = false
+                InputBar.Size = UDim2.new(1, 0, 0, 46)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -83)
+                ChatInput.Position = UDim2.new(0, 8, 0, 8)
+                SendBtn.Position = UDim2.new(1, -8, 0, 8)
+                ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
+            end
+        end
+
+        ReplyCancelBtn.MouseButton1Click:Connect(function()
+            ReplyTarget = nil
+            UpdateInputLayout()
+        end)
 
         -- Resize handle
         local ChatResizeBtn = New("TextButton", {
@@ -9643,12 +9698,12 @@ end
             })
         end
         Library:MakeResizable(ChatGui, ChatResizeBtn, function()
-            ChatScroll.Size = UDim2.new(1, 0, 1, -83)
+            UpdateInputLayout()
         end)
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-        -- HTTP & ID Generation Setup
+        -- HTTP & ID Setup
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local ProcessedSignatures = {}
 
@@ -9656,17 +9711,24 @@ end
             return tostring(math.random(100000, 999999))
         end
 
-        local function SendToEndpoint(username, message, messageId)
+        local function SendToEndpoint(username, message, messageId, replyData)
             if not HttpRequest then return end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-            local body = game:GetService("HttpService"):JSONEncode({
+            local data = {
                 Username = username,
                 UserId = tostring(LocalPlayer.UserId),
                 Roles = {"user"},
                 Message = message,
                 MessageId = messageId,
                 Time = timestamp,
-            })
+            }
+            if replyData then
+                data.ReplyToId = replyData.Id
+                data.ReplyToUser = replyData.Username
+                data.ReplyToText = replyData.Text
+            end
+
+            local body = game:GetService("HttpService"):JSONEncode(data)
             task.spawn(function()
                 pcall(function()
                     HttpRequest({
@@ -9679,7 +9741,7 @@ end
             end)
         end
 
-        -- Admin UserIDs List & Fallback Lookup Function
+        -- Admin Lookup
         local AdminUserIds = {
             [11117216138] = true,
             [2327711124] = true,
@@ -9688,53 +9750,41 @@ end
         local function IsAdmin(userId, username)
             if userId then
                 local numId = tonumber(userId)
-                if numId and AdminUserIds[numId] then
-                    return true
-                end
+                if numId and AdminUserIds[numId] then return true end
             end
-
             if username then
                 local success, fetchedId = pcall(function()
                     return game:GetService("Players"):GetUserIdFromNameAsync(username)
                 end)
-                if success and fetchedId and AdminUserIds[fetchedId] then
-                    return true
-                end
+                if success and fetchedId and AdminUserIds[fetchedId] then return true end
             end
-
             return false
         end
 
-        -- Moderation
         local LastMessageTime = 0
         local SpamCooldown = 2
-
         local BannedWords = {}
 
         local function ContainsBannedWord(Msg)
             local Lower = Msg:lower()
-            if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then
-                return true
-            end
+            if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
             for _, Word in BannedWords do
-                if Lower:match(Word:lower()) then
-                    return true
-                end
+                if Lower:match(Word:lower()) then return true end
             end
             return false
         end
 
-        -- Messages with Discord-like Hover Box Effect
+        -- Add Message Function (Supports Discord Hover & Replies)
         local MsgIndex = 0
-        local function AddMessage(sender, text, isSystem, senderUserId, customSignature)
-            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text))
+        local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, customSignature)
+            local msgIdStr = messageId or tostring(math.random(1000,9999))
+            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
             
             if ProcessedSignatures[signature] then return end
             ProcessedSignatures[signature] = true
 
             MsgIndex = MsgIndex + 1
 
-            -- Outer Container (Invisible hit box for hovering)
             local Row = New("TextButton", {
                 AutoButtonColor = false,
                 BackgroundColor3 = "MainColor",
@@ -9759,7 +9809,45 @@ end
                 Parent = Row,
             })
 
-            -- Internal Layout for Username and Message text
+            -- Discord-style floating action bar on hover (Reply button)
+            local ActionBar = New("Frame", {
+                AnchorPoint = Vector2.new(1, 0),
+                BackgroundColor3 = Color3.fromRGB(45, 47, 52),
+                Position = UDim2.new(1, -4, 0, -10),
+                Size = UDim2.fromOffset(32, 24),
+                Visible = false,
+                ZIndex = 510,
+                Parent = Row,
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ActionBar })
+            New("UIStroke", { Color = "OutlineColor", Parent = ActionBar })
+
+            local ReplyBtn = New("TextButton", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Text = "↩",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextSize = 14,
+                ZIndex = 511,
+                Parent = ActionBar,
+            })
+
+            ReplyBtn.MouseButton1Click:Connect(function()
+                ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
+                ReplyBannerText.Text = "Replying to " .. sender
+                UpdateInputLayout()
+                ChatInput:CaptureFocus()
+            end)
+
+            Row.MouseEnter:Connect(function()
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.6 }):Play()
+                if not isSystem then ActionBar.Visible = true end
+            end)
+            Row.MouseLeave:Connect(function()
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+                ActionBar.Visible = false
+            end)
+
             local ContentLayout = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
@@ -9773,7 +9861,22 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Name Color: Your name is Blue/Accent, other users are Red
+            -- Render Reply Reference Snippet if applicable
+            if replyData and replyData.Username and replyData.Text then
+                local ReplyContext = New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 0),
+                    Text = "┌ ↩ " .. replyData.Username .. ": " .. replyData.Text,
+                    TextColor3 = Color3.fromRGB(150, 150, 150),
+                    TextSize = 12,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    ZIndex = 504,
+                    Parent = ContentLayout,
+                })
+            end
+
             local NameColor
             if isSystem then
                 NameColor = Color3.fromRGB(255, 100, 100)
@@ -9783,7 +9886,6 @@ end
                 NameColor = Color3.fromRGB(255, 90, 90)
             end
 
-            -- Check if user is admin to append crown
             local DisplayName = sender
             if not isSystem and IsAdmin(senderUserId, sender) then
                 DisplayName = sender .. " 👑"
@@ -9814,14 +9916,6 @@ end
                 ZIndex = 504,
                 Parent = ContentLayout,
             })
-
-            -- Discord Hover Box Effect Connections
-            Row.MouseEnter:Connect(function()
-                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.6 }):Play()
-            end)
-            Row.MouseLeave:Connect(function()
-                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
-            end)
 
             table.insert(ChatMessages, { Sender = sender, Text = text })
 
@@ -9855,15 +9949,19 @@ end
             local CurrentMsg = Msg
             ChatInput.Text = ""
 
-            -- Generate a unique ID first so both the local preview and server use the exact same signature identifier
             local UniqueId = GetUniqueMessageId()
-            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
+            local currentReply = ReplyTarget
+            
+            -- Clear reply target immediately after grab
+            ReplyTarget = nil
+            UpdateInputLayout()
 
-            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, sig)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
+            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
+            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, sig)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply)
         end
 
-        -- Instant Initial Load Fetch (Pulls past history safely)
+        -- Initial Fetch
         task.spawn(function()
             pcall(function()
                 if HttpRequest then
@@ -9879,12 +9977,15 @@ end
                         if Success and type(Decoded) == "table" then
                             for _, msgData in ipairs(Decoded) do
                                 if msgData.Username and msgData.Message then
-                                    -- Use MessageId from server if available to ensure accurate signature matching
                                     local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
-                                    if msgData.MessageId then
-                                        sig = sig .. "|" .. tostring(msgData.MessageId)
+                                    if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
+                                    
+                                    local replyData = nil
+                                    if msgData.ReplyToId then
+                                        replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
                                     end
-                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
+                                    
+                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, sig)
                                 end
                             end
                         end
@@ -9893,7 +9994,7 @@ end
             end)
         end)
 
-        -- Background polling loop to catch new live messages from others
+        -- Polling loop
         task.spawn(function()
             while true do
                 pcall(function()
@@ -9911,10 +10012,14 @@ end
                                 for _, msgData in ipairs(Decoded) do
                                     if msgData.Username and msgData.Message then
                                         local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
-                                        if msgData.MessageId then
-                                            sig = sig .. "|" .. tostring(msgData.MessageId)
+                                        if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
+                                        
+                                        local replyData = nil
+                                        if msgData.ReplyToId then
+                                            replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
                                         end
-                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
+
+                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, sig)
                                     end
                                 end
                             end
@@ -9933,20 +10038,14 @@ end
         ChatCloseBtn.MouseButton1Click:Connect(function()
             ChatGui.Visible = false
             ChatOpen = false
-            TweenService:Create(ChatTabButton, Library.TweenInfo, {
-                BackgroundTransparency = 1,
-            }):Play()
-            TweenService:Create(ChatBtnLabel, Library.TweenInfo, {
-                TextTransparency = 0.5,
-            }):Play()
+            TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
             if ChatBtnIcon then
-                TweenService:Create(ChatBtnIcon, Library.TweenInfo, {
-                    ImageTransparency = 0.5,
-                }):Play()
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
             end
         end)
 
-        -- Sidebar tab button
+        -- Sidebar tab button setup
         local ChatTabButton = New("TextButton", {
             BackgroundColor3 = "MainColor",
             BackgroundTransparency = 1,
@@ -10019,22 +10118,16 @@ end
             ChatOpen = not ChatOpen
             ChatGui.Visible = ChatOpen
 
-            TweenService:Create(ChatTabButton, Library.TweenInfo, {
-                BackgroundTransparency = ChatOpen and 0 or 1,
-            }):Play()
-            TweenService:Create(ChatBtnLabel, Library.TweenInfo, {
-                TextTransparency = ChatOpen and 0 or 0.5,
-            }):Play()
+            TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = ChatOpen and 0 or 1 }):Play()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = ChatOpen and 0 or 0.5 }):Play()
             if ChatBtnIcon then
-                TweenService:Create(ChatBtnIcon, Library.TweenInfo, {
-                    ImageTransparency = ChatOpen and 0 or 0.5,
-                }):Play()
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = ChatOpen and 0 or 0.5 }):Play()
             end
         end)
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing11
+    --testing12
     return Window
 end
 
