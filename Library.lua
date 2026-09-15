@@ -176,6 +176,7 @@ local Library = {
     Tabs = {},
     TabButtons = {},
     DependencyBoxes = {},
+    GroupboxDragTargets = {},
 
     KeybindFrame = nil,
     KeybindContainer = nil,
@@ -6621,6 +6622,177 @@ local function SaveTabOrder()
         end
     end
 
+local function SaveGroupboxOrder()
+    if not writefile then return end
+
+    local AllOrder = {}
+
+    for _, Entry in Library.GroupboxDragTargets do
+        for sideIdx, Side in ipairs({Entry.TabLeft, Entry.TabRight}) do
+            for _, Child in ipairs(Side:GetChildren()) do
+                if Child:IsA("Frame") and Child.Name ~= "" then
+                    if not AllOrder[Entry.TabName] then
+                        AllOrder[Entry.TabName] = {}
+                    end
+                    AllOrder[Entry.TabName][Child.Name] = {
+                        Side = sideIdx,
+                        Order = Child.LayoutOrder,
+                        Tab = Entry.TabName,
+                    }
+                end
+            end
+        end
+    end
+
+    local Success, Err = pcall(writefile, "ObsidianGroupboxOrder.json", game:GetService("HttpService"):JSONEncode(AllOrder))
+    if not Success then
+        warn("Failed to save groupbox order:", Err)
+    end
+end
+
+    local function LoadGroupboxOrder()
+        if not readfile or not isfile then return {} end
+
+        local ok, data = pcall(readfile, "ObsidianGroupboxOrder.json")
+        if not ok or not data then return {} end
+
+        local ok2, decoded = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(data)
+        end)
+
+        return (ok2 and decoded) or {}
+    end
+
+
+local function ReindexSide(Side)
+        local Children = {}
+        for _, Child in ipairs(Side:GetChildren()) do
+            if Child:IsA("Frame") and Child.Name ~= "" then
+                table.insert(Children, Child)
+            end
+        end
+        table.sort(Children, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+        for i, Child in ipairs(Children) do
+            Child.LayoutOrder = i
+        end
+    end
+
+    local function GetGroupboxDropTarget(BoxHolder, TabLeft, TabRight)
+        local TargetSide
+        if Mouse.X < TabLeft.AbsolutePosition.X + TabLeft.AbsoluteSize.X then
+            TargetSide = TabLeft
+        else
+            TargetSide = TabRight
+        end
+
+        local InsertOrder = 0
+        for _, Child in ipairs(TargetSide:GetChildren()) do
+            if Child:IsA("Frame") and Child.Name ~= "" and Child ~= BoxHolder then
+                local AbsPos, AbsSize = Child.AbsolutePosition, Child.AbsoluteSize
+                local MidY = AbsPos.Y + AbsSize.Y / 2
+                if Mouse.Y < MidY then
+                    InsertOrder = Child.LayoutOrder - 0.5
+                    return TargetSide, InsertOrder
+                else
+                    InsertOrder = Child.LayoutOrder + 0.5
+                end
+            end
+        end
+
+        return TargetSide, InsertOrder
+    end
+
+
+    local function GetTabButtonDropTarget()
+        for _, Entry in Library.GroupboxDragTargets do
+            if Library:MouseIsOverFrame(Entry.Button, Mouse) then
+                return Entry
+            end
+        end
+        return nil
+    end
+
+local function SetupGroupboxDrag(BoxHolder, DragHandle, TabName, TabLeft, TabRight, GroupboxName)
+        local DragStartPos = nil
+        local IsDragging = false
+        local DragThreshold = 6
+
+        DragHandle.InputBegan:Connect(function(Input)
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                and Input.UserInputType ~= Enum.UserInputType.Touch then
+                return
+            end
+            DragStartPos = Input.Position
+            IsDragging = false
+        end)
+
+        UserInputService.InputChanged:Connect(function(Input)
+            if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
+                and Input.UserInputType ~= Enum.UserInputType.Touch)
+                or not DragStartPos then
+                return
+            end
+
+            if not IsDragging and (Input.Position - DragStartPos).Magnitude >= DragThreshold then
+                IsDragging = true
+            end
+        end)
+
+        DragHandle.InputEnded:Connect(function(Input)
+            if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+                and Input.UserInputType ~= Enum.UserInputType.Touch then
+                return
+            end
+            if not DragStartPos then return end
+
+            if IsDragging then
+                local TabTarget = GetTabButtonDropTarget()
+
+               if TabTarget and TabTarget.TabName ~= TabName then
+                    --// Dropped onto a different tab's button -> move groupbox there
+                    local TargetSide, InsertOrder = GetGroupboxDropTarget(BoxHolder, TabTarget.TabLeft, TabTarget.TabRight)
+                    local SourceSide = BoxHolder.Parent
+
+                    BoxHolder.LayoutOrder = InsertOrder
+                    BoxHolder.Parent = TargetSide
+
+                    ReindexSide(TargetSide)
+                    ReindexSide(SourceSide)
+
+                    local SourceTab = Library.Tabs[TabName]
+                    local DestTab = Library.Tabs[TabTarget.TabName]
+                    if SourceTab and DestTab and GroupboxName then
+                        DestTab.Groupboxes[GroupboxName] = SourceTab.Groupboxes[GroupboxName]
+                        SourceTab.Groupboxes[GroupboxName] = nil
+                    end
+
+                    SaveGroupboxOrder()
+                    SaveGroupboxOrder()
+                else
+                    local TargetSide, InsertOrder = GetGroupboxDropTarget(BoxHolder, TabLeft, TabRight)
+                    local SourceSide = BoxHolder.Parent
+
+                    BoxHolder.LayoutOrder = InsertOrder
+                    if SourceSide ~= TargetSide then
+                        BoxHolder.Parent = TargetSide
+                    end
+
+                    ReindexSide(TargetSide)
+                    if SourceSide ~= TargetSide then
+                        ReindexSide(SourceSide)
+                    end
+
+                    SaveGroupboxOrder()
+                end
+            end
+
+            IsDragging = false
+            DragStartPos = nil
+        end)
+
+        return function() return IsDragging end
+    end
+    
 local TabOrderCounter = 0
         local DraggingTab = nil
         local DraggingButton = nil
@@ -6704,7 +6876,7 @@ TabOrderCounter = TabOrderCounter + 1
     end
 
     local SavedTabOrder = LoadTabOrder()
-
+local SavedGroupboxOrder = LoadGroupboxOrder()
     do
         Library.KeybindFrame, Library.KeybindContainer = Library:AddDraggableMenu("Keybinds")
         Library.KeybindFrame.AnchorPoint = Vector2.new(0, 0.5)
@@ -6996,7 +7168,7 @@ TabOrderCounter = TabOrderCounter + 1
             Parent = BottomBar,
         })
 
-local LocalVersion = "1.0.5"
+local LocalVersion = "1.0.6"
 
 
         -- Status Circle
@@ -7050,7 +7222,7 @@ UpdateButton.MouseButton1Click:Connect(function()
     end
 
     Library:Unload()
-    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/e8580ba6e94aeaa7aa2486f060167f85.lua"))()
+    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/544f64759db6021216af8ca483bb53c4.lua"))()
 end)
 
 task.spawn(function()
@@ -7604,6 +7776,13 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
             },
         }
 
+        table.insert(Library.GroupboxDragTargets, {
+            Button = TabButton,
+            TabLeft = TabLeft,
+            TabRight = TabRight,
+            TabName = Name,
+        })
+
         function Tab:UpdateWarningBox(Info)
             if typeof(Info.IsNormal) == "boolean" then
                 Tab.WarningBox.IsNormal = Info.IsNormal
@@ -7709,13 +7888,40 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
             Tab:RefreshSides()
         end
 
-        function Tab:AddGroupbox(Info)
+function Tab:AddGroupbox(Info)
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
+                Name = Info.Name,
                 Size = UDim2.fromScale(1, 0),
                 Parent = Info.Side == 1 and TabLeft or TabRight,
             })
+
+local SavedEntry = nil
+for _, TabData in SavedGroupboxOrder do
+    if TabData[Info.Name] then
+        SavedEntry = TabData[Info.Name]
+        break
+    end
+end
+if SavedEntry then
+    task.defer(function()
+        local destTabName = SavedEntry.Tab or Name
+        local TargetLeft, TargetRight = TabLeft, TabRight
+
+        for _, Entry in Library.GroupboxDragTargets do
+            if Entry.TabName == destTabName then
+                TargetLeft  = Entry.TabLeft
+                TargetRight = Entry.TabRight
+                break
+            end
+        end
+
+        local TargetSide = SavedEntry.Side == 2 and TargetRight or TargetLeft
+        BoxHolder.Parent = TargetSide
+        BoxHolder.LayoutOrder = SavedEntry.Order
+    end)
+end
             New("UIListLayout", {
                 Padding = UDim.new(0, 6),
                 Parent = BoxHolder,
@@ -7805,6 +8011,9 @@ local CollapseButton = New("TextButton", {
     Parent = GroupboxLabel,
 })
 
+local IsGroupboxDragging = SetupGroupboxDrag(BoxHolder, CollapseButton, Name, TabLeft, TabRight, Info.Name)
+
+
 
 
 GroupboxContainer = New("Frame", {
@@ -7828,6 +8037,8 @@ New("UIPadding", {
                 })
 
 CollapseButton.MouseButton1Click:Connect(function()
+                    if IsGroupboxDragging() then return end
+
                     IsOpen = not IsOpen
                     GroupboxContainer.Visible = IsOpen
                     Arrow.Image = IsOpen and (ArrowUpIcon and ArrowUpIcon.Url or "") or (ArrowDownIcon and ArrowDownIcon.Url or "")
@@ -8545,13 +8756,6 @@ if SavedTabOrder and SavedTabOrder[TabButton.Name] then
     function Window:AddDialog(Idx, Info)
         Info = Library:Validate(Info, Templates.Dialog)
 
-
--- Fix for SaveManager calling too early
-    if not MainFrame then
-        warn("AddDialog called before window is ready")
-        return
-    end
-
         local DialogFrame
         local DialogOverlay
         local DialogContainer
@@ -9222,13 +9426,354 @@ end
     Library:GiveSignal(UserInputService.WindowFocused:Connect(function()
         Library.IsRobloxFocused = true
     end))
-Library:GiveSignal(UserInputService.WindowFocusReleased:Connect(function()
+    Library:GiveSignal(UserInputService.WindowFocusReleased:Connect(function()
         Library.IsRobloxFocused = false
     end))
 
-    -- Make AddDialog available globally for SaveManager
-    Library.AddDialog = Window.AddDialog
-    Library.CreateDialog = Window.AddDialog
+    -- CHATBOX WINDOW
+    do
+        local ChatOpen = false
+        local ChatMessages = {}
+
+        local ChatGui = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(380, 480),
+            Visible = false,
+            ZIndex = 500,
+            Parent = ScreenGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = ChatGui,
+        })
+        New("UIStroke", {
+            Color = Color3.fromRGB(40, 40, 40),
+            Thickness = 1,
+            Parent = ChatGui,
+        })
+        table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
+
+        -- Title bar
+        local ChatTitleBar = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            Size = UDim2.new(1, 0, 0, 36),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = ChatTitleBar,
+        })
+        -- cover bottom rounded corners of title bar
+        New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BorderSizePixel = 0,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+            ZIndex = 501,
+            Parent = ChatTitleBar,
+        })
+
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "Global Chat",
+            TextColor3 = Color3.new(1, 1, 1),
+            TextSize = 15,
+            ZIndex = 502,
+            Parent = ChatTitleBar,
+        })
+
+        -- Close button
+        local ChatCloseBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, -10, 0.5, 0),
+            Size = UDim2.fromOffset(20, 20),
+            Text = "✕",
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextSize = 14,
+            ZIndex = 503,
+            Parent = ChatTitleBar,
+        })
+
+        -- Divider under title
+        New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+            BorderSizePixel = 0,
+            Position = UDim2.fromOffset(0, 36),
+            Size = UDim2.new(1, 0, 0, 1),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+
+        -- Messages scroll area
+        local ChatScroll = New("ScrollingFrame", {
+            AnchorPoint = Vector2.new(0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            CanvasSize = UDim2.fromScale(0, 0),
+            Position = UDim2.fromOffset(0, 37),
+            ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60),
+            ScrollBarThickness = 3,
+            Size = UDim2.new(1, 0, 1, -83),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+        local ChatList = New("UIListLayout", {
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = ChatScroll,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 6),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 6),
+            Parent = ChatScroll,
+        })
+
+        -- Bottom divider above input
+        New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 0, 1, -46),
+            Size = UDim2.new(1, 0, 0, 1),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+
+        -- Input bar area
+        local InputBar = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 46),
+            ZIndex = 501,
+            Parent = ChatGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = InputBar,
+        })
+        -- cover top rounded corners of input bar
+        New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+            ZIndex = 501,
+            Parent = InputBar,
+        })
+
+        local ChatInput = New("TextBox", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+            ClearTextOnFocus = false,
+            PlaceholderText = "Send a message...",
+            PlaceholderColor3 = Color3.fromRGB(100, 100, 100),
+            Position = UDim2.new(0, 8, 0.5, 0),
+            Size = UDim2.new(1, -72, 0, 28),
+            Text = "",
+            TextColor3 = Color3.new(1, 1, 1),
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = ChatInput,
+        })
+        New("UIStroke", {
+            Color = Color3.fromRGB(40, 40, 40),
+            Parent = ChatInput,
+        })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            Parent = ChatInput,
+        })
+
+        local SendBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundColor3 = Color3.fromRGB(125, 85, 255),
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(54, 28),
+            Text = "Send",
+            TextColor3 = Color3.new(1, 1, 1),
+            TextSize = 13,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = SendBtn,
+        })
+
+        Library:MakeDraggable(ChatGui, ChatTitleBar, true)
+
+        local MsgIndex = 0
+        local function AddMessage(sender, text)
+            MsgIndex = MsgIndex + 1
+            local Row = New("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = MsgIndex,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                ZIndex = 502,
+                Parent = ChatScroll,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                Padding = UDim.new(0, 1),
+                Parent = Row,
+            })
+
+            local NameLabel = New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                Text = sender,
+                TextColor3 = Color3.fromRGB(125, 85, 255),
+                TextSize = 13,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 503,
+                Parent = Row,
+            })
+
+            local MsgLabel = New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                Text = text,
+                TextColor3 = Color3.new(1, 1, 1),
+                TextSize = 14,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 503,
+                Parent = Row,
+            })
+
+            table.insert(ChatMessages, { Sender = sender, Text = text })
+
+            -- scroll to bottom
+            task.defer(function()
+                ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
+            end)
+
+            return Row
+        end
+
+        local function SendMessage()
+            local Msg = ChatInput.Text
+            if not Msg or Msg:gsub("%s", "") == "" then return end
+            ChatInput.Text = ""
+            AddMessage(LocalPlayer.Name, Msg)
+        end
+
+        SendBtn.MouseButton1Click:Connect(SendMessage)
+        ChatInput.FocusLost:Connect(function(Enter)
+            if Enter then SendMessage() end
+        end)
+        ChatCloseBtn.MouseButton1Click:Connect(function()
+            ChatGui.Visible = false
+            ChatOpen = false
+        end)
+
+        -- Add the tab button to the sidebar
+        local ChatTabButton = New("TextButton", {
+            BackgroundColor3 = "MainColor",
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 40),
+            Text = "",
+            Parent = Tabs,
+        })
+        SetupTabDrag(ChatTabButton)
+
+        if SavedTabOrder and SavedTabOrder[ChatTabButton.Name] then
+            ChatTabButton.LayoutOrder = SavedTabOrder[ChatTabButton.Name]
+        end
+
+        local ChatPadding = New("UIPadding", {
+            PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
+            PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
+            PaddingRight = UDim.new(0, IsCompact and 6 or 12),
+            PaddingTop = UDim.new(0, IsCompact and 6 or 11),
+            Parent = ChatTabButton,
+        })
+
+        local ChatBtnLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(30, 0),
+            Size = UDim2.new(1, -30, 1, 0),
+            Text = "Chatbox",
+            TextSize = 16,
+            TextTransparency = 0.5,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Visible = not IsCompact,
+            Parent = ChatTabButton,
+        })
+
+        local ChatLucideIcon = Library:GetIcon("message-circle")
+        local ChatBtnIcon
+        if ChatLucideIcon then
+            ChatBtnIcon = New("ImageLabel", {
+                Image = ChatLucideIcon.Url,
+                ImageColor3 = "AccentColor",
+                ImageRectOffset = ChatLucideIcon.ImageRectOffset,
+                ImageRectSize = ChatLucideIcon.ImageRectSize,
+                ImageTransparency = 0.5,
+                ScaleType = Enum.ScaleType.Fit,
+                Size = UDim2.fromScale(1, 1),
+                SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+                Parent = ChatTabButton,
+            })
+        end
+
+        table.insert(Library.TabButtons, {
+            Label = ChatBtnLabel,
+            Padding = ChatPadding,
+            Icon = ChatBtnIcon,
+        })
+
+        ChatTabButton.MouseEnter:Connect(function()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.25 }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.25 }):Play()
+            end
+        end)
+        ChatTabButton.MouseLeave:Connect(function()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+            end
+        end)
+
+        ChatTabButton.MouseButton1Click:Connect(function()
+            ChatOpen = not ChatOpen
+            ChatGui.Visible = ChatOpen
+
+            TweenService:Create(ChatTabButton, Library.TweenInfo, {
+                BackgroundTransparency = ChatOpen and 0 or 1,
+            }):Play()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, {
+                TextTransparency = ChatOpen and 0 or 0.5,
+            }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, {
+                    ImageTransparency = ChatOpen and 0 or 0.5,
+                }):Play()
+            end
+        end)
+
+        -- expose so scripts can call AddMessage externally
+        Window.ChatAddMessage = AddMessage
+    end
 
     return Window
 end
