@@ -9435,6 +9435,7 @@ end
         local ChatOpen = false
         local ChatMessages = {}
         local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
+        local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
 
         local ChatGui = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9775,14 +9776,23 @@ end
             return false
         end
 
-        -- Add Message Function (Supports Discord Hover, Replies, and Heart Reactions)
+        -- Forward declaration to update reactions dynamically without recreating rows
+        local UpdateMessageReactions
+
+        -- Add Message Function
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
             local msgIdStr = messageId or tostring(math.random(1000,9999))
             
-            -- Strict MessageId-based signature check to prevent duplication
+            -- If message already exists on client, just update its reactions and return!
+            if ActiveMessageRows[msgIdStr] then
+                if ActiveMessageRows[msgIdStr].UpdateReactions then
+                    ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
+                end
+                return
+            end
+
             local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
-            
             if ProcessedSignatures[signature] then return end
             ProcessedSignatures[signature] = true
 
@@ -9800,10 +9810,7 @@ end
                 ZIndex = 502,
                 Parent = ChatScroll,
             })
-            New("UICorner", {
-                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-                Parent = Row,
-            })
+            New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = Row })
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
                 PaddingLeft = UDim.new(0, 6),
@@ -9812,7 +9819,6 @@ end
                 Parent = Row,
             })
 
-            -- Discord-style floating action bar on hover (Reply & Heart buttons)
             local ActionBar = New("Frame", {
                 AnchorPoint = Vector2.new(1, 0),
                 BackgroundColor3 = Color3.fromRGB(45, 47, 52),
@@ -9847,6 +9853,9 @@ end
                 Parent = ActionBar,
             })
 
+            -- Store current local reactions reference tracker for this row
+            local currentRowReactions = reactions or { ["❤️"] = {} }
+
             ReplyBtn.MouseButton1Click:Connect(function()
                 ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
                 ReplyBannerText.Text = "Replying to " .. sender
@@ -9856,9 +9865,8 @@ end
 
             HeartBtn.MouseButton1Click:Connect(function()
                 local currentRx = { ["❤️"] = {} }
-                
-                if reactions and reactions["❤️"] then
-                    for _, u in ipairs(reactions["❤️"]) do
+                if currentRowReactions and currentRowReactions["❤️"] then
+                    for _, u in ipairs(currentRowReactions["❤️"]) do
                         table.insert(currentRx["❤️"], u)
                     end
                 end
@@ -9877,6 +9885,7 @@ end
                     table.insert(currentRx["❤️"], LocalPlayer.Name)
                 end
 
+                currentRowReactions = currentRx
                 SendToEndpoint(sender, text, msgIdStr, replyData, currentRx)
             end)
 
@@ -9902,7 +9911,6 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Render Reply Reference Snippet if applicable
             if replyData and replyData.Username and replyData.Text then
                 New("TextLabel", {
                     AutomaticSize = Enum.AutomaticSize.Y,
@@ -9958,32 +9966,51 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Render Discord-style reaction pill if hearts exist
-            if reactions and reactions["❤️"] and #reactions["❤️"] > 0 then
-                local ReactionContainer = New("Frame", {
-                    AutomaticSize = Enum.AutomaticSize.XY,
-                    BackgroundColor3 = Color3.fromRGB(40, 42, 48),
-                    Size = UDim2.fromOffset(0, 20),
-                    ZIndex = 504,
-                    Parent = ContentLayout,
-                })
-                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ReactionContainer })
-                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = ReactionContainer })
-                New("UIPadding", {
-                    PaddingLeft = UDim.new(0, 6),
-                    PaddingRight = UDim.new(0, 6),
-                    Parent = ReactionContainer,
-                })
-                New("TextLabel", {
-                    BackgroundTransparency = 1,
-                    Size = UDim2.fromScale(1, 1),
-                    Text = "❤️  " .. tostring(#reactions["❤️"]),
-                    TextColor3 = Color3.fromRGB(200, 200, 200),
-                    TextSize = 12,
-                    ZIndex = 505,
-                    Parent = ReactionContainer,
-                })
+            -- Dynamic Reaction Container Reference
+            local currentReactionContainer = nil
+
+            local function RenderReactionPill(rxData)
+                if currentReactionContainer then
+                    currentReactionContainer:Destroy()
+                    currentReactionContainer = nil
+                end
+
+                if rxData and rxData["❤️"] and #rxData["❤️"] > 0 then
+                    currentReactionContainer = New("Frame", {
+                        AutomaticSize = Enum.AutomaticSize.XY,
+                        BackgroundColor3 = Color3.fromRGB(40, 42, 48),
+                        Size = UDim2.fromOffset(0, 20),
+                        ZIndex = 504,
+                        Parent = ContentLayout,
+                    })
+                    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
+                    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
+                    New("UIPadding", {
+                        PaddingLeft = UDim.new(0, 6),
+                        PaddingRight = UDim.new(0, 6),
+                        Parent = currentReactionContainer,
+                    })
+                    New("TextLabel", {
+                        BackgroundTransparency = 1,
+                        Size = UDim2.fromScale(1, 1),
+                        Text = "❤️  " .. tostring(#rxData["❤️"]),
+                        TextColor3 = Color3.fromRGB(200, 200, 200),
+                        TextSize = 12,
+                        ZIndex = 505,
+                        Parent = currentReactionContainer,
+                    })
+                end
             end
+
+            RenderReactionPill(reactions)
+
+            -- Register to active tracker so incoming poll updates can modify reactions live
+            ActiveMessageRows[msgIdStr] = {
+                UpdateReactions = function(newRx)
+                    currentRowReactions = newRx or { ["❤️"] = {} }
+                    RenderReactionPill(currentRowReactions)
+                end
+            }
 
             table.insert(ChatMessages, { Sender = sender, Text = text })
 
@@ -10166,7 +10193,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing19
+    --testing20
     return Window
 end
 
