@@ -10074,18 +10074,18 @@ end
                         end)
                         if Success and type(Decoded) == "table" then
                             local messageList = Decoded.Messages or Decoded
-                            
+
                             if type(messageList) == "table" then
                                 for _, msgData in ipairs(messageList) do
                                     if msgData.Username and msgData.Message then
                                         local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
                                         if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
-                                        
+
                                         local replyData = nil
                                         if msgData.ReplyToId then
                                             replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
                                         end
-                                        
+
                                         AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
                                     end
                                 end
@@ -10097,15 +10097,29 @@ end
                                 local unreadPingsCount = 0
                                 local lastSender = ""
                                 local hasNewPings = false
+                                local localNameLower = LocalPlayer.Name:lower()
 
                                 for _, pingObj in ipairs(pingsList) do
-                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == LocalPlayer.Name:lower() then
-                                        local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
-                                        if not ProcessedPings[pingSig] then
-                                            ProcessedPings[pingSig] = true
-                                            unreadPingsCount = unreadPingsCount + 1
-                                            lastSender = pingObj.Sender
-                                            hasNewPings = true
+                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
+                                        -- Check if this user has already been marked as delivered on the server
+                                        local isDelivered = false
+                                        if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
+                                            for _, user in ipairs(pingObj.deliveredUsers) do
+                                                if user:lower() == localNameLower then
+                                                    isDelivered = true
+                                                    break
+                                                end
+                                            end
+                                        end
+
+                                        if not isDelivered then
+                                            local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
+                                            if not ProcessedPings[pingSig] then
+                                                ProcessedPings[pingSig] = true
+                                                unreadPingsCount = unreadPingsCount + 1
+                                                lastSender = pingObj.Sender
+                                                hasNewPings = true
+                                            end
                                         end
                                     end
                                 end
@@ -10128,13 +10142,13 @@ end
                                     end
                                 end
 
-                                -- If we processed new pings, instruct the VPS to clear them for this user
+                                -- If we processed new pings, notify the VPS to mark them as delivered for this user
                                 if hasNewPings then
                                     task.spawn(function()
                                         pcall(function()
                                             HttpRequest({
-                                                Url = "http://167.99.144.89:8081/chatbox/pings",
-                                                Method = "DELETE",
+                                                Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
+                                                Method = "POST",
                                                 Headers = { ["Content-Type"] = "application/json" },
                                                 Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
                                             })
