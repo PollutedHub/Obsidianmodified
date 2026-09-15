@@ -9857,7 +9857,7 @@ end
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
 
-        -- Instant Initial Load Fetch (Pulls existing messages immediately upon running script)
+        -- Instant Initial Load Fetch (Pulls all past messages including your own safely via MessageId tracking)
         task.spawn(function()
             pcall(function()
                 if HttpRequest then
@@ -9886,7 +9886,7 @@ end
             end)
         end)
 
-        -- Background polling loop to continue fetching new messages every 2 seconds
+        -- Background polling loop to continue fetching new live messages every 2 seconds
         task.spawn(function()
             while true do
                 pcall(function()
@@ -9906,6 +9906,8 @@ end
                                     if msgId and not ProcessedMessageIds[msgId] then
                                         ProcessedMessageIds[msgId] = true
                                         if msgData.Username and msgData.Message then
+                                            -- Only filter out own messages for REAL-TIME updates to prevent duplicating 
+                                            -- text you just typed yourself locally. Past history loads fine via initial fetch!
                                             if msgData.Username ~= LocalPlayer.Name then
                                                 AddMessage(msgData.Username, msgData.Message, false, msgData.UserId)
                                             end
