@@ -9466,7 +9466,6 @@ end
             CornerRadius = UDim.new(0, Library.CornerRadius),
             Parent = ChatTitleBar,
         })
-        -- cover bottom rounded corners of title bar
         New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "MainColor",
@@ -9487,7 +9486,7 @@ end
             Parent = ChatTitleBar,
         })
 
-        -- Close button (fixed: proper size, high ZIndex, positioned correctly)
+        -- Close button
         local ChatCloseBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
             BackgroundColor3 = "BackgroundColor",
@@ -9551,7 +9550,7 @@ end
             Parent = ChatGui,
         })
 
-        -- Input bar area
+        -- Input bar
         local InputBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "MainColor",
@@ -9564,7 +9563,6 @@ end
             CornerRadius = UDim.new(0, Library.CornerRadius),
             Parent = InputBar,
         })
-        -- cover top rounded corners of input bar
         New("Frame", {
             BackgroundColor3 = "MainColor",
             BorderSizePixel = 0,
@@ -9646,8 +9644,60 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-        -- HTTP request function
+        -- HTTP
         local HttpRequest = request or http_request or (syn and syn.request) or nil
+        local UsedMessageIds = {}
+
+        local function GenerateMessageId()
+            local Id
+            local Attempts = 0
+            repeat
+                Id = tostring(math.random(1000, 9999))
+                Attempts += 1
+            until not UsedMessageIds[Id] or Attempts > 50
+            return Id
+        end
+
+        local function CheckIdExists(Id)
+            if not HttpRequest then return false end
+            local Success, Result = pcall(function()
+                return HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox?messageId=" .. Id,
+                    Method = "GET",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                    },
+                })
+            end)
+            if not Success or not Result then return false end
+            return Result.StatusCode == 200
+                and Result.Body
+                and Result.Body ~= ""
+                and Result.Body ~= "null"
+                and Result.Body ~= "{}"
+        end
+
+        local function GetUniqueMessageId()
+            local Id
+            local Attempts = 0
+            repeat
+                Id = GenerateMessageId()
+                Attempts += 1
+                if UsedMessageIds[Id] then
+                    Id = nil
+                    continue
+                end
+                local ExistsOnServer = CheckIdExists(Id)
+                if ExistsOnServer then
+                    UsedMessageIds[Id] = true
+                    Id = nil
+                end
+            until Id ~= nil or Attempts > 20
+            if Id then
+                UsedMessageIds[Id] = true
+            end
+            return Id or tostring(math.random(1000, 9999))
+        end
 
         local function SendToEndpoint(username, message, messageId)
             if not HttpRequest then return end
@@ -9656,7 +9706,7 @@ end
                 Username = username,
                 Roles = {"user"},
                 Message = message,
-                MessageId = tostring(messageId),
+                MessageId = messageId,
                 Time = timestamp,
             })
             task.spawn(function()
@@ -9678,7 +9728,7 @@ end
         local SpamCooldown = 2
 
         local BannedWords = {
-            -- add words here like: "badword",
+            -- "badword",
         }
 
         local function ContainsBannedWord(Msg)
@@ -9694,6 +9744,7 @@ end
             return false
         end
 
+        -- Messages
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem)
             MsgIndex = MsgIndex + 1
@@ -9767,16 +9818,24 @@ end
 
             LastMessageTime = tick()
             local CurrentMsg = Msg
-            local CurrentId = MsgIndex + 1
             ChatInput.Text = ""
-            AddMessage(LocalPlayer.Name, CurrentMsg, false)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, CurrentId)
+
+            task.spawn(function()
+                local UniqueId = GetUniqueMessageId()
+                if UniqueId then
+                    AddMessage(LocalPlayer.Name, CurrentMsg, false)
+                    SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
+                else
+                    AddMessage("System", "Failed to generate a unique message ID, try again.", true)
+                end
+            end)
         end
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
         ChatInput.FocusLost:Connect(function(Enter)
             if Enter then SendMessage() end
         end)
+
         ChatCloseBtn.MouseButton1Click:Connect(function()
             ChatGui.Visible = false
             ChatOpen = false
@@ -9793,7 +9852,7 @@ end
             end
         end)
 
-        -- Add the tab button to the sidebar
+        -- Sidebar tab button
         local ChatTabButton = New("TextButton", {
             BackgroundColor3 = "MainColor",
             BackgroundTransparency = 1,
