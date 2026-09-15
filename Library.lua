@@ -9707,12 +9707,13 @@ end
         -- HTTP & ID Setup
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local ProcessedSignatures = {}
+        local ProcessedPings = {}
 
         local function GetUniqueMessageId()
             return tostring(math.random(100000, 999999))
         end
 
-        local function SendToEndpoint(username, message, messageId, replyData, reactions)
+        local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser)
             if not HttpRequest then return end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
             local data = {
@@ -9722,7 +9723,8 @@ end
                 Message = message,
                 MessageId = messageId,
                 Time = timestamp,
-                Reactions = reactions or {}
+                Reactions = reactions or {},
+                PingUser = targetPingUser
             }
             if replyData then
                 data.ReplyToId = replyData.Id
@@ -9776,7 +9778,6 @@ end
             return false
         end
 
-        -- Forward declaration to update reactions dynamically without recreating rows
         local UpdateMessageReactions
 
         -- Add Message Function
@@ -9784,7 +9785,6 @@ end
         local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
             local msgIdStr = messageId or tostring(math.random(1000,9999))
             
-            -- If message already exists on client, just update its reactions and return!
             if ActiveMessageRows[msgIdStr] then
                 if ActiveMessageRows[msgIdStr].UpdateReactions then
                     ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
@@ -9853,7 +9853,6 @@ end
                 Parent = ActionBar,
             })
 
-            -- Store current local reactions reference tracker for this row
             local currentRowReactions = reactions or { ["❤️"] = {} }
 
             ReplyBtn.MouseButton1Click:Connect(function()
@@ -9886,7 +9885,7 @@ end
                 end
 
                 currentRowReactions = currentRx
-                SendToEndpoint(sender, text, msgIdStr, replyData, currentRx)
+                SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
             end)
 
             Row.MouseEnter:Connect(function()
@@ -9966,7 +9965,6 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Dynamic Reaction Container Reference
             local currentReactionContainer = nil
 
             local function RenderReactionPill(rxData)
@@ -10004,7 +10002,6 @@ end
 
             RenderReactionPill(reactions)
 
-            -- Register to active tracker so incoming poll updates can modify reactions live
             ActiveMessageRows[msgIdStr] = {
                 UpdateReactions = function(newRx)
                     currentRowReactions = newRx or { ["❤️"] = {} }
@@ -10050,9 +10047,16 @@ end
             ReplyTarget = nil
             UpdateInputLayout()
 
+            -- Check if message contains a ping like @username
+            local targetPingUser = nil
+            for match in CurrentMsg:gmatch("@([%w_]+)") do
+                targetPingUser = match
+                break -- Send the first found ping target to backend
+            end
+
             local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
             AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser)
         end
 
         -- Initial Fetch & Polling
@@ -10069,17 +10073,37 @@ end
                             return game:GetService("HttpService"):JSONDecode(Result.Body)
                         end)
                         if Success and type(Decoded) == "table" then
-                            for _, msgData in ipairs(Decoded) do
-                                if msgData.Username and msgData.Message then
-                                    local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
-                                    if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
-                                    
-                                    local replyData = nil
-                                    if msgData.ReplyToId then
-                                        replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
+                            -- Check if the response includes messages and pings
+                            local messageList = Decoded.Messages or Decoded -- Fallback if array directly
+                            
+                            if type(messageList) == "table" then
+                                for _, msgData in ipairs(messageList) do
+                                    if msgData.Username and msgData.Message then
+                                        local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
+                                        if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
+                                        
+                                        local replyData = nil
+                                        if msgData.ReplyToId then
+                                            replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
+                                        end
+                                        
+                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
                                     end
-                                    
-                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
+                                end
+                            end
+
+                            -- Handle Pings Payload from VPS
+                            local pingsList = Decoded.Pings
+                            if type(pingsList) == "table" then
+                                for _, pingObj in ipairs(pingsList) do
+                                    -- Check if this ping is targeted at the local player and hasn't been processed yet
+                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == LocalPlayer.Name:lower() then
+                                        local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
+                                        if not ProcessedPings[pingSig] then
+                                            ProcessedPings[pingSig] = true
+                                            Library:Notify("Ping received off " .. pingObj.Sender, 4)
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -10193,7 +10217,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing20
+    --testing23
     return Window
 end
 
