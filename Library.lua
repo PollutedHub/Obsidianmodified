@@ -9862,7 +9862,7 @@ end
                 Parent = ActionBar,
             })
 
-            -- Circular Progress Indicator Around Bin Button
+            -- Smooth Circular Progress Ring around Bin Button
             local BinProgressGui = New("Frame", {
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 56, 0, 0),
@@ -9872,10 +9872,21 @@ end
                 Parent = ActionBar,
             })
             New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
-            New("UIStroke", {
+            
+            local BinProgressStroke = New("UIStroke", {
                 Color = Color3.fromRGB(255, 60, 60),
                 Thickness = 2.5,
                 Parent = BinProgressGui,
+            })
+            local BinProgressGradient = New("UIGradient", {
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(0.25, 0),
+                    NumberSequenceKeypoint.new(0.251, 1),
+                    NumberSequenceKeypoint.new(1, 1)
+                }),
+                Rotation = 0,
+                Parent = BinProgressStroke,
             })
 
             local currentRowReactions = reactions or { ["❤️"] = {} }
@@ -9887,6 +9898,7 @@ end
                 ChatInput:CaptureFocus()
             end)
 
+            -- Toggle reaction directly on click (Heart click toggles ❤️ reaction)
             HeartBtn.MouseButton1Click:Connect(function()
                 local currentRx = { ["❤️"] = {} }
                 if currentRowReactions and currentRowReactions["❤️"] then
@@ -9913,24 +9925,28 @@ end
                 SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
             end)
 
-            -- Hold to Delete Logic with Circular Progress Animation
+            -- Hold to Delete Logic with Smooth Circular Progress Animation
             local isHoldingDelete = false
 
             BinBtn.MouseButton1Down:Connect(function()
                 isHoldingDelete = true
                 BinProgressGui.Visible = true
+                BinProgressGradient.Rotation = 0
 
                 local startTime = tick()
                 task.spawn(function()
                     while isHoldingDelete do
                         local elapsed = tick() - startTime
+                        local progress = math.clamp(elapsed / 2.0, 0, 1)
+                        BinProgressGradient.Rotation = progress * 360
+
                         if elapsed >= 2.0 then
                             ActiveMessageRows[msgIdStr] = nil
                             Row:Destroy()
                             SendToEndpoint(sender, text, msgIdStr, replyData, nil, nil, msgIdStr)
                             break
                         end
-                        task.wait(0.02)
+                        task.wait(0.016)
                     end
                 end)
             end)
@@ -10022,37 +10038,128 @@ end
             })
 
             local currentReactionContainer = nil
+            local activeReactorMenu = nil
 
             local function RenderReactionPill(rxData)
                 if currentReactionContainer then
                     currentReactionContainer:Destroy()
                     currentReactionContainer = nil
                 end
+                if activeReactorMenu then
+                    activeReactorMenu:Destroy()
+                    activeReactorMenu = nil
+                end
 
-                if rxData and rxData["❤️"] and #rxData["❤️"] > 0 then
-                    currentReactionContainer = New("Frame", {
-                        AutomaticSize = Enum.AutomaticSize.XY,
-                        BackgroundColor3 = Color3.fromRGB(40, 42, 48),
-                        Size = UDim2.fromOffset(0, 20),
-                        ZIndex = 504,
-                        Parent = ContentLayout,
-                    })
-                    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
-                    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
-                    New("UIPadding", {
-                        PaddingLeft = UDim.new(0, 6),
-                        PaddingRight = UDim.new(0, 6),
-                        Parent = currentReactionContainer,
-                    })
-                    New("TextLabel", {
-                        BackgroundTransparency = 1,
-                        Size = UDim2.fromScale(1, 1),
-                        Text = "❤️  " .. tostring(#rxData["❤️"]),
-                        TextColor3 = Color3.fromRGB(200, 200, 200),
-                        TextSize = 12,
-                        ZIndex = 505,
-                        Parent = currentReactionContainer,
-                    })
+                if rxData and type(rxData) == "table" then
+                    local totalCount = 0
+                    local displayText = ""
+                    for emoji, list in pairs(rxData) do
+                        if type(list) == "table" and #list > 0 then
+                            displayText = displayText .. emoji .. " " .. #list .. "   "
+                            totalCount = totalCount + #list
+                        end
+                    end
+
+                    if totalCount > 0 then
+                        currentReactionContainer = New("TextButton", {
+                            AutoButtonColor = false,
+                            AutomaticSize = Enum.AutomaticSize.XY,
+                            BackgroundColor3 = Color3.fromRGB(40, 42, 48),
+                            BackgroundTransparency = 0,
+                            Size = UDim2.fromOffset(0, 20),
+                            Text = "",
+                            ZIndex = 504,
+                            Parent = ContentLayout,
+                        })
+                        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
+                        New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
+                        New("UIPadding", {
+                            PaddingLeft = UDim.new(0, 6),
+                            PaddingRight = UDim.new(0, 6),
+                            Parent = currentReactionContainer,
+                        })
+                        New("TextLabel", {
+                            BackgroundTransparency = 1,
+                            Size = UDim2.fromScale(1, 1),
+                            Text = displayText:gsub("%s+$", ""),
+                            TextColor3 = Color3.fromRGB(200, 200, 200),
+                            TextSize = 12,
+                            ZIndex = 505,
+                            Parent = currentReactionContainer,
+                        })
+
+                        -- Menu showing who reacted when holding or left-clicking the pill
+                        local function ShowReactorMenu()
+                            if activeReactorMenu then
+                                activeReactorMenu:Destroy()
+                                activeReactorMenu = nil
+                                return
+                            end
+
+                            activeReactorMenu = New("Frame", {
+                                AutomaticSize = Enum.AutomaticSize.Y,
+                                BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+                                Size = UDim2.fromOffset(160, 0),
+                                ZIndex = 550,
+                                Parent = currentReactionContainer,
+                            })
+                            New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeReactorMenu })
+                            New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activeReactorMenu })
+                            New("UIListLayout", {
+                                SortOrder = Enum.SortOrder.LayoutOrder,
+                                Padding = UDim.new(0, 2),
+                                Parent = activeReactorMenu,
+                            })
+                            New("UIPadding", {
+                                PaddingTop = UDim.new(0, 6),
+                                PaddingBottom = UDim.new(0, 6),
+                                PaddingLeft = UDim.new(0, 8),
+                                PaddingRight = UDim.new(0, 8),
+                                Parent = activeReactorMenu,
+                            })
+
+                            New("TextLabel", {
+                                BackgroundTransparency = 1,
+                                Size = UDim2.new(1, 0, 0, 16),
+                                Text = "Reacted by:",
+                                TextColor3 = Color3.fromRGB(150, 150, 150),
+                                TextSize = 11,
+                                TextXAlignment = Enum.TextXAlignment.Left,
+                                ZIndex = 551,
+                                Parent = activeReactorMenu,
+                            })
+
+                            for emoji, list in pairs(rxData) do
+                                if type(list) == "table" and #list > 0 then
+                                    for _, user in ipairs(list) do
+                                        New("TextLabel", {
+                                            BackgroundTransparency = 1,
+                                            Size = UDim2.new(1, 0, 0, 18),
+                                            Text = emoji .. "  " .. user,
+                                            TextColor3 = Color3.fromRGB(240, 240, 240),
+                                            TextSize = 12,
+                                            TextXAlignment = Enum.TextXAlignment.Left,
+                                            ZIndex = 551,
+                                            Parent = activeReactorMenu,
+                                        })
+                                    end
+                                end
+                            end
+                        end
+
+                        currentReactionContainer.MouseButton1Click:Connect(ShowReactorMenu)
+
+                        local isHoldingPill = false
+                        currentReactionContainer.MouseButton1Down:Connect(function()
+                            isHoldingPill = true
+                            task.delay(0.4, function()
+                                if isHoldingPill then
+                                    ShowReactorMenu()
+                                end
+                            end)
+                        end)
+                        currentReactionContainer.MouseButton1Up:Connect(function() isHoldingPill = false end)
+                    end
                 end
             end
 
@@ -10103,11 +10210,10 @@ end
             ReplyTarget = nil
             UpdateInputLayout()
 
-            -- Check if message contains a ping like @username
             local targetPingUser = nil
             for match in CurrentMsg:gmatch("@([%w_]+)") do
                 targetPingUser = match
-                break -- Send the first found ping target to backend
+                break
             end
 
             local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
@@ -10151,7 +10257,6 @@ end
                                     end
                                 end
 
-                                -- Remove message rows globally for all users if deleted on the server
                                 for idStr, rowData in pairs(ActiveMessageRows) do
                                     if not activeServerIds[idStr] then
                                         ActiveMessageRows[idStr] = nil
@@ -10159,7 +10264,6 @@ end
                                 end
                             end
 
-                            -- Handle Pings Payload from VPS
                             local pingsList = Decoded.Pings
                             if type(pingsList) == "table" then
                                 local unreadPingsCount = 0
@@ -10169,7 +10273,6 @@ end
 
                                 for _, pingObj in ipairs(pingsList) do
                                     if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
-                                        -- Check if this user has already been marked as delivered on the server
                                         local isDelivered = false
                                         if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
                                             for _, user in ipairs(pingObj.deliveredUsers) do
@@ -10210,7 +10313,6 @@ end
                                     end
                                 end
 
-                                -- If we processed new pings, notify the VPS to mark them as delivered for this user
                                 if hasNewPings then
                                     task.spawn(function()
                                         pcall(function()
@@ -10335,7 +10437,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing23
+    --testing29
     return Window
 end
 
