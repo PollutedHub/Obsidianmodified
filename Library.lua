@@ -9487,17 +9487,21 @@ end
             Parent = ChatTitleBar,
         })
 
-        -- Close button
+        -- Close button (fixed: proper size, high ZIndex, positioned correctly)
         local ChatCloseBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(1, -10, 0.5, 0),
-            Size = UDim2.fromOffset(20, 20),
+            BackgroundColor3 = "BackgroundColor",
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(22, 22),
             Text = "✕",
             TextColor3 = "FontColor",
             TextSize = 14,
-            ZIndex = 503,
+            ZIndex = 505,
             Parent = ChatTitleBar,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = ChatCloseBtn,
         })
 
         -- Divider under title
@@ -9642,6 +9646,33 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
+        -- HTTP request function
+        local HttpRequest = request or http_request or (syn and syn.request) or nil
+
+        local function SendToEndpoint(username, message, messageId)
+            if not HttpRequest then return end
+            local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            local body = game:GetService("HttpService"):JSONEncode({
+                Username = username,
+                Roles = {"user"},
+                Message = message,
+                MessageId = tostring(messageId),
+                Time = timestamp,
+            })
+            task.spawn(function()
+                pcall(function()
+                    HttpRequest({
+                        Url = "http://167.99.144.89:8081/chatbox",
+                        Method = "POST",
+                        Headers = {
+                            ["Content-Type"] = "application/json",
+                        },
+                        Body = body,
+                    })
+                end)
+            end)
+        end
+
         -- Moderation
         local LastMessageTime = 0
         local SpamCooldown = 2
@@ -9652,7 +9683,6 @@ end
 
         local function ContainsBannedWord(Msg)
             local Lower = Msg:lower()
-            -- hard r check (the specific slur ending in hard r)
             if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then
                 return true
             end
@@ -9681,12 +9711,12 @@ end
                 Parent = Row,
             })
 
-            local NameLabel = New("TextLabel", {
+            New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = sender,
-                TextColor3 = isSystem and Color3.fromRGB(255, 100, 100) or "AccentColor",
+                TextColor3 = isSystem and Color3.fromRGB(255, 100, 100) or Library.Scheme.AccentColor,
                 TextSize = 13,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9694,12 +9724,12 @@ end
                 Parent = Row,
             })
 
-            local MsgLabel = New("TextLabel", {
+            New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = text,
-                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or "FontColor",
+                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
                 TextSize = 14,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9736,8 +9766,11 @@ end
             end
 
             LastMessageTime = tick()
+            local CurrentMsg = Msg
+            local CurrentId = MsgIndex + 1
             ChatInput.Text = ""
-            AddMessage(LocalPlayer.Name, Msg, false)
+            AddMessage(LocalPlayer.Name, CurrentMsg, false)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, CurrentId)
         end
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
@@ -9747,6 +9780,17 @@ end
         ChatCloseBtn.MouseButton1Click:Connect(function()
             ChatGui.Visible = false
             ChatOpen = false
+            TweenService:Create(ChatTabButton, Library.TweenInfo, {
+                BackgroundTransparency = 1,
+            }):Play()
+            TweenService:Create(ChatBtnLabel, Library.TweenInfo, {
+                TextTransparency = 0.5,
+            }):Play()
+            if ChatBtnIcon then
+                TweenService:Create(ChatBtnIcon, Library.TweenInfo, {
+                    ImageTransparency = 0.5,
+                }):Play()
+            end
         end)
 
         -- Add the tab button to the sidebar
