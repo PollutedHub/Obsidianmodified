@@ -9648,11 +9648,15 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-        -- HTTP Request setup
+        -- HTTP & ID Generation Setup
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local ProcessedSignatures = {}
 
-        local function SendToEndpoint(username, message)
+        local function GetUniqueMessageId()
+            return tostring(math.random(1000, 9999))
+        end
+
+        local function SendToEndpoint(username, message, messageId)
             if not HttpRequest then return end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
             local body = game:GetService("HttpService"):JSONEncode({
@@ -9660,6 +9664,7 @@ end
                 UserId = tostring(LocalPlayer.UserId),
                 Roles = {"user"},
                 Message = message,
+                MessageId = messageId,
                 Time = timestamp,
             })
             task.spawn(function()
@@ -9722,7 +9727,6 @@ end
         -- Messages with Discord-like Hover Box Effect
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId, customSignature)
-            -- Generate a unique signature based on sender, text, and time/custom token
             local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. tostring(os.time()))
             
             if ProcessedSignatures[signature] then return end
@@ -9851,13 +9855,14 @@ end
             local CurrentMsg = Msg
             ChatInput.Text = ""
 
-            -- Create a unique signature based on Username, Content, and exact timestamp block to instantly display locally
+            -- Instant local display and transmission with MessageId payload restored
+            local UniqueId = GetUniqueMessageId()
             local sig = LocalPlayer.Name .. "|" .. CurrentMsg .. "|" .. tostring(os.time())
             AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, sig)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
 
-        -- Instant Initial Load Fetch (Pulls all past messages including your own using content signatures)
+        -- Instant Initial Load Fetch (Pulls all past messages using content signatures)
         task.spawn(function()
             pcall(function()
                 if HttpRequest then
@@ -9873,7 +9878,6 @@ end
                         if Success and type(Decoded) == "table" then
                             for _, msgData in ipairs(Decoded) do
                                 if msgData.Username and msgData.Message then
-                                    -- Use server time if available, otherwise fallback to message content combo
                                     local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message) .. "|" .. tostring(msgData.Time or "")
                                     AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, sig)
                                 end
@@ -10022,7 +10026,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing7
+    --testing8
     return Window
 end
 
