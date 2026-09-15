@@ -9531,14 +9531,14 @@ end
             Parent = ChatGui,
         })
         local ChatList = New("UIListLayout", {
-            Padding = UDim.new(0, 4),
+            Padding = UDim.new(0, 2),
             SortOrder = Enum.SortOrder.LayoutOrder,
             Parent = ChatScroll,
         })
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 6),
-            PaddingLeft = UDim.new(0, 8),
-            PaddingRight = UDim.new(0, 8),
+            PaddingLeft = UDim.new(0, 4),
+            PaddingRight = UDim.new(0, 4),
             PaddingTop = UDim.new(0, 6),
             Parent = ChatScroll,
         })
@@ -9724,22 +9724,48 @@ end
             return false
         end
 
-        -- Messages
+        -- Messages with Discord-like Hover Box Effect
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId)
             MsgIndex = MsgIndex + 1
-            local Row = New("Frame", {
+
+            -- Outer Container (Invisible hit box for hovering)
+            local Row = New("TextButton", {
+                AutoButtonColor = false,
+                BackgroundColor3 = "MainColor",
                 BackgroundTransparency = 1,
+                BorderSizePixel = 0,
                 LayoutOrder = MsgIndex,
                 Size = UDim2.new(1, 0, 0, 0),
                 AutomaticSize = Enum.AutomaticSize.Y,
+                Text = "",
                 ZIndex = 502,
                 Parent = ChatScroll,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Row,
+            })
+            New("UIPadding", {
+                PaddingBottom = UDim.new(0, 4),
+                PaddingLeft = UDim.new(0, 6),
+                PaddingRight = UDim.new(0, 6),
+                PaddingTop = UDim.new(0, 4),
+                Parent = Row,
+            })
+
+            -- Internal Layout for Username and Message text
+            local ContentLayout = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                ZIndex = 503,
+                Parent = Row,
             })
             New("UIListLayout", {
                 FillDirection = Enum.FillDirection.Vertical,
                 Padding = UDim.new(0, 1),
-                Parent = Row,
+                Parent = ContentLayout,
             })
 
             -- Name Color: Your name is Blue/Accent, other users are Red
@@ -9767,8 +9793,8 @@ end
                 TextSize = 13,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 503,
-                Parent = Row,
+                ZIndex = 504,
+                Parent = ContentLayout,
             })
 
             New("TextLabel", {
@@ -9780,9 +9806,17 @@ end
                 TextSize = 14,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 503,
-                Parent = Row,
+                ZIndex = 504,
+                Parent = ContentLayout,
             })
+
+            -- Discord Hover Box Effect Connections
+            Row.MouseEnter:Connect(function()
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.6 }):Play()
+            end)
+            Row.MouseLeave:Connect(function()
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+            end)
 
             table.insert(ChatMessages, { Sender = sender, Text = text })
 
@@ -9967,7 +10001,8 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing
+    --testing2
+    
     return Window
 end
 
