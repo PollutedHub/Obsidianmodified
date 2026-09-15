@@ -9430,7 +9430,7 @@ end
         Library.IsRobloxFocused = false
     end))
 
-    -- CHATBOX WINDOW
+-- CHATBOX WINDOW
     do
         local ChatOpen = false
         local ChatMessages = {}
@@ -9486,16 +9486,16 @@ end
             Parent = ChatTitleBar,
         })
 
-        -- Close button
+        -- Close button (Fixed visibility and text color)
         local ChatCloseBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
             BackgroundColor3 = "BackgroundColor",
             Position = UDim2.new(1, -8, 0.5, 0),
             Size = UDim2.fromOffset(22, 22),
             Text = "✕",
-            TextColor3 = "FontColor",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
             TextSize = 14,
-            ZIndex = 505,
+            ZIndex = 510,
             Parent = ChatTitleBar,
         })
         New("UICorner", {
@@ -9644,59 +9644,45 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-        -- HTTP
+        -- HTTP & Optimized ID Generation
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local UsedMessageIds = {}
 
-        local function GenerateMessageId()
+        local function GetUniqueMessageId()
+            if not HttpRequest then return tostring(math.random(1000, 9999)) end
+
+            -- Fetch existing IDs once to prevent lagging requests inside a loop
+            local Success, Result = pcall(function()
+                return HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox",
+                    Method = "GET",
+                    Headers = { ["Content-Type"] = "application/json" },
+                })
+            end)
+
+            if Success and Result and Result.Body then
+                local Decoded = pcall(function()
+                    return game:GetService("HttpService"):JSONDecode(Result.Body)
+                end)
+                if type(Decoded) == "table" then
+                    for _, entry in ipairs(Decoded) do
+                        if entry.MessageId then
+                            UsedMessageIds[tostring(entry.MessageId)] = true
+                        end
+                    end
+                end
+            end
+
+            -- Generate locally and instantly
             local Id
             local Attempts = 0
             repeat
                 Id = tostring(math.random(1000, 9999))
                 Attempts += 1
-            until not UsedMessageIds[Id] or Attempts > 50
+            until not UsedMessageIds[Id] or Attempts > 100
+
+            UsedMessageIds[Id] = true
             return Id
-        end
-
-        local function CheckIdExists(Id)
-            if not HttpRequest then return false end
-            local Success, Result = pcall(function()
-                return HttpRequest({
-                    Url = "http://167.99.144.89:8081/chatbox?messageId=" .. Id,
-                    Method = "GET",
-                    Headers = {
-                        ["Content-Type"] = "application/json",
-                    },
-                })
-            end)
-            if not Success or not Result then return false end
-            return Result.StatusCode == 200
-                and Result.Body
-                and Result.Body ~= ""
-                and Result.Body ~= "null"
-                and Result.Body ~= "{}"
-        end
-
-        local function GetUniqueMessageId()
-            local Id
-            local Attempts = 0
-            repeat
-                Id = GenerateMessageId()
-                Attempts += 1
-                if UsedMessageIds[Id] then
-                    Id = nil
-                    continue
-                end
-                local ExistsOnServer = CheckIdExists(Id)
-                if ExistsOnServer then
-                    UsedMessageIds[Id] = true
-                    Id = nil
-                end
-            until Id ~= nil or Attempts > 20
-            if Id then
-                UsedMessageIds[Id] = true
-            end
-            return Id or tostring(math.random(1000, 9999))
         end
 
         local function SendToEndpoint(username, message, messageId)
@@ -9714,9 +9700,7 @@ end
                     HttpRequest({
                         Url = "http://167.99.144.89:8081/chatbox",
                         Method = "POST",
-                        Headers = {
-                            ["Content-Type"] = "application/json",
-                        },
+                        Headers = { ["Content-Type"] = "application/json" },
                         Body = body,
                     })
                 end)
@@ -9727,9 +9711,7 @@ end
         local LastMessageTime = 0
         local SpamCooldown = 2
 
-        local BannedWords = {
-            -- "badword",
-        }
+        local BannedWords = {}
 
         local function ContainsBannedWord(Msg)
             local Lower = Msg:lower()
