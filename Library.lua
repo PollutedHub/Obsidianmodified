@@ -9711,7 +9711,7 @@ end
             return tostring(math.random(100000, 999999))
         end
 
-        local function SendToEndpoint(username, message, messageId, replyData)
+        local function SendToEndpoint(username, message, messageId, replyData, reactions)
             if not HttpRequest then return end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
             local data = {
@@ -9721,6 +9721,7 @@ end
                 Message = message,
                 MessageId = messageId,
                 Time = timestamp,
+                Reactions = reactions or {}
             }
             if replyData then
                 data.ReplyToId = replyData.Id
@@ -9774,11 +9775,12 @@ end
             return false
         end
 
-        -- Add Message Function (Supports Discord Hover & Replies)
+        -- Add Message Function (Supports Discord Hover, Replies, and Heart Reactions)
         local MsgIndex = 0
-        local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, customSignature)
+        local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
             local msgIdStr = messageId or tostring(math.random(1000,9999))
-            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
+            local rxCount = (reactions and reactions["❤️"]) and #reactions["❤️"] or 0
+            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr .. "|" .. tostring(rxCount))
             
             if ProcessedSignatures[signature] then return end
             ProcessedSignatures[signature] = true
@@ -9809,12 +9811,12 @@ end
                 Parent = Row,
             })
 
-            -- Discord-style floating action bar on hover (Reply button)
+            -- Discord-style floating action bar on hover (Reply & Heart buttons)
             local ActionBar = New("Frame", {
                 AnchorPoint = Vector2.new(1, 0),
                 BackgroundColor3 = Color3.fromRGB(45, 47, 52),
                 Position = UDim2.new(1, -4, 0, -10),
-                Size = UDim2.fromOffset(32, 24),
+                Size = UDim2.fromOffset(60, 24),
                 Visible = false,
                 ZIndex = 510,
                 Parent = Row,
@@ -9824,7 +9826,8 @@ end
 
             local ReplyBtn = New("TextButton", {
                 BackgroundTransparency = 1,
-                Size = UDim2.fromScale(1, 1),
+                Position = UDim2.new(0, 0, 0, 0),
+                Size = UDim2.fromScale(0.5, 1),
                 Text = "↩",
                 TextColor3 = Color3.fromRGB(200, 200, 200),
                 TextSize = 14,
@@ -9832,11 +9835,43 @@ end
                 Parent = ActionBar,
             })
 
+            local HeartBtn = New("TextButton", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.5, 0),
+                Size = UDim2.fromScale(0.5, 1),
+                Text = "❤️",
+                TextColor3 = Color3.fromRGB(200, 200, 200),
+                TextSize = 12,
+                ZIndex = 511,
+                Parent = ActionBar,
+            })
+
             ReplyBtn.MouseButton1Click:Connect(function()
                 ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
+                ReplyBannerText.Text = "Replying to " + sender -- Lua uses .. for concatenation
                 ReplyBannerText.Text = "Replying to " .. sender
                 UpdateInputLayout()
                 ChatInput:CaptureFocus()
+            end)
+
+            HeartBtn.MouseButton1Click:Connect(function()
+                local currentRx = reactions or {}
+                currentRx["❤️"] = currentRx["❤️"] or {}
+                
+                -- Toggle heart for local user
+                local found = false
+                for i, user in ipairs(currentRx["❤️"]) do
+                    if user == LocalPlayer.Name then
+                        table.remove(currentRx["❤️"], i)
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    table.insert(currentRx["❤️"], LocalPlayer.Name)
+                end
+
+                SendToEndpoint(sender, text, msgIdStr, replyData, currentRx)
             end)
 
             Row.MouseEnter:Connect(function()
@@ -9863,7 +9898,7 @@ end
 
             -- Render Reply Reference Snippet if applicable
             if replyData and replyData.Username and replyData.Text then
-                local ReplyContext = New("TextLabel", {
+                New("TextLabel", {
                     AutomaticSize = Enum.AutomaticSize.Y,
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 0, 0),
@@ -9917,6 +9952,33 @@ end
                 Parent = ContentLayout,
             })
 
+            -- Render Discord-style reaction pill if hearts exist
+            if reactions and reactions["❤️"] and #reactions["❤️"] > 0 then
+                local ReactionContainer = New("Frame", {
+                    AutomaticSize = Enum.AutomaticSize.XY,
+                    BackgroundColor3 = Color3.fromRGB(40, 42, 48),
+                    Size = UDim2.fromOffset(0, 20),
+                    ZIndex = 504,
+                    Parent = ContentLayout,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ReactionContainer })
+                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = ReactionContainer })
+                New("UIPadding", {
+                    PaddingLeft = UDim.new(0, 6),
+                    PaddingRight = UDim.new(0, 6),
+                    Parent = ReactionContainer,
+                })
+                New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    Text = "❤️  " .. tostring(#reactions["❤️"]),
+                    TextColor3 = Color3.fromRGB(200, 200, 200),
+                    TextSize = 12,
+                    ZIndex = 505,
+                    Parent = ReactionContainer,
+                })
+            end
+
             table.insert(ChatMessages, { Sender = sender, Text = text })
 
             task.defer(function()
@@ -9952,17 +10014,16 @@ end
             local UniqueId = GetUniqueMessageId()
             local currentReply = ReplyTarget
             
-            -- Clear reply target immediately after grab
             ReplyTarget = nil
             UpdateInputLayout()
 
-            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
-            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, sig)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply)
+            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId) .. "|0"
+            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil)
         end
 
-        -- Initial Fetch
-        task.spawn(function()
+        -- Initial Fetch & Polling
+        local function FetchMessages()
             pcall(function()
                 if HttpRequest then
                     local Result = HttpRequest({
@@ -9977,55 +10038,29 @@ end
                         if Success and type(Decoded) == "table" then
                             for _, msgData in ipairs(Decoded) do
                                 if msgData.Username and msgData.Message then
+                                    local rxCount = (msgData.Reactions and msgData.Reactions["❤️"]) and #msgData.Reactions["❤️"] or 0
                                     local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
                                     if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
+                                    sig = sig .. "|" .. tostring(rxCount)
                                     
                                     local replyData = nil
                                     if msgData.ReplyToId then
                                         replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
                                     end
                                     
-                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, sig)
+                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
                                 end
                             end
                         end
                     end
                 end
             end)
-        end)
+        end
 
-        -- Polling loop
+        task.spawn(FetchMessages)
         task.spawn(function()
             while true do
-                pcall(function()
-                    if HttpRequest then
-                        local Result = HttpRequest({
-                            Url = "http://167.99.144.89:8081/chatbox",
-                            Method = "GET",
-                            Headers = { ["Content-Type"] = "application/json" },
-                        })
-                        if Result and Result.StatusCode == 200 and Result.Body then
-                            local Success, Decoded = pcall(function()
-                                return game:GetService("HttpService"):JSONDecode(Result.Body)
-                            end)
-                            if Success and type(Decoded) == "table" then
-                                for _, msgData in ipairs(Decoded) do
-                                    if msgData.Username and msgData.Message then
-                                        local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
-                                        if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
-                                        
-                                        local replyData = nil
-                                        if msgData.ReplyToId then
-                                            replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
-                                        end
-
-                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, sig)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end)
+                FetchMessages()
                 task.wait(2)
             end
         end)
@@ -10045,7 +10080,7 @@ end
             end
         end)
 
-        -- Sidebar tab button setup
+        -- Sidebar tab setup
         local ChatTabButton = New("TextButton", {
             BackgroundColor3 = "MainColor",
             BackgroundTransparency = 1,
@@ -10127,7 +10162,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing12
+    --testing14
     return Window
 end
 
