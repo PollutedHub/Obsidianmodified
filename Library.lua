@@ -10101,7 +10101,14 @@ end
                                         local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
                                         if not ProcessedPings[pingSig] then
                                             ProcessedPings[pingSig] = true
-                                            Library:Notify("Ping received off " .. pingObj.Sender, 4, 18595195017, 3)
+                                            
+                                            -- Use configuration table format so the sound applies exclusively here
+                                            Library:Notify({
+                                                Title = "Chat Mention",
+                                                Description = "Ping received off " .. pingObj.Sender,
+                                                Time = 4,
+                                                SoundId = 18595195017
+                                            })
                                         end
                                     end
                                 end
