@@ -9486,7 +9486,7 @@ end
             Parent = ChatTitleBar,
         })
 
-        -- Close button (Fixed visibility, background, and "X" text)
+        -- Close button
         local ChatCloseBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
             BackgroundColor3 = "MainColor",
@@ -9494,7 +9494,7 @@ end
             Size = UDim2.fromOffset(24, 24),
             Text = "X",
             TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize, TextSize = 13,
+            TextSize = 13,
             ZIndex = 510,
             Parent = ChatTitleBar,
         })
@@ -9650,6 +9650,7 @@ end
 
         -- HTTP & Instant ID Generation
         local HttpRequest = request or http_request or (syn and syn.request) or nil
+        local ProcessedMessageIds = {}
 
         local function GetUniqueMessageId()
             return tostring(math.random(1000, 9999))
@@ -9714,13 +9715,22 @@ end
                 Parent = Row,
             })
 
-            -- Usernames rendered in Red
+            -- Name Color: Your name is Blue/Accent, other users are Red
+            local NameColor
+            if isSystem then
+                NameColor = Color3.fromRGB(255, 100, 100)
+            elseif sender == LocalPlayer.Name then
+                NameColor = Library.Scheme.AccentColor
+            else
+                NameColor = Color3.fromRGB(255, 90, 90)
+            end
+
             New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = sender,
-                TextColor3 = Color3.fromRGB(255, 90, 90),
+                TextColor3 = NameColor,
                 TextSize = 13,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9775,9 +9785,45 @@ end
 
             -- Instant local display and send
             local UniqueId = GetUniqueMessageId()
+            ProcessedMessageIds[tostring(UniqueId)] = true
             AddMessage(LocalPlayer.Name, CurrentMsg, false)
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
         end
+
+        -- Background polling loop to fetch messages from other players automatically
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if HttpRequest then
+                        local Result = HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox",
+                            Method = "GET",
+                            Headers = { ["Content-Type"] = "application/json" },
+                        })
+                        if Result and Result.StatusCode == 200 and Result.Body then
+                            local Success, Decoded = pcall(function()
+                                return game:GetService("HttpService"):JSONDecode(Result.Body)
+                            end)
+                            if Success and type(Decoded) == "table" then
+                                for _, msgData in ipairs(Decoded) do
+                                    local msgId = tostring(msgData.MessageId)
+                                    if msgId and not ProcessedMessageIds[msgId] then
+                                        ProcessedMessageIds[msgId] = true
+                                        if msgData.Username and msgData.Message then
+                                            -- Only add if it's from someone else to prevent double-displaying your own
+                                            if msgData.Username ~= LocalPlayer.Name then
+                                                AddMessage(msgData.Username, msgData.Message, false)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(2) -- Checks for new messages every 2 seconds
+            end
+        end)
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
         ChatInput.FocusLost:Connect(function(Enter)
@@ -9888,8 +9934,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --test to know if updated2
-
+    --testing
     return Window
 end
 
