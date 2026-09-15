@@ -10031,7 +10031,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing3
+    --testing4
     return Window
 end
 
