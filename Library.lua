@@ -9431,16 +9431,9 @@ end
     end))
 
 -- CHATBOX WINDOW
-    do
+     do
         local ChatOpen = false
         local ChatMessages = {}
-
-        -- Admin Configuration
-        local AdminUserIds = {
-            [11117216138] = true,
-            [2327711124] = true,
-        }
-        local LocalIsAdmin = AdminUserIds[LocalPlayer.UserId] == true
 
         local ChatGui = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9655,21 +9648,21 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-        -- HTTP & Requests
+        -- HTTP & Instant ID Generation
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local ProcessedMessageIds = {}
-        local ActiveMutes = {}
 
         local function GetUniqueMessageId()
             return tostring(math.random(1000, 9999))
         end
 
-        local function SendToEndpoint(username, message, messageId, roles)
+        local function SendToEndpoint(username, message, messageId)
             if not HttpRequest then return end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
             local body = game:GetService("HttpService"):JSONEncode({
                 Username = username,
-                Roles = roles or {"user"},
+                Roles = {"user"},
+                UserId = LocalPlayer.UserId, -- Sent so endpoint/other players know the sender's ID
                 Message = message,
                 MessageId = messageId,
                 Time = timestamp,
@@ -9686,103 +9679,39 @@ end
             end)
         end
 
-        local function DeleteMessageEndpoint(messageText)
-            if not HttpRequest then return end
-            task.spawn(function()
-                pcall(function()
-                    HttpRequest({
-                        Url = "http://167.99.144.89:8081/chatbox/" .. game:GetService("HttpService"):UrlEncode(messageText),
-                        Method = "DELETE",
-                        Headers = { ["Content-Type"] = "application/json" },
-                    })
-                end)
-            end)
-        end
+        -- Admin UserIDs List
+        local AdminUserIds = {
+            [11117216138] = true,
+            [2327711124] = true,
+        }
 
-        local function SendMuteEndpoint(targetUser, lengthSec)
-            if not HttpRequest then return end
-            local finishEpoch = os.time() + lengthSec
-            local finishTimeIso = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
-            local body = game:GetService("HttpService"):JSONEncode({
-                Username = targetUser,
-                Length = lengthSec,
-                ["finish time"] = finishTimeIso,
-            })
-            task.spawn(function()
-                pcall(function()
-                    HttpRequest({
-                        Url = "http://167.99.144.89:8081/Mutes",
-                        Method = "POST",
-                        Headers = { ["Content-Type"] = "application/json" },
-                        Body = body,
-                    })
-                end)
-            end)
+        local function IsAdmin(userId)
+            return userId and AdminUserIds[tonumber(userId)] == true
         end
 
         -- Moderation
         local LastMessageTime = 0
         local SpamCooldown = 2
 
+        local BannedWords = {}
+
         local function ContainsBannedWord(Msg)
             local Lower = Msg:lower()
             if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then
                 return true
             end
-            return false
+            for _, Word in BannedWords do
+                if Lower:match(Word:lower()) then
+                    return true
+              end
+          end
+          return false
         end
-
-        -- Context Menu for Admin Delete
-        local ContextMenu = New("Frame", {
-            BackgroundColor3 = "MainColor",
-            Size = UDim2.fromOffset(130, 32),
-            Visible = false,
-            ZIndex = 600,
-            Parent = ChatGui,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = ContextMenu })
-        New("UIStroke", { Color = "OutlineColor", Parent = ContextMenu })
-
-        local DeleteBtn = New("TextButton", {
-            BackgroundColor3 = "MainColor",
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 1),
-            Text = "Delete Message",
-            TextColor3 = Color3.fromRGB(255, 90, 90),
-            TextSize = 13,
-            ZIndex = 601,
-            Parent = ContextMenu,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = DeleteBtn })
-
-        local CurrentSelectedMessageText = nil
-        local CurrentSelectedRow = nil
-
-        DeleteBtn.MouseButton1Click:Connect(function()
-            if CurrentSelectedMessageText and CurrentSelectedRow then
-                DeleteMessageEndpoint(CurrentSelectedMessageText)
-                CurrentSelectedRow:Destroy()
-            end
-            ContextMenu.Visible = false
-        end)
-
-        game:GetService("UserInputService").InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
-                if ContextMenu.Visible then
-                    ContextMenu.Visible = false
-                end
-            end
-        end)
 
         -- Messages
         local MsgIndex = 0
-        local function AddMessage(sender, text, isSystem, roles)
+        local function AddMessage(sender, text, isSystem, senderUserId)
             MsgIndex = MsgIndex + 1
-            local isAdminSender = false
-            if roles then
-                for _, r in ipairs(roles) do if r == "admin" then isAdminSender = true end end
-            end
-
             local Row = New("Frame", {
                 BackgroundTransparency = 1,
                 LayoutOrder = MsgIndex,
@@ -9790,194 +9719,128 @@ end
                 AutomaticSize = Enum.AutomaticSize.Y,
                 ZIndex = 502,
                 Parent = ChatScroll,
-            })
-            New("UIListLayout", {
-                FillDirection = Enum.FillDirection.Vertical,
-                Padding = UDim.new(0, 1),
-                Parent = Row,
-            })
+          })
+          New("UIListLayout", {
+              FillDirection = Enum.FillDirection.Vertical,
+              Padding = UDim.new(0, 1),
+              Parent = Row,
+        })
 
-            -- Name Color & Crown
-            local NameColor
-            if isSystem then
-                NameColor = Color3.fromRGB(255, 100, 100)
-            elseif sender == LocalPlayer.Name then
-                NameColor = Library.Scheme.AccentColor
-            else
-                NameColor = Color3.fromRGB(255, 90, 90)
-            end
+          -- Name Color: Your name is Blue/Accent, other users are Red
+          local NameColor
+          if isSystem then
+              NameColor = Color3.fromRGB(255, 100, 100)
+          elseif sender == LocalPlayer.Name then
+              NameColor = Library.Scheme.AccentColor
+          else
+              NameColor = Color3.fromRGB(255, 90, 90)
+          end
 
-            local displayName = sender
-            if isAdminSender or sender == "SillyBerry263" or sender == "pollutedbot" and false then -- Add check or handle role
-                displayName = "👑 " .. sender
-            elseif isAdminSender then
-                displayName = "👑 " .. sender
-            end
+          -- Check if user is admin to append crown
+          local DisplayName = sender
+          if not isSystem and senderUserId and IsAdmin(senderUserId) then
+              DisplayName = sender .. " 👑"
+          end
 
-            New("TextLabel", {
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0),
-                Text = displayName,
-                TextColor3 = NameColor,
-                TextSize = 13,
-                TextWrapped = true,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 503,
-                Parent = Row,
-            })
+          New("TextLabel", {
+              AutomaticSize = Enum.AutomaticSize.Y,
+              BackgroundTransparency = 1,
+              Size = UDim2.new(1, 0, 0, 0),
+              Text = DisplayName,
+              TextColor3 = NameColor,
+              TextSize = 13,
+              TextWrapped = true,
+              TextXAlignment = Enum.TextXAlignment.Left,
+              ZIndex = 503,
+              Parent = Row,
+        })
 
-            New("TextLabel", {
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0),
-                Text = text,
-                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
-                TextSize = 14,
-                TextWrapped = true,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 503,
-                Parent = Row,
-            })
+          New("TextLabel", {
+              AutomaticSize = Enum.AutomaticSize.Y,
+              BackgroundTransparency = 1,
+              Size = UDim2.new(1, 0, 0, 0),
+              Text = text,
+              TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
+              TextSize = 14,
+              TextWrapped = true,
+              TextXAlignment = Enum.TextXAlignment.Left,
+              ZIndex = 503,
+              Parent = Row,
+        })
 
-            -- Right click for admin delete
-            if LocalIsAdmin and not isSystem then
-                local ClickDetector = New("TextButton", {
-                    BackgroundTransparency = 1,
-                    Size = UDim2.fromScale(1, 1),
-                    Text = "",
-                    ZIndex = 505,
-                    Parent = Row,
-                })
-                ClickDetector.MouseButton2Click:Connect(function()
-                    CurrentSelectedMessageText = text
-                    CurrentSelectedRow = Row
-                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                    local absolutePos = ChatGui.AbsolutePosition
-                    ContextMenu.Position = UDim2.fromOffset(mousePos.X - absolutePos.X, mousePos.Y - absolutePos.Y - 36)
-                    ContextMenu.Visible = true
-                end)
-            end
+          table.insert(ChatMessages, { Sender = sender, Text = text })
 
-            table.insert(ChatMessages, { Sender = sender, Text = text })
+          task.defer(function()
+              ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
+          end)
 
-            task.defer(function()
-                ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
-            end)
+          return Row
+      end
 
-            return Row
-        end
+      local function SendMessage()
+          local Msg = ChatInput.Text
+          if not Msg or Msg:gsub("%s", "") == "" then return end
 
-        local function SendMessage()
-            local Msg = ChatInput.Text
-            if not Msg or Msg:gsub("%s", "") == "" then return end
+          if #Msg > 100 then
+              AddMessage("System", "Message too long. Max 100 characters.", true)
+              return
+          end
 
-            -- Check if muted
-            if ActiveMutes[LocalPlayer.Name] then
-                AddMessage("System", "You are currently muted.", true)
-                return
-            end
+          if tick() - LastMessageTime < SpamCooldown then
+              AddMessage("System", "Please wait before sending another message.", true)
+              return
+          end
 
-            -- Check for Admin Command: ,Mute <username> <seconds>
-            if LocalIsAdmin and Msg:lower():sub(1, 6) == ",mute " then
-                local parts = {}
-                for word in Msg:gmatch("%S+") do table.insert(parts, word) end
-                local targetUser = parts[2]
-                local lengthSec = tonumber(parts[3]) or 60
-                if targetUser then
-                    SendMuteEndpoint(targetUser, lengthSec)
-                    AddMessage("System", "Muted " .. targetUser .. " for " .. lengthSec .. " seconds.", true)
-                    ChatInput.Text = ""
-                    return
-                end
-            end
+          if ContainsBannedWord(Msg) then
+              AddMessage("System", "Your message contains a banned word.", true)
+              return
+          end
 
-            if #Msg > 100 then
-                AddMessage("System", "Message too long. Max 100 characters.", true)
-                return
-            end
+          LastMessageTime = tick()
+          local CurrentMsg = Msg
+          ChatInput.Text = ""
 
-            if tick() - LastMessageTime < SpamCooldown then
-                AddMessage("System", "Please wait before sending another message.", true)
-                return
-            end
+          -- Instant local display and send
+          local UniqueId = GetUniqueMessageId()
+          ProcessedMessageIds[tostring(UniqueId)] = true
+          AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId)
+          SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
+      end
 
-            if ContainsBannedWord(Msg) then
-                AddMessage("System", "Your message contains a banned word.", true)
-                return
-            end
-
-            LastMessageTime = tick()
-            local CurrentMsg = Msg
-            ChatInput.Text = ""
-
-            local UniqueId = GetUniqueMessageId()
-            ProcessedMessageIds[tostring(UniqueId)] = true
-            local roles = LocalIsAdmin and {"admin", "user"} or {"user"}
-            AddMessage(LocalPlayer.Name, CurrentMsg, false, roles)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, roles)
-        end
-
-        -- Background Polling Loop (Messages & Mutes)
-        task.spawn(function()
-            while true do
-                pcall(function()
-                    if HttpRequest then
-                        -- Fetch Mutes
-                        local MuteResult = HttpRequest({
-                            Url = "http://167.99.144.89:8081/Mutes",
-                            Method = "GET",
-                            Headers = { ["Content-Type"] = "application/json" },
-                        })
-                        if MuteResult and MuteResult.StatusCode == 200 and MuteResult.Body then
-                            local Success, MuteDecoded = pcall(function()
-                                return game:GetService("HttpService"):JSONDecode(MuteResult.Body)
-                            end)
-                            if Success and type(MuteDecoded) == "table" then
-                                ActiveMutes = {}
-                                local currentTime = os.time()
-                                for _, muteData in ipairs(MuteDecoded) do
-                                    if muteData.Username then
-                                        -- Simple active check
-                                        ActiveMutes[muteData.Username] = true
-                                    end
-                                end
-                            end
-                        end
-
-                        -- Fetch Messages
-                        local Result = HttpRequest({
-                            Url = "http://167.99.144.89:8081/chatbox",
-                            Method = "GET",
-                            Headers = { ["Content-Type"] = "application/json" },
-                        })
-                        if Result and Result.StatusCode == 200 and Result.Body then
-                            local Success, Decoded = pcall(function()
-                                return game:GetService("HttpService"):JSONDecode(Result.Body)
-                            end)
-                            if Success and type(Decoded) == "table" then
-                                local fetchedIds = {}
-                                for _, msgData in ipairs(Decoded) do
-                                    local msgId = tostring(msgData.MessageId)
-                                    if msgId then
-                                        fetchedIds[msgId] = true
-                                        if not ProcessedMessageIds[msgId] then
-                                            ProcessedMessageIds[msgId] = true
-                                            if msgData.Username and msgData.Message then
-                                                if msgData.Username ~= LocalPlayer.Name then
-                                                    AddMessage(msgData.Username, msgData.Message, false, msgData.Roles)
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end)
-                task.wait(2)
-            end
-        end)
+      -- Background polling loop to fetch messages from other players automatically
+      task.spawn(function()
+          while true do
+              pcall(function()
+                  if HttpRequest then
+                      local Result = HttpRequest({
+                          Url = "http://167.99.144.89:8081/chatbox",
+                          Method = "GET",
+                          Headers = { ["Content-Type"] = "application/json" },
+                      })
+                      if Result and Result.StatusCode == 200 and Result.Body then
+                          local Success, Decoded = pcall(function()
+                              return game:GetService("HttpService"):JSONDecode(Result.Body)
+                          end)
+                          if Success and type(Decoded) == "table" then
+                              for _, msgData in ipairs(Decoded) do
+                                  local msgId = tostring(msgData.MessageId)
+                                  if msgId and not ProcessedMessageIds[msgId] then
+                                      ProcessedMessageIds[msgId] = true
+                                      if msgData.Username and msgData.Message then
+                                          -- Only add if it's from someone else to prevent double-displaying your own
+                                          if msgData.Username ~= LocalPlayer.Name then
+                                              AddMessage(msgData.Username, msgData.Message, false, msgData.UserId)
+                                          end
+                                      end
+                                  end
+                              end
+                          end
+                      end
+                  end
+              end)
+              task.wait(2) -- Checks for new messages every 2 seconds
+          end
+    end)
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
         ChatInput.FocusLost:Connect(function(Enter)
@@ -10088,7 +9951,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testingagain
+    
     return Window
 end
 
