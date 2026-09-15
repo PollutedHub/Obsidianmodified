@@ -9431,7 +9431,7 @@ end
     end))
 
 -- CHATBOX WINDOW
-     do
+    do
         local ChatOpen = false
         local ChatMessages = {}
 
@@ -9662,7 +9662,7 @@ end
             local body = game:GetService("HttpService"):JSONEncode({
                 Username = username,
                 Roles = {"user"},
-                UserId = LocalPlayer.UserId, -- Sent so endpoint/other players know the sender's ID
+                UserId = LocalPlayer.UserId,
                 Message = message,
                 MessageId = messageId,
                 Time = timestamp,
@@ -9679,14 +9679,32 @@ end
             end)
         end
 
-        -- Admin UserIDs List
+        -- Admin UserIDs List & Username Cache Fallback
         local AdminUserIds = {
             [11117216138] = true,
             [2327711124] = true,
         }
+        local AdminUsernames = {}
 
-        local function IsAdmin(userId)
-            return userId and AdminUserIds[tonumber(userId)] == true
+        task.spawn(function()
+            for userId, _ in pairs(AdminUserIds) do
+                pcall(function()
+                    local name = game:GetService("Players"):GetNameFromUserIdAsync(userId)
+                    if name then
+                        AdminUsernames[name:lower()] = true
+                    end
+                end)
+            end
+        end)
+
+        local function IsAdmin(userId, username)
+            if userId and AdminUserIds[tonumber(userId)] then
+                return true
+            end
+            if username and AdminUsernames[username:lower()] then
+                return true
+            end
+            return false
         end
 
         -- Moderation
@@ -9703,9 +9721,9 @@ end
             for _, Word in BannedWords do
                 if Lower:match(Word:lower()) then
                     return true
-              end
-          end
-          return false
+                end
+            end
+            return false
         end
 
         -- Messages
@@ -9719,128 +9737,128 @@ end
                 AutomaticSize = Enum.AutomaticSize.Y,
                 ZIndex = 502,
                 Parent = ChatScroll,
-          })
-          New("UIListLayout", {
-              FillDirection = Enum.FillDirection.Vertical,
-              Padding = UDim.new(0, 1),
-              Parent = Row,
-        })
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                Padding = UDim.new(0, 1),
+                Parent = Row,
+            })
 
-          -- Name Color: Your name is Blue/Accent, other users are Red
-          local NameColor
-          if isSystem then
-              NameColor = Color3.fromRGB(255, 100, 100)
-          elseif sender == LocalPlayer.Name then
-              NameColor = Library.Scheme.AccentColor
-          else
-              NameColor = Color3.fromRGB(255, 90, 90)
-          end
+            -- Name Color: Your name is Blue/Accent, other users are Red
+            local NameColor
+            if isSystem then
+                NameColor = Color3.fromRGB(255, 100, 100)
+            elseif sender == LocalPlayer.Name then
+                NameColor = Library.Scheme.AccentColor
+            else
+                NameColor = Color3.fromRGB(255, 90, 90)
+            end
 
-          -- Check if user is admin to append crown
-          local DisplayName = sender
-          if not isSystem and senderUserId and IsAdmin(senderUserId) then
-              DisplayName = sender .. " 👑"
-          end
+            -- Check if user is admin to append crown
+            local DisplayName = sender
+            if not isSystem and IsAdmin(senderUserId, sender) then
+                DisplayName = sender .. " 👑"
+            end
 
-          New("TextLabel", {
-              AutomaticSize = Enum.AutomaticSize.Y,
-              BackgroundTransparency = 1,
-              Size = UDim2.new(1, 0, 0, 0),
-              Text = DisplayName,
-              TextColor3 = NameColor,
-              TextSize = 13,
-              TextWrapped = true,
-              TextXAlignment = Enum.TextXAlignment.Left,
-              ZIndex = 503,
-              Parent = Row,
-        })
+            New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                Text = DisplayName,
+                TextColor3 = NameColor,
+                TextSize = 13,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 503,
+                Parent = Row,
+            })
 
-          New("TextLabel", {
-              AutomaticSize = Enum.AutomaticSize.Y,
-              BackgroundTransparency = 1,
-              Size = UDim2.new(1, 0, 0, 0),
-              Text = text,
-              TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
-              TextSize = 14,
-              TextWrapped = true,
-              TextXAlignment = Enum.TextXAlignment.Left,
-              ZIndex = 503,
-              Parent = Row,
-        })
+            New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                Text = text,
+                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
+                TextSize = 14,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 503,
+                Parent = Row,
+            })
 
-          table.insert(ChatMessages, { Sender = sender, Text = text })
+            table.insert(ChatMessages, { Sender = sender, Text = text })
 
-          task.defer(function()
-              ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
-          end)
+            task.defer(function()
+                ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
+            end)
 
-          return Row
-      end
+            return Row
+        end
 
-      local function SendMessage()
-          local Msg = ChatInput.Text
-          if not Msg or Msg:gsub("%s", "") == "" then return end
+        local function SendMessage()
+            local Msg = ChatInput.Text
+            if not Msg or Msg:gsub("%s", "") == "" then return end
 
-          if #Msg > 100 then
-              AddMessage("System", "Message too long. Max 100 characters.", true)
-              return
-          end
+            if #Msg > 100 then
+                AddMessage("System", "Message too long. Max 100 characters.", true)
+                return
+            end
 
-          if tick() - LastMessageTime < SpamCooldown then
-              AddMessage("System", "Please wait before sending another message.", true)
-              return
-          end
+            if tick() - LastMessageTime < SpamCooldown then
+                AddMessage("System", "Please wait before sending another message.", true)
+                return
+            end
 
-          if ContainsBannedWord(Msg) then
-              AddMessage("System", "Your message contains a banned word.", true)
-              return
-          end
+            if ContainsBannedWord(Msg) then
+                AddMessage("System", "Your message contains a banned word.", true)
+                return
+            end
 
-          LastMessageTime = tick()
-          local CurrentMsg = Msg
-          ChatInput.Text = ""
+            LastMessageTime = tick()
+            local CurrentMsg = Msg
+            ChatInput.Text = ""
 
-          -- Instant local display and send
-          local UniqueId = GetUniqueMessageId()
-          ProcessedMessageIds[tostring(UniqueId)] = true
-          AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId)
-          SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
-      end
+            -- Instant local display and send
+            local UniqueId = GetUniqueMessageId()
+            ProcessedMessageIds[tostring(UniqueId)] = true
+            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId)
+        end
 
-      -- Background polling loop to fetch messages from other players automatically
-      task.spawn(function()
-          while true do
-              pcall(function()
-                  if HttpRequest then
-                      local Result = HttpRequest({
-                          Url = "http://167.99.144.89:8081/chatbox",
-                          Method = "GET",
-                          Headers = { ["Content-Type"] = "application/json" },
-                      })
-                      if Result and Result.StatusCode == 200 and Result.Body then
-                          local Success, Decoded = pcall(function()
-                              return game:GetService("HttpService"):JSONDecode(Result.Body)
-                          end)
-                          if Success and type(Decoded) == "table" then
-                              for _, msgData in ipairs(Decoded) do
-                                  local msgId = tostring(msgData.MessageId)
-                                  if msgId and not ProcessedMessageIds[msgId] then
-                                      ProcessedMessageIds[msgId] = true
-                                      if msgData.Username and msgData.Message then
-                                          -- Only add if it's from someone else to prevent double-displaying your own
-                                          if msgData.Username ~= LocalPlayer.Name then
-                                              AddMessage(msgData.Username, msgData.Message, false, msgData.UserId)
-                                          end
-                                      end
-                                  end
-                              end
-                          end
-                      end
-                  end
-              end)
-              task.wait(2) -- Checks for new messages every 2 seconds
-          end
-    end)
+        -- Background polling loop to fetch messages from other players automatically
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    if HttpRequest then
+                        local Result = HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox",
+                            Method = "GET",
+                            Headers = { ["Content-Type"] = "application/json" },
+                        })
+                        if Result and Result.StatusCode == 200 and Result.Body then
+                            local Success, Decoded = pcall(function()
+                                return game:GetService("HttpService"):JSONDecode(Result.Body)
+                            end)
+                            if Success and type(Decoded) == "table" then
+                                for _, msgData in ipairs(Decoded) do
+                                    local msgId = tostring(msgData.MessageId)
+                                    if msgId and not ProcessedMessageIds[msgId] then
+                                        ProcessedMessageIds[msgId] = true
+                                        if msgData.Username and msgData.Message then
+                                            -- Only add if it's from someone else to prevent double-displaying your own
+                                            if msgData.Username ~= LocalPlayer.Name then
+                                                AddMessage(msgData.Username, msgData.Message, false, msgData.UserId)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(2) -- Checks for new messages every 2 seconds
+            end
+        end)
 
         SendBtn.MouseButton1Click:Connect(SendMessage)
         ChatInput.FocusLost:Connect(function(Enter)
@@ -9951,7 +9969,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    
+    --testing again
     return Window
 end
 
