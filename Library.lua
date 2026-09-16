@@ -10392,8 +10392,77 @@ do
             Parent = ContentLayout,
         })
 
+        local reactionContainer = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.XY,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            ZIndex = 504,
+            Parent = ContentLayout,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 4),
+            Parent = reactionContainer,
+        })
+
+        local function RenderReactions(rxData)
+            for _, child in ipairs(reactionContainer:GetChildren()) do
+                if child:IsA("GuiObject") then child:Destroy() end
+            end
+            
+            if not rxData then return end
+            for emojiStr, userList in pairs(rxData) do
+                if type(userList) == "table" and #userList > 0 then
+                    local pill = New("TextButton", {
+                        BackgroundColor3 = Color3.fromRGB(50, 52, 58),
+                        AutoButtonColor = false,
+                        Size = UDim2.fromOffset(36, 20),
+                        Text = emojiStr .. " " .. #userList,
+                        TextColor3 = Color3.fromRGB(200, 200, 200),
+                        TextSize = 11,
+                        ZIndex = 505,
+                        Parent = reactionContainer,
+                    })
+                    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = pill })
+                    New("UIStroke", { Color = Color3.fromRGB(70, 72, 78), Parent = pill })
+
+                    pill.MouseButton1Down:Connect(function()
+                        local currentRx = {}
+                        for e, list in pairs(currentRowReactions) do
+                            currentRx[e] = {}
+                            for _, u in ipairs(list) do table.insert(currentRx[e], u) end
+                        end
+
+                        if not currentRx[emojiStr] then currentRx[emojiStr] = {} end
+                        local foundIndex = nil
+                        for i, user in ipairs(currentRx[emojiStr]) do
+                            if user == LocalPlayer.Name then foundIndex = i; break end
+                        end
+
+                        if foundIndex then 
+                            table.remove(currentRx[emojiStr], foundIndex)
+                            if #currentRx[emojiStr] == 0 then currentRx[emojiStr] = nil end
+                        else 
+                            table.insert(currentRx[emojiStr], LocalPlayer.Name) 
+                        end
+
+                        currentRowReactions = currentRx
+                        RenderReactions(currentRx)
+                        SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
+                    end)
+                end
+            end
+        end
+
+        RenderReactions(currentRowReactions)
+
         ActiveMessageRows[msgIdStr] = {
             SetHighlight = SetRowHighlight,
+            UpdateReactions = function(newRx)
+                currentRowReactions = newRx or {}
+                RenderReactions(currentRowReactions)
+            end,
             RefreshName = function()
                 NameBtn.Text = FormatDisplayName()
                 NameBtn.TextColor3 = GetNameColor()
@@ -10561,7 +10630,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing381
+    --testing388
     return Window
 end
 
