@@ -10121,7 +10121,7 @@ end
                         end
 
                         currentRowReactions = currentRx
-                        
+
                         if activePickerMenu then
                             ActiveReactorMenus[activePickerMenu] = nil
                             activePickerMenu:Destroy()
@@ -10135,7 +10135,7 @@ end
                 ActiveReactorMenus[activePickerMenu] = function()
                     if tick() - menuOpenedTick < 0.15 then return false end
                     if not activePickerMenu or not activePickerMenu.Parent then return true end
-                    
+
                     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                     local absPos = activePickerMenu.AbsolutePosition
                     local absSize = activePickerMenu.AbsoluteSize
@@ -10417,51 +10417,54 @@ end
             return Row
         end
 
-        local function SendMessage()
-            local Msg = ChatInput.Text
-            if not Msg or Msg:gsub("%s", "") == "" then return end
+local function SendMessage()
+    local Msg = ChatInput.Text
+    if not Msg or Msg:gsub("%s", "") == "" then return end
 
-            if #Msg > 100 then
-                AddMessage("System", "Message too long. Max 100 characters.", true)
-                return
-            end
+    if #Msg > 100 then
+        AddMessage("System", "Message too long. Max 100 characters.", true)
+        return
+    end
 
-            if tick() - LastMessageTime < SpamCooldown then
-                AddMessage("System", "Please wait before sending another message.", true)
-                return
-            end
+    if tick() - LastMessageTime < SpamCooldown then
+        AddMessage("System", "Please wait before sending another message.", true)
+        return
+    end
 
-            if ContainsBannedWord(Msg) then
-                AddMessage("System", "Your message contains a banned word.", true)
-                return
-            end
+    if ContainsBannedWord(Msg) then
+        AddMessage("System", "Your message contains a banned word.", true)
+        return
+    end
 
-            LastMessageTime = tick()
-            local CurrentMsg = Msg
-            ChatInput.Text = ""
+    LastMessageTime = tick()
+    local CurrentMsg = Msg
+    ChatInput.Text = ""
 
-            local UniqueId = GetUniqueMessageId()
-            local currentReply = ReplyTarget
+    local UniqueId = GetUniqueMessageId()
+    local currentReply = ReplyTarget
 
-            ReplyTarget = nil
-            WasTyping = false
-            SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, false)
+    ReplyTarget = nil
+    WasTyping = false
 
-            UpdateInputLayout()
-            for _, rData in pairs(ActiveMessageRows) do
-                if rData.SetHighlight then rData.SetHighlight(false) end
-            end
+    UpdateInputLayout()
+    for _, rData in pairs(ActiveMessageRows) do
+        if rData.SetHighlight then rData.SetHighlight(false) end
+    end
 
-            local targetPingUser = nil
-            for match in CurrentMsg:gmatch("@([%w_]+)") do
-                targetPingUser = match
-                break
-            end
+    local targetPingUser = nil
+    for match in CurrentMsg:gmatch("@([%w_]+)") do
+        targetPingUser = match
+        break
+    end
 
-            local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
-            AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
-        end
+    local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
+    
+    -- 1. Display locally on your screen
+    AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
+    
+    -- 2. Send the ACTUAL message to the VPS endpoint (IsTyping set to false)
+    SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
+end
 
         -- Initial Fetch & Polling
         local function FetchMessages()
@@ -10704,7 +10707,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing35
+    --testing38
     return Window
 end
 
