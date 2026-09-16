@@ -10747,6 +10747,7 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     end
 
     -- Initial Fetch & Polling
+-- Initial Fetch & Polling
     local function FetchMessages()
         pcall(function()
             if HttpRequest then
@@ -10760,6 +10761,43 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         return game:GetService("HttpService"):JSONDecode(Result.Body)
                     end)
                     if Success and type(Decoded) == "table" then
+                        
+                        -- Mute State & Countdown Check
+                        local MutedUsersList = Decoded.MutedUsers or {}
+                        local isMutedLocally = false
+                        local muteRemainingSeconds = 0
+
+                        local localNameLower = LocalPlayer.Name:lower()
+                        local localUserIdStr = tostring(LocalPlayer.UserId)
+
+                        for _, muteObj in ipairs(MutedUsersList) do
+                            local targetStr = tostring(muteObj.Target or ""):lower()
+                            if targetStr == localNameLower or targetStr == localUserIdStr then
+                                isMutedLocally = true
+                                muteRemainingSeconds = muteObj.RemainingSeconds or 0
+                                break
+                            end
+                        end
+
+                        if isMutedLocally then
+                            ChatInput.TextEditable = false
+                            SendBtn.Active = false
+                            SendBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+                            
+                            if muteRemainingSeconds and muteRemainingSeconds > 0 then
+                                SendBtn.Text = "U are Muted. Time Remaining :" .. tostring(muteRemainingSeconds) .. "s"
+                            else
+                                SendBtn.Text = "U are Muted. Permanent"
+                            end
+                        else
+                            ChatInput.TextEditable = true
+                            SendBtn.Active = true
+                            SendBtn.BackgroundColor3 = Library.Scheme.AccentColor
+                            if not NicknameTarget then
+                                SendBtn.Text = "Send"
+                            end
+                        end
+
                         -- Handle Typing Users list from backend
                         local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
                         local activeTypingNames = {}
