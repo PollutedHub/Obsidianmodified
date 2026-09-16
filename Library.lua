@@ -9854,7 +9854,7 @@ do
         end
     end
 
-    local function OpenUserContextMenu(targetUser, targetUserId)
+local function OpenUserContextMenu(targetUser, targetUserId)
         CloseContextMenu()
 
         local mousePos = game:GetService("UserInputService"):GetMouseLocation()
@@ -10020,7 +10020,6 @@ do
             end
         end
     end
-
     -- Close context menu on outside click
     game:GetService("UserInputService").InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
