@@ -9543,7 +9543,7 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(520, 480), -- Expanded width to accommodate left navigation panel nicely
+        Size = UDim2.fromOffset(520, 480),
         Visible = false,
         ZIndex = 500,
         Parent = ScreenGui,
@@ -9563,6 +9563,7 @@ do
     LeftNavPanel.Parent = ChatGui
 
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = LeftNavPanel })
+    
     -- Cover curved corner overlap on the right side of the nav panel
     New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
@@ -11060,7 +11061,6 @@ do
                     local Success, Decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(Result.Body) end)
                     if Success and type(Decoded) == "table" then
 
-                        -- FIX: Rebuild SeenUsers strictly from VPS KnownUsers data. No local server player auto-discovery.
                         local KnownUsersList = Decoded.KnownUsers or {}
                         SeenUsers = {}
                         if game:GetService("Players").LocalPlayer then
@@ -11099,7 +11099,6 @@ do
                             UpdateInputLayout()
                         end
 
-                        -- Handle Pings polling and processing
                         local pingsList = Decoded.Pings or {}
                         local localNameLower = game:GetService("Players").LocalPlayer and game:GetService("Players").LocalPlayer.Name:lower() or ""
                         local acknowledgedPingIds = {}
@@ -11111,7 +11110,6 @@ do
                                     ProcessedPings[pingObj.Id] = true
                                     table.insert(acknowledgedPingIds, pingObj.Id)
 
-                                    -- Fire notification with the requested sound ID
                                     pcall(function()
                                         Library:Notify({
                                             Title = "Mentioned!",
@@ -11124,7 +11122,6 @@ do
                             end
                         end
 
-                        -- Acknowledge processed pings back to the VPS endpoint
                         if #acknowledgedPingIds > 0 then
                             task.spawn(function()
                                 pcall(function()
@@ -11204,7 +11201,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing388811111555
+    --testing388811111333333333
     return Window
 end
 
