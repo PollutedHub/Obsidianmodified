@@ -9814,7 +9814,7 @@ end
             MsgIndex = MsgIndex + 1
 
             local Row = New("Frame", {
-                BackgroundColor3 = Color3.new(1, 1, 1),
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 LayoutOrder = MsgIndex,
@@ -9823,10 +9823,14 @@ end
                 ZIndex = 502,
                 Parent = ChatScroll,
             })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, 4),
+                Parent = Row,
+            })
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
-                PaddingLeft = UDim.new(0, 2),
-                PaddingRight = UDim.new(0, 2),
+                PaddingLeft = UDim.new(0, 4),
+                PaddingRight = UDim.new(0, 4),
                 PaddingTop = UDim.new(0, 4),
                 Parent = Row,
             })
@@ -9886,7 +9890,7 @@ end
                 Parent = ActionBar,
             })
             New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
-            
+
             local BinProgressStroke = New("UIStroke", {
                 Color = Color3.fromRGB(255, 60, 60),
                 Thickness = 2.5,
@@ -9973,10 +9977,13 @@ end
             BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
             BinBtn.MouseLeave:Connect(CancelDeleteHold)
 
+            -- Discord-style row hover effect
             Row.MouseEnter:Connect(function()
+                Row.BackgroundTransparency = 0.95
                 if not isSystem then ActionBar.Visible = true end
             end)
             Row.MouseLeave:Connect(function()
+                Row.BackgroundTransparency = 1
                 ActionBar.Visible = false
                 CancelDeleteHold()
             end)
@@ -10165,12 +10172,12 @@ end
                                     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                                     local absPos = activeReactorMenu.AbsolutePosition
                                     local absSize = activeReactorMenu.AbsoluteSize
-                                    
+
                                     local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
                                     local pillPos = currentReactionContainer.AbsolutePosition
                                     local pillSize = currentReactionContainer.AbsoluteSize
                                     local isInsidePill = (mousePos.X >= pillPos.X and mousePos.X <= pillPos.X + pillSize.X and mousePos.Y >= pillPos.Y and mousePos.Y <= pillPos.Y + pillSize.Y)
-                                    
+
                                     return not (isInsideMenu or isInsidePill)
                                 end
                             end
@@ -10250,7 +10257,7 @@ end
                     })
                     if Result and Result.StatusCode == 200 and Result.Body then
                         local Success, Decoded = pcall(function()
-                            return game:GetService("HttpService"):JSONDecode(Result.Body)
+                            return game:GetService("HttpService"):JSONEncode(Result.Body)
                         end)
                         if Success and type(Decoded) == "table" then
                             local messageList = Decoded.Messages or Decoded
@@ -10455,7 +10462,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing34
+    --testing37
     return Window
 end
 
