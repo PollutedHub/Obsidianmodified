@@ -10679,16 +10679,16 @@ do
                     local finishEpoch = os.time() + totalSeconds
                     local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
                     local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                   local muteData = {
+local muteData = {
     Username = LocalPlayer.Name,
     UserId = tostring(LocalPlayer.UserId),
     Roles = {"user"},
     Message = Msg,
     Time = timestamp,
     MuteUser = targetUsername,
-    MuteDuration = timeLength, -- Updated from MuteLength to match backend
-    FinishDate = finishDateFormatted,
+    MuteDuration = timeLength,
     MuteUserId = tostring(targetUserId)
+    -- FinishDate removed
 }
 
                     if HttpRequest then
@@ -11067,7 +11067,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing31
+    --testing39
     return Window
 end
 
