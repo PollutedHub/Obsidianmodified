@@ -10676,20 +10676,17 @@ do
                     elseif unit == "d" then multiplier = 86400 end
 
                     local totalSeconds = (tonumber(timeLength) or value) * multiplier
-                    local finishEpoch = os.time() + totalSeconds
-                    local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
                     local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-local muteData = {
-    Username = LocalPlayer.Name,
-    UserId = tostring(LocalPlayer.UserId),
-    Roles = {"user"},
-    Message = Msg,
-    Time = timestamp,
-    MuteUser = targetUsername,
-    MuteDuration = timeLength,
-    MuteUserId = tostring(targetUserId)
-    -- FinishDate removed
-}
+                    local muteData = {
+                        Username = LocalPlayer.Name,
+                        UserId = tostring(LocalPlayer.UserId),
+                        Roles = {"user"},
+                        Message = Msg,
+                        Time = timestamp,
+                        MuteUser = targetUsername,
+                        MuteDuration = timeLength,
+                        MuteUserId = tostring(targetUserId)
+                    }
 
                     if HttpRequest then
                         task.spawn(function()
@@ -10712,6 +10709,67 @@ local muteData = {
                     return
                 else
                     AddMessage("System", "Usage: ,mute username time", true)
+                    return
+                end
+            else
+                AddMessage("System", "You do not have permission to use this command.", true)
+                ChatInput.Text = ""
+                return
+            end
+        end
+
+        -- Admin Unmute Command Interception
+        if Msg:sub(1, 7) == ",unmute" then
+            if IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
+                local args = {}
+                for word in Msg:gmatch("%S+") do
+                    table.insert(args, word)
+                end
+
+                if #args >= 2 then
+                    local targetUsername = args[2]
+
+                    local success, targetUserId = pcall(function()
+                        return game:GetService("Players"):GetUserIdFromNameAsync(targetUsername)
+                    end)
+
+                    if not success or not targetUserId then
+                        targetUserId = 0
+                    end
+
+                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                    local unmuteData = {
+                        Username = LocalPlayer.Name,
+                        UserId = tostring(LocalPlayer.UserId),
+                        Roles = {"user"},
+                        Message = Msg,
+                        Time = timestamp,
+                        MuteUser = targetUsername,
+                        MuteDuration = "unmute",
+                        MuteUserId = tostring(targetUserId)
+                    }
+
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode(unmuteData),
+                                })
+                            end)
+                        end)
+                    end
+
+                    AddMessage("System", "Successfully sent unmute command for " .. targetUsername, true)
+                    ChatInput.Text = ""
+                    return
+                else
+                    AddMessage("System", "Usage: ,unmute username", true)
                     return
                 end
             else
@@ -11067,7 +11125,7 @@ local muteData = {
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing39
+    --testing399
     return Window
 end
 
