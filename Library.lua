@@ -9543,7 +9543,7 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(480, 480), -- Expanded width slightly to accommodate left navigation panel
+        Size = UDim2.fromOffset(520, 480), -- Expanded width to accommodate left navigation panel nicely
         Visible = false,
         ZIndex = 500,
         Parent = ScreenGui,
@@ -9556,10 +9556,12 @@ do
     local LeftNavPanel = New("Frame", {
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 0),
         Size = UDim2.new(0, 110, 1, 0),
         ZIndex = 501,
-        Parent = ChatGui,
     })
+    LeftNavPanel.Parent = ChatGui
+
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = LeftNavPanel })
     -- Cover curved corner overlap on the right side of the nav panel
     New("Frame", {
@@ -11202,7 +11204,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing38881111133333
+    --testing388811111555
     return Window
 end
 
