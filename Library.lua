@@ -10263,7 +10263,7 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Context Menu handling on Right Click or Input Tap on NameLabel
+            -- Context Menu handling on Left or Right click
             local activeUserContextMenu = nil
 
             local function CloseUserContextMenu()
@@ -10274,7 +10274,7 @@ end
                 end
             end
 
-            NameLabel.MouseButton2Click:Connect(function()
+            local function OpenUserContextMenu()
                 if isSystem then return end
                 CloseUserContextMenu()
 
@@ -10284,8 +10284,8 @@ end
 
                 activeUserContextMenu = New("Frame", {
                     BackgroundColor3 = Color3.fromRGB(30, 32, 36),
-                    Position = UDim2.fromOffset(math.clamp(relativePos.X, 4, 200), math.clamp(relativePos.Y, 4, 340)),
-                    Size = UDim2.fromOffset(160, 114),
+                    Position = UDim2.fromOffset(math.clamp(relativePos.X, 4, 180), math.clamp(relativePos.Y, 4, 320)),
+                    Size = UDim2.fromOffset(160, 96),
                     ZIndex = 700,
                     Parent = ChatGui,
                 })
@@ -10305,12 +10305,12 @@ end
                     Parent = activeUserContextMenu,
                 })
 
-                local function CreateContextOption(text, iconText, onClick)
+                local function CreateContextOption(text, onClick)
                     local btn = New("TextButton", {
                         BackgroundColor3 = Color3.fromRGB(40, 43, 48),
                         BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 0, 28),
-                        Text = "  " .. iconText .. "   " .. text,
+                        Size = UDim2.new(1, 0, 0, 26),
+                        Text = text,
                         TextColor3 = Color3.fromRGB(220, 222, 225),
                         TextSize = 12,
                         TextXAlignment = Enum.TextXAlignment.Left,
@@ -10318,6 +10318,7 @@ end
                         Parent = activeUserContextMenu,
                     })
                     New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
+                    New("UIPadding", { PaddingLeft = UDim.new(0, 8), Parent = btn })
 
                     btn.MouseEnter:Connect(function()
                         btn.BackgroundTransparency = 0
@@ -10335,20 +10336,20 @@ end
                 end
 
                 -- 1. Copy User ID
-                CreateContextOption("Copy User ID", "🆔", function()
+                CreateContextOption("Copy User ID", function()
                     local uidToCopy = tostring(senderUserId or "0")
                     pcall(function() setclipboard(uidToCopy) end)
                     Library:Notify({ Title = "Copied", Description = "Copied User ID: " .. uidToCopy, Time = 3 })
                 end)
 
                 -- 2. Copy Username
-                CreateContextOption("Copy Username", "👤", function()
+                CreateContextOption("Copy Username", function()
                     pcall(function() setclipboard(sender) end)
                     Library:Notify({ Title = "Copied", Description = "Copied Username: " .. sender, Time = 3 })
                 end)
 
                 -- 3. Set Nickname
-                CreateContextOption("Set Nickname", "✏️", function()
+                CreateContextOption("Set Nickname", function()
                     local nickPromptGui = New("Frame", {
                         AnchorPoint = Vector2.new(0.5, 0.5),
                         BackgroundColor3 = Color3.fromRGB(35, 37, 42),
@@ -10443,7 +10444,10 @@ end
                     local absSize = activeUserContextMenu.AbsoluteSize
                     return not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
                 end
-            end)
+            end
+
+            NameLabel.MouseButton1Click:Connect(OpenUserContextMenu)
+            NameLabel.MouseButton2Click:Connect(OpenUserContextMenu)
 
             New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
@@ -10901,7 +10905,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing35
+    --testing36
     return Window
 end
 
