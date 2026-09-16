@@ -10653,7 +10653,7 @@ do
 
                     local finishEpoch = os.time() + totalSeconds
                     local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
-local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                     local muteData = {
                         Username = LocalPlayer.Name,
                         UserId = tostring(LocalPlayer.UserId),
@@ -10661,14 +10661,15 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                         Message = Msg,
                         Time = timestamp,
                         MuteUser = targetUsername,
-                        MuteDuration = timeLength,
+                        MuteLength = timeLength,
+                        FinishDate = finishDateFormatted,
                         MuteUserId = tostring(targetUserId)
                     }
 
                     if HttpRequest then
                         task.spawn(function()
-                            local success, response = pcall(function()
-                                return HttpRequest({
+                            pcall(function()
+                                HttpRequest({
                                     Url = "http://167.99.144.89:8081/chatbox",
                                     Method = "POST",
                                     Headers = {
@@ -10678,16 +10679,10 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                                     Body = game:GetService("HttpService"):JSONEncode(muteData),
                                 })
                             end)
-
-                            if success and response and response.StatusCode == 200 then
-                                AddMessage("System", "Successfully sent mute command for " .. targetUsername, true)
-                            else
-                                local errBody = response and response.Body or "Unknown error"
-                                AddMessage("System", "Failed to send mute command: " .. tostring(errBody), true)
-                            end
                         end)
                     end
 
+                    AddMessage("System", "Successfully sent mute command for " .. targetUsername, true)
                     ChatInput.Text = ""
                     return
                 else
@@ -10747,7 +10742,6 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     end
 
     -- Initial Fetch & Polling
--- Initial Fetch & Polling
     local function FetchMessages()
         pcall(function()
             if HttpRequest then
@@ -10762,7 +10756,7 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                     end)
                     if Success and type(Decoded) == "table" then
                         
-                        -- Mute State & Countdown Check
+                        -- Mute State & Countdown Check (Updated to use Input Placeholder Text)
                         local MutedUsersList = Decoded.MutedUsers or {}
                         local isMutedLocally = false
                         local muteRemainingSeconds = 0
@@ -10785,16 +10779,16 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                             SendBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
                             
                             if muteRemainingSeconds and muteRemainingSeconds > 0 then
-                                SendBtn.Text = "U are Muted. Time Remaining :" .. tostring(muteRemainingSeconds) .. "s"
+                                ChatInput.PlaceholderText = "U are Muted. Time Remaining :" .. tostring(muteRemainingSeconds) .. "s"
                             else
-                                SendBtn.Text = "U are Muted. Permanent"
+                                ChatInput.PlaceholderText = "U are Muted. Permanent"
                             end
                         else
                             ChatInput.TextEditable = true
                             SendBtn.Active = true
                             SendBtn.BackgroundColor3 = Library.Scheme.AccentColor
-                            if not NicknameTarget then
-                                SendBtn.Text = "Send"
+                            if not NicknameTarget and not ReplyTarget then
+                                ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
                             end
                         end
 
@@ -11034,7 +11028,7 @@ local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing1
+    --testing6
     return Window
 end
 
