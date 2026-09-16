@@ -9464,6 +9464,21 @@ do
         return CustomNicknames[username] or username
     end
 
+    local function FormatDuration(seconds)
+        if not seconds or seconds <= 0 then return "0s" end
+        local days = math.floor(seconds / 86400)
+        local hours = math.floor((seconds % 86400) / 3600)
+        local mins = math.floor((seconds % 3600) / 60)
+        local secs = seconds % 60
+
+        local parts = {}
+        if days > 0 then table.insert(parts, days .. "d") end
+        if hours > 0 then table.insert(parts, hours .. "h") end
+        if mins > 0 then table.insert(parts, mins .. "m") end
+        if secs > 0 or #parts == 0 then table.insert(parts, secs .. "s") end
+        return table.concat(parts, " ")
+    end
+
     local ChatGui = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "BackgroundColor",
@@ -9899,7 +9914,7 @@ do
         -- Option 3: Set Nickname
         CreateMenuOption("Set Nickname", function()
             NicknameTarget = targetUser
-            ReplyTarget = nil -- don't let reply-mode and nickname-mode fight over the input
+            ReplyTarget = nil
             ChatInput.Text = ""
             SendBtn.Text = "Set"
             UpdateInputLayout()
@@ -10636,7 +10651,13 @@ do
                         targetUserId = 0
                     end
 
-                    -- Calculate finish date (simplistic example parsing seconds/minutes or using raw length string)
+                    -- Prevent admins from muting other admins
+                    if IsAdmin(targetUserId, targetUsername) then
+                        AddMessage("System", "You cannot mute another admin.", true)
+                        ChatInput.Text = ""
+                        return
+                    end
+
                     local multiplier = 1
                     local unit = timeLength:sub(-1):lower()
                     local value = tonumber(timeLength:sub(1, -2)) or 60
@@ -10756,7 +10777,7 @@ do
                     end)
                     if Success and type(Decoded) == "table" then
                         
-                        -- Mute State & Countdown Check (Updated to use Input Placeholder Text)
+                        -- Mute State & Countdown Check (Using Formatted Duration)
                         local MutedUsersList = Decoded.MutedUsers or {}
                         local isMutedLocally = false
                         local muteRemainingSeconds = 0
@@ -10779,7 +10800,7 @@ do
                             SendBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
                             
                             if muteRemainingSeconds and muteRemainingSeconds > 0 then
-                                ChatInput.PlaceholderText = "U are Muted. Time Remaining :" .. tostring(muteRemainingSeconds) .. "s"
+                                ChatInput.PlaceholderText = "U are Muted. Time Remaining: " .. FormatDuration(muteRemainingSeconds)
                             else
                                 ChatInput.PlaceholderText = "U are Muted. Permanent"
                             end
@@ -11028,7 +11049,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing6
+    --testing8
     return Window
 end
 
