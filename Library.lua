@@ -9436,6 +9436,7 @@ end
         local ChatMessages = {}
         local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
         local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
+        local AllMessageRowReferences = {} -- Tracks all message rows for global nickname updates
         
         -- Persistent Nicknames Setup
         local NicknamesFileName = "chat_nicknames.json"
@@ -9704,7 +9705,7 @@ end
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
-        -- Nickname Editor Inline Bar (Above chat input)
+        -- Nickname Editor Inline Bar
         local NicknameEditTargetUser = nil
         local NicknameBar = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(35, 37, 42),
@@ -9895,7 +9896,6 @@ end
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local ProcessedSignatures = {}
         local ProcessedPings = {}
-        local AllMessageRowReferences = {} -- Tracks all message rows for global nickname updates
 
         local function GetUniqueMessageId()
             return tostring(math.random(100000, 999999))
@@ -10351,7 +10351,6 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Context Menu handling (Right-Click Only)
             local activeUserContextMenu = nil
 
             local function CloseUserContextMenu()
@@ -10740,7 +10739,8 @@ end
                                 end
                             end
 
-                            local pingsList = Decoded.Pings
+                            -- Fixed Pings Handling
+                            local pingsList = Decoded.Pings or Decoded.pings
                             if type(pingsList) == "table" then
                                 local unreadPingsCount = 0
                                 local lastSender = ""
@@ -10748,10 +10748,12 @@ end
                                 local localNameLower = LocalPlayer.Name:lower()
 
                                 for _, pingObj in ipairs(pingsList) do
-                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
+                                    local targetUser = pingObj.TargetUser or pingObj.targetUser
+                                    if targetUser and targetUser:lower() == localNameLower then
                                         local isDelivered = false
-                                        if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
-                                            for _, user in ipairs(pingObj.deliveredUsers) do
+                                        local deliveredUsers = pingObj.deliveredUsers or pingObj.DeliveredUsers
+                                        if deliveredUsers and type(deliveredUsers) == "table" then
+                                            for _, user in ipairs(deliveredUsers) do
                                                 if user:lower() == localNameLower then
                                                     isDelivered = true
                                                     break
@@ -10760,11 +10762,12 @@ end
                                         end
 
                                         if not isDelivered then
-                                            local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
+                                            local senderName = pingObj.Sender or pingObj.sender or "Someone"
+                                            local pingSig = tostring(senderName) .. "|" .. tostring(pingObj.Time or pingObj.time or "")
                                             if not ProcessedPings[pingSig] then
                                                 ProcessedPings[pingSig] = true
                                                 unreadPingsCount = unreadPingsCount + 1
-                                                lastSender = pingObj.Sender
+                                                lastSender = senderName
                                                 hasNewPings = true
                                             end
                                         end
@@ -10775,7 +10778,7 @@ end
                                     if unreadPingsCount == 1 then
                                         Library:Notify({
                                             Title = "Chat Mention",
-                                            Description = "Ping received off " .. lastSender,
+                                            Description = "Ping received from " .. lastSender,
                                             Time = 4,
                                             SoundId = 18595195017
                                         })
@@ -10914,7 +10917,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing39
+    --testing40
     return Window
 end
 
