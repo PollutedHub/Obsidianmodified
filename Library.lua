@@ -9704,6 +9704,60 @@ end
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
+        -- Nickname Editor Inline Bar (Above chat input)
+        local NicknameEditTargetUser = nil
+        local NicknameBar = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+            Position = UDim2.new(0, 8, 0, 4),
+            Size = UDim2.new(1, -38, 0, 26),
+            Visible = false,
+            ZIndex = 502,
+            Parent = InputBar,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = NicknameBar })
+        New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = NicknameBar })
+
+        local NicknameInputBox = New("TextBox", {
+            BackgroundTransparency = 1,
+            ClearTextOnFocus = false,
+            PlaceholderText = "Enter nickname...",
+            PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
+            Position = UDim2.new(0, 8, 0, 0),
+            Size = UDim2.new(1, -84, 1, 0),
+            Text = "",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 503,
+            Parent = NicknameBar,
+        })
+
+        local NicknameSetBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+            Position = UDim2.new(1, -26, 0.5, 0),
+            Size = UDim2.fromOffset(45, 18),
+            Text = "Set",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 11,
+            ZIndex = 503,
+            Parent = NicknameBar,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 3), Parent = NicknameSetBtn })
+
+        local NicknameCloseBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundColor3 = Color3.fromRGB(60, 62, 68),
+            Position = UDim2.new(1, -4, 0.5, 0),
+            Size = UDim2.fromOffset(18, 18),
+            Text = "✕",
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 10,
+            ZIndex = 503,
+            Parent = NicknameBar,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = NicknameCloseBtn })
+
         local ChatInput = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0),
             BackgroundColor3 = "BackgroundColor",
@@ -9750,7 +9804,16 @@ end
         })
 
         local function UpdateInputLayout()
-            if ReplyTarget then
+            if NicknameEditTargetUser then
+                NicknameBar.Visible = true
+                ReplyBanner.Visible = false
+                InputBar.Size = UDim2.new(1, 0, 0, 72)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -129)
+                TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
+                ChatInput.Position = UDim2.new(0, 8, 0, 32)
+                SendBtn.Position = UDim2.new(1, -30, 0, 32)
+            elseif ReplyTarget then
+                NicknameBar.Visible = false
                 ReplyBanner.Visible = true
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -129)
@@ -9759,6 +9822,7 @@ end
                 SendBtn.Position = UDim2.new(1, -30, 0, 32)
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
+                NicknameBar.Visible = false
                 ReplyBanner.Visible = false
                 InputBar.Size = UDim2.new(1, 0, 0, 46)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -103)
@@ -9774,6 +9838,30 @@ end
             UpdateInputLayout()
             for _, rData in pairs(ActiveMessageRows) do
                 if rData.SetHighlight then rData.SetHighlight(false) end
+            end
+        end)
+
+        NicknameCloseBtn.MouseButton1Click:Connect(function()
+            NicknameEditTargetUser = nil
+            UpdateInputLayout()
+        end)
+
+        NicknameSetBtn.MouseButton1Click:Connect(function()
+            if NicknameEditTargetUser then
+                local newNick = NicknameInputBox.Text
+                if newNick:gsub("%s", "") == "" then
+                    UserNicknames[NicknameEditTargetUser] = nil
+                else
+                    UserNicknames[NicknameEditTargetUser] = newNick
+                end
+                SaveNicknames()
+
+                for _, rowObj in pairs(AllMessageRowReferences) do
+                    if rowObj.RefreshName then rowObj.RefreshName() end
+                end
+
+                NicknameEditTargetUser = nil
+                UpdateInputLayout()
             end
         end)
 
@@ -10263,7 +10351,7 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Context Menu handling on Left or Right click
+            -- Context Menu handling (Right-Click Only, Emojis removed)
             local activeUserContextMenu = nil
 
             local function CloseUserContextMenu()
@@ -10285,7 +10373,7 @@ end
                 activeUserContextMenu = New("Frame", {
                     BackgroundColor3 = Color3.fromRGB(30, 32, 36),
                     Position = UDim2.fromOffset(math.clamp(relativePos.X, 4, 180), math.clamp(relativePos.Y, 4, 320)),
-                    Size = UDim2.fromOffset(160, 96),
+                    Size = UDim2.fromOffset(150, 72),
                     ZIndex = 700,
                     Parent = ChatGui,
                 })
@@ -10335,105 +10423,18 @@ end
                     end)
                 end
 
-                -- 1. Copy User ID
-                CreateContextOption("Copy User ID", function()
-                    local uidToCopy = tostring(senderUserId or "0")
-                    pcall(function() setclipboard(uidToCopy) end)
-                    Library:Notify({ Title = "Copied", Description = "Copied User ID: " .. uidToCopy, Time = 3 })
-                end)
-
-                -- 2. Copy Username
+                -- 1. Copy Identifier Info (Combined or separate based on preference, here offering copy options cleanly)
                 CreateContextOption("Copy Username", function()
                     pcall(function() setclipboard(sender) end)
                     Library:Notify({ Title = "Copied", Description = "Copied Username: " .. sender, Time = 3 })
                 end)
 
-                -- 3. Set Nickname
+                -- 2. Set Nickname (Triggers inline box above send bar)
                 CreateContextOption("Set Nickname", function()
-                    local nickPromptGui = New("Frame", {
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-                        Position = UDim2.fromScale(0.5, 0.5),
-                        Size = UDim2.fromOffset(240, 110),
-                        ZIndex = 800,
-                        Parent = ChatGui,
-                    })
-                    New("UICorner", { CornerRadius = UDim.new(0, 8), Parent = nickPromptGui })
-                    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = nickPromptGui })
-
-                    New("TextLabel", {
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 12, 0, 12),
-                        Size = UDim2.new(1, -24, 0, 20),
-                        Text = "Set Nickname for " .. sender,
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 13,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        ZIndex = 801,
-                        Parent = nickPromptGui,
-                    })
-
-                    local nickInput = New("TextBox", {
-                        BackgroundColor3 = Color3.fromRGB(45, 48, 54),
-                        ClearTextOnFocus = false,
-                        PlaceholderText = "Enter local nickname...",
-                        PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
-                        Position = UDim2.new(0, 12, 0, 38),
-                        Size = UDim2.new(1, -24, 0, 28),
-                        Text = UserNicknames[sender] or "",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 13,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        ZIndex = 801,
-                        Parent = nickPromptGui,
-                    })
-                    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = nickInput })
-                    New("UIStroke", { Color = Color3.fromRGB(60, 64, 72), Parent = nickInput })
-                    New("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), Parent = nickInput })
-
-                    local saveNickBtn = New("TextButton", {
-                        BackgroundColor3 = Color3.fromRGB(88, 101, 242),
-                        Position = UDim2.new(0, 12, 0, 74),
-                        Size = UDim2.fromOffset(100, 24),
-                        Text = "Save",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 12,
-                        ZIndex = 801,
-                        Parent = nickPromptGui,
-                    })
-                    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = saveNickBtn })
-
-                    local cancelNickBtn = New("TextButton", {
-                        BackgroundColor3 = Color3.fromRGB(60, 63, 68),
-                        Position = UDim2.new(1, -112, 0, 74),
-                        Size = UDim2.fromOffset(100, 24),
-                        Text = "Cancel",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 12,
-                        ZIndex = 801,
-                        Parent = nickPromptGui,
-                    })
-                    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = cancelNickBtn })
-
-                    saveNickBtn.MouseButton1Click:Connect(function()
-                        local newNick = nickInput.Text
-                        if newNick:gsub("%s", "") == "" then
-                            UserNicknames[sender] = nil
-                        else
-                            UserNicknames[sender] = newNick
-                        end
-                        SaveNicknames() -- Save to file
-                        nickPromptGui:Destroy()
-
-                        -- Refresh all message row names globally
-                        for _, rowObj in pairs(AllMessageRowReferences) do
-                            if rowObj.RefreshName then rowObj.RefreshName() end
-                        end
-                    end)
-
-                    cancelNickBtn.MouseButton1Click:Connect(function()
-                        nickPromptGui:Destroy()
-                    end)
+                    NicknameEditTargetUser = sender
+                    NicknameInputBox.Text = UserNicknames[sender] or ""
+                    UpdateInputLayout()
+                    NicknameInputBox:CaptureFocus()
                 end)
 
                 ActiveReactorMenus[activeUserContextMenu] = function()
@@ -10446,7 +10447,7 @@ end
                 end
             end
 
-            NameLabel.MouseButton1Click:Connect(OpenUserContextMenu)
+            -- Connected only to Right-Click (MouseButton2Click)
             NameLabel.MouseButton2Click:Connect(OpenUserContextMenu)
 
             New("TextLabel", {
@@ -10905,7 +10906,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing36
+    --testing37
     return Window
 end
 
