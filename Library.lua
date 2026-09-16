@@ -9438,20 +9438,8 @@ do
     local NicknameTarget = nil -- Username string when input is in "set nickname" mode
     local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
 
-    -- Muted users cache from backend
-    local CurrentMutedUsers = {}
-
-    local function IsUserMuted(username, userId)
-        local uNameLower = tostring(username or ""):lower()
-        local uIdStr = tostring(userId or "")
-        for _, muteObj in ipairs(CurrentMutedUsers) do
-            local targetStr = tostring(muteObj.Target or ""):lower()
-            if targetStr == uNameLower or targetStr == uIdStr then
-                return true
-            end
-        end
-        return false
-    end
+    -- Muted users tracking list
+    local MutedUsernamesMap = {}
 
     -- Local Nicknames Management (writefile / readfile)
     local NICKNAME_FILE = "chatbox_nicknames.json"
@@ -9512,10 +9500,7 @@ do
         Thickness = 1,
         Parent = ChatGui,
     })
-    
-    -- Smooth scaling implementation wrapper
-    local ChatUIScale = New("UIScale", { Parent = ChatGui })
-    table.insert(Library.Scales, ChatUIScale)
+    table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
 
     -- Title bar
     local ChatTitleBar = New("Frame", {
@@ -9745,7 +9730,7 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
-    -- Main Chat Input box with double-deletion debounce fix
+    -- Main Chat Input box
     local ChatInput = New("TextBox", {
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = "BackgroundColor",
@@ -9774,17 +9759,6 @@ do
         PaddingRight = UDim.new(0, 8),
         Parent = ChatInput,
     })
-
-    -- Debounce validation for backspace double delete anomaly
-    local LastTextContent = ""
-    ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
-        local currentText = ChatInput.Text
-        if #currentText < #LastTextContent - 1 then
-            -- Prevent structural double deletions triggered by raw engine frame loops
-            -- Keep standard single character removals intact
-        end
-        LastTextContent = currentText
-    end)
 
     -- Send Button
     local SendBtn = New("TextButton", {
@@ -9924,6 +9898,7 @@ do
             end)
         end
 
+        -- Option 1: Copy Username
         CreateMenuOption("Copy Username", function()
             if setclipboard then
                 setclipboard(targetUser)
@@ -9931,6 +9906,7 @@ do
             end
         end)
 
+        -- Option 2: Copy UserID
         CreateMenuOption("Copy UserID", function()
             if setclipboard then
                 setclipboard(tostring(targetUserId or 0))
@@ -9938,6 +9914,7 @@ do
             end
         end)
 
+        -- Option 3: Set Nickname
         CreateMenuOption("Set Nickname", function()
             NicknameTarget = targetUser
             ReplyTarget = nil
@@ -9948,6 +9925,7 @@ do
         end)
     end
 
+    -- Close context menu on outside click
     game:GetService("UserInputService").InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
             if ActiveContextMenu then
@@ -9961,7 +9939,7 @@ do
         end
     end)
 
-    -- Smooth Resize Handle implementation
+    -- Resize handle
     local ChatResizeBtn = New("TextButton", {
         AnchorPoint = Vector2.new(1, 1),
         BackgroundTransparency = 1,
@@ -9983,15 +9961,13 @@ do
             Parent = ChatResizeBtn,
         })
     end
-    
-    -- Smooth out the resize execution via interpolation callback handling
-    Library:MakeResizable(ChatGui, ChatResizeBtn, function(newSize)
-        -- Smooth tween applied or immediate layout update with frame buffer
+    Library:MakeResizable(ChatGui, ChatResizeBtn, function()
         UpdateInputLayout()
     end)
 
     Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
+    -- HTTP & ID Setup
     local HttpRequest = request or http_request or (syn and syn.request) or nil
     local ProcessedSignatures = {}
     local ProcessedPings = {}
@@ -10037,6 +10013,7 @@ do
         end)
     end
 
+    -- Typing ping handler loop
     local LastTypingSent = 0
     local WasTyping = false
     ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
@@ -10051,6 +10028,7 @@ do
         end
     end)
 
+    -- Admin Lookup
     local AdminUserIds = {
         [11117216138] = true,
         [2327711124] = true,
@@ -10096,6 +10074,7 @@ do
         end
     end)
 
+    -- Add Message Function
     local MsgIndex = 0
     local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
         local msgIdStr = messageId or tostring(math.random(1000,9999))
@@ -10104,8 +10083,8 @@ do
             if ActiveMessageRows[msgIdStr].UpdateReactions then
                 ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
             end
-            if ActiveMessageRows[msgIdStr].RefreshMuteStatus then
-                ActiveMessageRows[msgIdStr].RefreshMuteStatus()
+            if ActiveMessageRows[msgIdStr].RefreshName then
+                ActiveMessageRows[msgIdStr].RefreshName()
             end
             return
         end
@@ -10426,11 +10405,11 @@ do
             })
         end
 
-        local function GetTargetColor()
+        local function GetNameColor()
             if isSystem then
                 return Color3.fromRGB(255, 100, 100)
-            elseif IsUserMuted(sender, senderUserId) then
-                return Color3.fromRGB(139, 0, 0) -- Dark Red for muted users like discord style
+            elseif MutedUsernamesMap[sender:lower()] then
+                return Color3.fromRGB(139, 0, 0) -- Dark Red for muted users
             elseif sender == LocalPlayer.Name then
                 return Library.Scheme.AccentColor
             else
@@ -10446,33 +10425,31 @@ do
             return nick
         end
 
+        -- Clickable Username Button
         local NameBtn = New("TextButton", {
             AutomaticSize = Enum.AutomaticSize.XY,
             BackgroundTransparency = 1,
             Text = FormatDisplayName(),
-            TextColor3 = GetTargetColor(),
+            TextColor3 = GetNameColor(),
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 504,
             Parent = ContentLayout,
         })
 
+        -- Open Context Menu on Right Click
         NameBtn.MouseButton2Click:Connect(function()
             if not isSystem then
                 OpenUserContextMenu(sender, senderUserId)
             end
         end)
 
-        local MsgTextLabel = New("TextLabel", {
+        New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 0),
             Text = text,
-            TextColor3 = function()
-                if isSystem then return Color3.fromRGB(255, 150, 150) end
-                if IsUserMuted(sender, senderUserId) then return Color3.fromRGB(139, 0, 0) end
-                return Library.Scheme.FontColor
-            end(),
+            TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
             TextSize = 14,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -10624,17 +10601,10 @@ do
             SetHighlight = SetRowHighlight,
             RefreshName = function()
                 NameBtn.Text = FormatDisplayName()
+                NameBtn.TextColor3 = GetNameColor()
                 if ReplyTextLabel and replyData then
                     ReplyTextLabel.Text = "┌ ↩ " .. GetDisplayName(replyData.Username) .. ": " .. replyData.Text
                 end
-            end,
-            RefreshMuteStatus = function()
-                NameBtn.TextColor3 = GetTargetColor()
-                MsgTextLabel.TextColor3 = function()
-                    if isSystem then return Color3.fromRGB(255, 150, 150) end
-                    if IsUserMuted(sender, senderUserId) then return Color3.fromRGB(139, 0, 0) end
-                    return Library.Scheme.FontColor
-                end()
             end
         }
 
@@ -10671,6 +10641,7 @@ do
         local Msg = ChatInput.Text
         if not Msg or Msg:gsub("%s", "") == "" then return end
 
+        -- Admin Mute Command Interception
         if Msg:sub(1, 5) == ",mute" then
             if IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
                 local args = {}
@@ -10690,6 +10661,7 @@ do
                         targetUserId = 0
                     end
 
+                    -- Prevent admins from muting other admins
                     if IsAdmin(targetUserId, targetUsername) then
                         AddMessage("System", "You cannot mute another admin.", true)
                         ChatInput.Text = ""
@@ -10766,6 +10738,7 @@ do
 
         LastMessageTime = tick()
 
+        -- Copy message and clear input safely *after* capturing variables
         local CurrentMsg = Msg
         ChatInput.Text = ""
 
@@ -10788,10 +10761,14 @@ do
 
         local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
 
+        -- 1. Display locally on your screen
         AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
+
+        -- 2. Send the ACTUAL message to the VPS endpoint
         SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
     end
 
+    -- Initial Fetch & Polling
     local function FetchMessages()
         pcall(function()
             if HttpRequest then
@@ -10806,24 +10783,33 @@ do
                     end)
                     if Success and type(Decoded) == "table" then
 
-                        CurrentMutedUsers = Decoded.MutedUsers or {}
+                        -- Mute State & Countdown Check (Using Formatted Duration)
+                        local MutedUsersList = Decoded.MutedUsers or {}
                         local isMutedLocally = false
                         local muteRemainingSeconds = 0
 
                         local localNameLower = LocalPlayer.Name:lower()
                         local localUserIdStr = tostring(LocalPlayer.UserId)
 
-                        for _, muteObj in ipairs(CurrentMutedUsers) do
+                        MutedUsernamesMap = {}
+                        for _, muteObj in ipairs(MutedUsersList) do
                             local targetStr = tostring(muteObj.Target or ""):lower()
+                            if targetStr ~= "" then
+                                MutedUsernamesMap[targetStr] = true
+                            end
+                            if muteObj.TargetUserId then
+                                MutedUsernamesMap[tostring(muteObj.TargetUserId):lower()] = true
+                            end
+
                             if targetStr == localNameLower or targetStr == localUserIdStr then
                                 isMutedLocally = true
                                 muteRemainingSeconds = muteObj.RemainingSeconds or 0
-                                break
                             end
                         end
 
+                        -- Refresh all visible row usernames to handle mute colors dynamically
                         for _, rowData in pairs(ActiveMessageRows) do
-                            if rowData.RefreshMuteStatus then rowData.RefreshMuteStatus() end
+                            if rowData.RefreshName then rowData.RefreshName() end
                         end
 
                         if isMutedLocally then
@@ -10845,6 +10831,7 @@ do
                             end
                         end
 
+                        -- Handle Typing Users list from backend
                         local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
                         local activeTypingNames = {}
                         for _, uName in ipairs(typingList) do
@@ -11080,7 +11067,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing1
+    --testing35
     return Window
 end
 
