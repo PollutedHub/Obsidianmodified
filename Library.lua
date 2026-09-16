@@ -9434,6 +9434,7 @@ end
 -- CHATBOX WINDOW.lua (Fully Updated & Fixed)
 -- ==========================================
 -- CHATBOX WINDOW.lua
+-- CHATBOX WINDOW.lua
 do
     local ChatOpen = false
     local ChatMessages = {}
@@ -9507,7 +9508,7 @@ do
         return false
     end
 
-    -- Cache of all users seen across the server + local players for @mentions
+    -- Cache of users for @mentions (populated strictly via VPS KnownUsers)
     local SeenUsers = {}
     local function RegisterSeenUser(username)
         if username and type(username) == "string" and username ~= "" then
@@ -9515,7 +9516,7 @@ do
         end
     end
 
-    -- NEW: Function to register user to the VPS for cross-server visibility
+    -- Function to register user to the VPS for cross-server visibility
     local function RegisterUserToVPS(username)
         if not HttpRequest then return end
         task.spawn(function()
@@ -9533,18 +9534,11 @@ do
         end)
     end
 
+    -- Send ONLY the local player's username to the VPS on load and add to local mentions
     if game:GetService("Players").LocalPlayer then
         RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
         RegisterUserToVPS(game:GetService("Players").LocalPlayer.Name)
     end
-    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
-        RegisterSeenUser(p.Name)
-        RegisterUserToVPS(p.Name)
-    end
-    game:GetService("Players").PlayerAdded:Connect(function(p)
-        RegisterSeenUser(p.Name)
-        RegisterUserToVPS(p.Name)
-    end)
 
     local ChatGui = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9857,7 +9851,6 @@ do
         local matches = {}
         for user in pairs(SeenUsers) do
             local dName = GetDisplayName(user)
-            -- Match against both real Username or their custom Nickname
             if user:lower():sub(1, #filterText) == filterText:lower() or dName:lower():sub(1, #filterText) == filterText:lower() then
                 table.insert(matches, user)
             end
@@ -9870,7 +9863,6 @@ do
 
         table.sort(matches)
 
-        -- Limit menu height slightly based on items
         local maxItems = math.min(#matches, 6)
         MentionMenu.Size = UDim2.new(1, -16, 0, 24 + (maxItems * 30) + 4)
 
@@ -9984,7 +9976,7 @@ do
             TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -(47 + extraOffset))
             ChatInput.Position = UDim2.new(0, 8, 0, 8 + extraOffset)
             SendBtn.Position = UDim2.new(1, -30, 0, 8 + extraOffset)
-            MentionMenu.Position = UDim2.new(0, 8, 1, -(50 + extraOffset)) -- Shift up for replies
+            MentionMenu.Position = UDim2.new(0, 8, 1, -(50 + extraOffset))
         else
             ReplyBanner.Visible = false
             InputBar.Size = UDim2.new(1, 0, 0, 46)
@@ -10295,7 +10287,6 @@ do
     ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
         if IsLocallyMuted() then return end
 
-        -- Typing Indicator update
         local hasText = #ChatInput.Text > 0
         if hasText ~= WasTyping then
             WasTyping = hasText
@@ -10306,7 +10297,6 @@ do
             SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, true)
         end
 
-        -- Check Mention State
         UpdateMentionState()
     end)
 
@@ -10339,9 +10329,6 @@ do
     local MsgIndex = 0
     local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
         local msgIdStr = messageId or tostring(math.random(1000,9999))
-
-        -- Make sure we register the user so we can @mention them later
-        RegisterSeenUser(sender)
 
         if ActiveMessageRows[msgIdStr] then
             if ActiveMessageRows[msgIdStr].UpdateReactions then
@@ -10879,9 +10866,13 @@ do
                 if Result and Result.StatusCode == 200 and Result.Body then
                     local Success, Decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(Result.Body) end)
                     if Success and type(Decoded) == "table" then
-                        
-                        -- NEW: Grab known cross-server users to feature in @ mentions
+
+                        -- FIX: Rebuild SeenUsers strictly from VPS KnownUsers data. No local server player auto-discovery.
                         local KnownUsersList = Decoded.KnownUsers or {}
+                        SeenUsers = {}
+                        if game:GetService("Players").LocalPlayer then
+                            RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
+                        end
                         for _, kUser in ipairs(KnownUsersList) do
                             RegisterSeenUser(kUser)
                         end
@@ -10919,7 +10910,6 @@ do
                         if type(messageList) == "table" then
                             for _, msgData in ipairs(messageList) do
                                 if msgData.Username and msgData.Message then
-                                    RegisterSeenUser(msgData.Username)
                                     local replyData = msgData.ReplyToId and { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText } or nil
                                     AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions)
                                 end
@@ -10976,7 +10966,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing3888
+    --testing388811111
     return Window
 end
 
