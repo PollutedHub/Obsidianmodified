@@ -9435,6 +9435,7 @@ do
     local ChatOpen = false
     local ChatMessages = {}
     local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
+    local NicknameTarget = nil -- Username string when input is in "set nickname" mode
     local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
 
     -- Local Nicknames Management (writefile / readfile)
@@ -9775,7 +9776,9 @@ do
             TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
             ChatInput.Position = UDim2.new(0, 8, 0, 8)
             SendBtn.Position = UDim2.new(1, -30, 0, 8)
-            ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
+            if not NicknameTarget then
+                ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
+            end
         end
 
         if ReplyTarget then
@@ -9784,6 +9787,13 @@ do
             ChatInput.PlaceholderText = "Message @" .. GetDisplayName(ReplyTarget.Username)
         else
             ReplyBanner.Visible = false
+        end
+
+        if NicknameTarget then
+            ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
+            SendBtn.Text = "Set"
+        elseif SendBtn.Text ~= "Send" then
+            SendBtn.Text = "Send"
         end
     end
 
@@ -9888,19 +9898,12 @@ do
 
         -- Option 3: Set Nickname
         CreateMenuOption("Set Nickname", function()
-            local newNick = ChatInput.Text:gsub("^%s*(.-)%s*$", "%1")
-            if newNick ~= "" then
-                CustomNicknames[targetUser] = newNick
-            else
-                CustomNicknames[targetUser] = nil
-            end
-            SaveNicknames()
+            NicknameTarget = targetUser
+            ReplyTarget = nil -- don't let reply-mode and nickname-mode fight over the input
             ChatInput.Text = ""
-
-            -- Live Refresh Displayed Names
-            for msgId, rowData in pairs(ActiveMessageRows) do
-                if rowData.RefreshName then rowData.RefreshName() end
-            end
+            SendBtn.Text = "Set"
+            UpdateInputLayout()
+            ChatInput:CaptureFocus()
         end)
     end
 
@@ -10587,6 +10590,26 @@ do
     end
 
     local function SendMessage()
+        if NicknameTarget then
+            local newNick = ChatInput.Text:gsub("^%s*(.-)%s*$", "%1")
+            if newNick ~= "" then
+                CustomNicknames[NicknameTarget] = newNick
+            else
+                CustomNicknames[NicknameTarget] = nil
+            end
+            SaveNicknames()
+
+            for _, rowData in pairs(ActiveMessageRows) do
+                if rowData.RefreshName then rowData.RefreshName() end
+            end
+
+            NicknameTarget = nil
+            ChatInput.Text = ""
+            UpdateInputLayout()
+            ChatInput:CaptureFocus()
+            return
+        end
+
         local Msg = ChatInput.Text
         if not Msg or Msg:gsub("%s", "") == "" then return end
 
@@ -10779,7 +10802,13 @@ do
 
     SendBtn.MouseButton1Click:Connect(SendMessage)
     ChatInput.FocusLost:Connect(function(Enter)
-        if Enter then SendMessage() end
+        if Enter then
+            SendMessage()
+        elseif NicknameTarget then
+            NicknameTarget = nil
+            ChatInput.Text = ""
+            UpdateInputLayout()
+        end
     end)
 
     ChatCloseBtn.MouseButton1Click:Connect(function()
@@ -10876,7 +10905,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing31
+    --testing35
     return Window
 end
 
