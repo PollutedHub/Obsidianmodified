@@ -9506,7 +9506,7 @@ do
         end
         return false
     end
-    
+
     -- Cache of all users seen across the server + local players for @mentions
     local SeenUsers = {}
     local function RegisterSeenUser(username)
@@ -9514,15 +9514,36 @@ do
             SeenUsers[username] = true
         end
     end
+    
+    -- NEW: Function to silently register a user to the VPS so cross-server mentions work
+    local function RegisterUserToVPS(username)
+        if not HttpRequest then return end
+        task.spawn(function()
+            pcall(function()
+                HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox/register",
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                    },
+                    Body = game:GetService("HttpService"):JSONEncode({ Username = username }),
+                })
+            end)
+        end)
+    end
 
     if game:GetService("Players").LocalPlayer then
         RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
+        RegisterUserToVPS(game:GetService("Players").LocalPlayer.Name)
     end
     for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
         RegisterSeenUser(p.Name)
+        RegisterUserToVPS(p.Name)
     end
     game:GetService("Players").PlayerAdded:Connect(function(p)
         RegisterSeenUser(p.Name)
+        RegisterUserToVPS(p.Name)
     end)
 
     local ChatGui = New("Frame", {
@@ -10273,7 +10294,7 @@ do
     local WasTyping = false
     ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
         if IsLocallyMuted() then return end
-        
+
         -- Typing Indicator update
         local hasText = #ChatInput.Text > 0
         if hasText ~= WasTyping then
@@ -10318,7 +10339,7 @@ do
     local MsgIndex = 0
     local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
         local msgIdStr = messageId or tostring(math.random(1000,9999))
-        
+
         -- Make sure we register the user so we can @mention them later
         RegisterSeenUser(sender)
 
@@ -10886,6 +10907,13 @@ do
                         if wasPreviouslyMuted ~= IsLocallyMuted() then
                             UpdateInputLayout()
                         end
+                        
+                        -- NEW: Process KnownUsers from the payload and register them to our local autocomplete menu cache
+                        if Decoded.KnownUsers and type(Decoded.KnownUsers) == "table" then
+                            for _, knownUser in ipairs(Decoded.KnownUsers) do
+                                RegisterSeenUser(knownUser)
+                            end
+                        end
 
                         local messageList = Decoded.Messages or Decoded
                         if type(messageList) == "table" then
@@ -10934,21 +10962,628 @@ do
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(30, 0),
         Size = UDim2.new(1, -30, 1, 0),
-        Text = "Chatbox",
-        TextSize = 16,
-        TextTransparency = 0.5,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = ChatTabButton,
-    })
+Here is the updated code for `-- CHATBOX WINDOW_2.lua`. 
 
-    ChatTabButton.MouseButton1Click:Connect(function()
-        ChatOpen = not ChatOpen
-        ChatGui.Visible = ChatOpen
+To achieve your goals while keeping the rest of the script exactly as is, the following changes were made[cite: 1]:
+1. **Sending Usernames to VPS:** An array of all current in-game usernames (`ServerUsers`) is now dynamically built and attached to every `POST` payload sent to the VPS (`SendToEndpoint`). It is also sent as a custom header (`X-Server-Users`) during the every-2-second `GET` request (`FetchMessages`), ensuring the VPS always knows who is online[cite: 1]. 
+2. **Showing VPS Users in `@` Mentions:** The `FetchMessages` function now looks for VPS-provided user lists (checking for `VpsUsers`, `ActiveUsers`, or `OnlineUsers` in the decoded JSON) and registers them so they appear in your mention menu. When rendering the menu, it cross-references the users against the current in-game players. Anyone who is not actively in the game is distinctly labeled with `[VPS]` next to their display name so you know they are cross-server[cite: 1].
+
+```lua
+do
+    local ChatOpen = false
+    local ChatMessages = {}
+    local ReplyTarget = nil
+    local NicknameTarget = nil
+    local MuteDurationTarget = nil
+    local ActiveMessageRows = {}
+
+    local MutedUsernamesMap = {}
+    local LocalMuteExpiration = 0
+
+    -- Move HttpRequest declaration to the top so all functions can access it
+    local HttpRequest = request or http_request or (syn and syn.request) or nil
+
+    local NICKNAME_FILE = "chatbox_nicknames.json"
+    local CustomNicknames = {}
+
+    local function LoadNicknames()
+        if isfile and readfile and isfile(NICKNAME_FILE) then
+            pcall(function()
+                CustomNicknames = game:GetService("HttpService"):JSONDecode(readfile(NICKNAME_FILE)) or {}
+            end)
+        end
+    end
+
+    local function SaveNicknames()
+        if writefile then
+            pcall(function()
+                writefile(NICKNAME_FILE, game:GetService("HttpService"):JSONEncode(CustomNicknames))
+            end)
+        end
+    end
+
+    LoadNicknames()
+
+    local function GetDisplayName(username)
+        return CustomNicknames[username] or username
+    end
+
+    local function FormatDuration(seconds)
+        if not seconds or seconds <= 0 then return "0s" end
+        local days = math.floor(seconds / 86400)
+        local hours = math.floor((seconds % 86400) / 3600)
+        local mins = math.floor((seconds % 3600) / 60)
+        local secs = math.floor(seconds % 60)
+
+        local parts = {}
+        if days > 0 then table.insert(parts, days .. "d") end
+        if hours > 0 then table.insert(parts, hours .. "h") end
+        if mins > 0 then table.insert(parts, mins .. "m") end
+        if secs > 0 or #parts == 0 then table.insert(parts, secs .. "s") end
+        return table.concat(parts, " ")
+    end
+
+    local AdminUserIds = {
+        [11117216138] = true,
+        [2327711124] = true,
+    }
+
+    local function IsAdmin(userId, username)
+        if userId then
+            local numId = tonumber(userId)
+            if numId and AdminUserIds[numId] then return true end
+        end
+        if username then
+            local success, fetchedId = pcall(function()
+                return game:GetService("Players"):GetUserIdFromNameAsync(username)
+            end)
+            if success and fetchedId and AdminUserIds[fetchedId] then return true end
+        end
+        return false
+    end
+
+    -- Cache of all users seen across the server + local players for @mentions
+    local SeenUsers = {}
+    local function RegisterSeenUser(username)
+        if username and type(username) == "string" and username ~= "" then
+            SeenUsers[username] = true
+        end
+    end
+
+    if game:GetService("Players").LocalPlayer then
+        RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
+    end
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        RegisterSeenUser(p.Name)
+    end
+    game:GetService("Players").PlayerAdded:Connect(function(p)
+        RegisterSeenUser(p.Name)
     end)
 
-    Window.ChatAddMessage = AddMessage
-end
-    --testing3888
+    local ChatGui = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = "BackgroundColor",
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(380, 480),
+        Visible = false,
+        ZIndex = 500,
+        Parent = ScreenGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ChatGui })
+    New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
+    table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
+
+    local ChatTitleBar = New("Frame", {
+        BackgroundColor3 = "MainColor",
+        Size = UDim2.new(1, 0, 0, 36),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ChatTitleBar })
+    New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "MainColor",
+        BorderSizePixel = 0,
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+        ZIndex = 501,
+        Parent = ChatTitleBar,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "Global Chat",
+        TextColor3 = "FontColor",
+        TextSize = 15,
+        ZIndex = 502,
+        Parent = ChatTitleBar,
+    })
+
+    local ChatCloseBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(24, 24),
+        Text = "X",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 13,
+        ZIndex = 510,
+        Parent = ChatTitleBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = ChatCloseBtn })
+    New("UIStroke", { Color = "OutlineColor", Parent = ChatCloseBtn })
+
+    New("Frame", {
+        BackgroundColor3 = "OutlineColor",
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(0, 36),
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+
+    local ChatScroll = New("ScrollingFrame", {
+        AnchorPoint = Vector2.new(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        CanvasSize = UDim2.fromScale(0, 0),
+        Position = UDim2.fromOffset(0, 37),
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
+        Size = UDim2.new(1, 0, 1, -103),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    local ChatList = New("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = ChatScroll,
+    })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        PaddingTop = UDim.new(0, 6),
+        Parent = ChatScroll,
+    })
+
+    local TypingIndicatorFrame = New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 1, -47),
+        Size = UDim2.new(1, -16, 0, 18),
+        Visible = false,
+        ZIndex = 505,
+        Parent = ChatGui,
+    })
+
+    local TypingDotsHolder = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromOffset(22, 18),
+        ZIndex = 506,
+        Parent = TypingIndicatorFrame,
+    })
+    local TypingDot1 = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+        Position = UDim2.new(0, 2, 0.5, 0),
+        Size = UDim2.fromOffset(4, 4),
+        ZIndex = 506,
+        Parent = TypingDotsHolder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot1 })
+
+    local TypingDot2 = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+        Position = UDim2.new(0, 9, 0.5, 0),
+        Size = UDim2.fromOffset(4, 4),
+        ZIndex = 506,
+        Parent = TypingDotsHolder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot2 })
+
+    local TypingDot3 = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+        Position = UDim2.new(0, 16, 0.5, 0),
+        Size = UDim2.fromOffset(4, 4),
+        ZIndex = 506,
+        Parent = TypingDotsHolder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot3 })
+
+    local TypingLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 26, 0, 0),
+        Size = UDim2.new(1, -26, 1, 0),
+        Text = "",
+        TextColor3 = Color3.fromRGB(180, 182, 188),
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 506,
+        Parent = TypingIndicatorFrame,
+    })
+
+    task.spawn(function()
+        local t = 0
+        while true do
+            t = t + 0.15
+            if TypingIndicatorFrame.Visible then
+                TypingDot1.Position = UDim2.new(0, 2, 0.5, math.sin(t * 5) * 2)
+                TypingDot2.Position = UDim2.new(0, 9, 0.5, math.sin(t * 5 - 0.7) * 2)
+                TypingDot3.Position = UDim2.new(0, 16, 0.5, math.sin(t * 5 - 1.4) * 2)
+            end
+            task.wait(0.03)
+        end
+    end)
+
+    New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "OutlineColor",
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, -46),
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+
+    local InputBar = New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, 46),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = InputBar })
+    New("Frame", {
+        BackgroundColor3 = "MainColor",
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+        ZIndex = 501,
+        Parent = InputBar,
+    })
+
+    local ReplyBanner = New("Frame", {
+        BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+        Position = UDim2.new(0, 8, 0, 4),
+        Size = UDim2.new(1, -38, 0, 22),
+        Visible = false,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ReplyBanner })
+    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = ReplyBanner })
+
+    local ReplyBannerText = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 0, 0),
+        Size = UDim2.new(1, -32, 1, 0),
+        Text = "Replying to user",
+        TextColor3 = Color3.fromRGB(220, 220, 220),
+        TextSize = 12,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 503,
+        Parent = ReplyBanner,
+    })
+    local ReplyCancelBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = Color3.fromRGB(50, 52, 58),
+        Position = UDim2.new(1, -4, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        Text = "✕",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 10,
+        ZIndex = 504,
+        Parent = ReplyBanner,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
+
+    local ChatInput = New("TextBox", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = "BackgroundColor",
+        ClearTextOnFocus = false,
+        PlaceholderText = "Send a message...",
+        PlaceholderColor3 = "FontColor",
+        Position = UDim2.new(0, 8, 0, 8),
+        Size = UDim2.new(1, -74, 0, 28),
+        Text = "",
+        TextColor3 = "FontColor",
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = ChatInput })
+    New("UIStroke", { Color = "OutlineColor", Parent = ChatInput })
+    New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), Parent = ChatInput })
+
+    local SendBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = "AccentColor",
+        Position = UDim2.new(1, -30, 0, 8),
+        Size = UDim2.fromOffset(40, 28),
+        Text = "Send",
+        TextColor3 = "FontColor",
+        TextSize = 13,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SendBtn })
+
+    -- Discord-style Mention Auto-complete Menu
+    local MentionMenu = New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = Color3.fromRGB(43, 45, 49),
+        Position = UDim2.new(0, 8, 1, -50),
+        Size = UDim2.new(1, -16, 0, 150),
+        Visible = false,
+        ZIndex = 550,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = MentionMenu })
+    New("UIStroke", { Color = Color3.fromRGB(30, 31, 34), Thickness = 1, Parent = MentionMenu })
+
+    local MentionMenuHeader = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -10, 0, 24),
+        Text = "MEMBERS",
+        TextColor3 = Color3.fromRGB(150, 150, 150),
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 551,
+        Parent = MentionMenu
+    })
+
+    local MentionScroll = New("ScrollingFrame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 24),
+        Size = UDim2.new(1, 0, 1, -24),
+        CanvasSize = UDim2.fromScale(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
+        ZIndex = 551,
+        Parent = MentionMenu,
+    })
+    local MentionListLayout = New("UIListLayout", {
+        Padding = UDim.new(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = MentionScroll,
+    })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 4),
+        PaddingLeft = UDim.new(0, 4),
+        PaddingRight = UDim.new(0, 4),
+        Parent = MentionScroll,
+    })
+
+    local function PopulateMentionMenu(filterText)
+        for _, child in ipairs(MentionScroll:GetChildren()) do
+            if child:IsA("GuiObject") then child:Destroy() end
+        end
+
+        local matches = {}
+        for user in pairs(SeenUsers) do
+            local dName = GetDisplayName(user)
+            -- Match against both real Username or their custom Nickname
+            if user:lower():sub(1, #filterText) == filterText:lower() or dName:lower():sub(1, #filterText) == filterText:lower() then
+                table.insert(matches, user)
+            end
+        end
+
+        if #matches == 0 then
+            MentionMenu.Visible = false
+            return
+        end
+
+        table.sort(matches)
+
+        -- Limit menu height slightly based on items
+        local maxItems = math.min(#matches, 6)
+        MentionMenu.Size = UDim2.new(1, -16, 0, 24 + (maxItems * 30) + 4)
+
+        local inGameMap = {}
+        for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+            inGameMap[p.Name] = true
+        end
+
+        for _, user in ipairs(matches) do
+            local btn = New("TextButton", {
+                BackgroundColor3 = Color3.fromRGB(43, 45, 49),
+                BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 28),
+                Text = "",
+                AutoButtonColor = false,
+                ZIndex = 552,
+                Parent = MentionScroll
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
+
+            local isVPS = not inGameMap[user]
+            local displayNameText = GetDisplayName(user)
+            
+            if isVPS then
+                displayNameText = displayNameText .. " [VPS]"
+            end
+
+            New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(0.5, 0, 1, 0),
+                Text = displayNameText,
+                TextColor3 = Color3.fromRGB(220, 220, 220),
+                TextSize = 13,
+                Font = Enum.Font.GothamMedium,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 553,
+                Parent = btn
+            })
+
+            if GetDisplayName(user) ~= user then
+                New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0.5, 0, 0, 0),
+                    Size = UDim2.new(0.5, -8, 1, 0),
+                    Text = user,
+                    TextColor3 = Color3.fromRGB(130, 130, 130),
+                    TextSize = 12,
+                    TextXAlignment = Enum.TextXAlignment.Right,
+                    ZIndex = 553,
+                    Parent = btn
+                })
+            end
+
+            btn.MouseEnter:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(53, 55, 60)
+            end)
+            btn.MouseLeave:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(43, 45, 49)
+            end)
+
+            btn.MouseButton1Click:Connect(function()
+                local text = ChatInput.Text
+                local replaced = false
+
+                if text:match(".*%s@([%w_]*)$") then
+                    local reversed = text:reverse()
+                    local atIndex = reversed:find("@")
+                    if atIndex then
+                        local actualIndex = #text - atIndex + 1
+                        text = text:sub(1, actualIndex - 1) .. "@" .. user .. " "
+                        replaced = true
+                    end
+                elseif text:match("^@([%w_]*)$") then
+                    text = "@" .. user .. " "
+                    replaced = true
+                end
+
+                if replaced then
+                    ChatInput.Text = text
+                else
+                    ChatInput.Text = ChatInput.Text .. user .. " "
+                end
+
+                MentionMenu.Visible = false
+                ChatInput:CaptureFocus()
+                ChatInput.CursorPosition = #ChatInput.Text + 1
+            end)
+        end
+
+        MentionMenu.Visible = true
+    end
+
+    local function UpdateMentionState()
+        if not ChatInput.TextEditable then
+            MentionMenu.Visible = false
+            return
+        end
+
+        local text = ChatInput.Text
+        local mentionMatch = text:match(".*%s@([%w_]*)$") or text:match("^@([%w_]*)$")
+
+        if mentionMatch then
+            PopulateMentionMenu(mentionMatch)
+        else
+            MentionMenu.Visible = false
+        end
+    end
+
+    local function IsLocallyMuted()
+        return tick() < LocalMuteExpiration
+    end
+
+    local function UpdateInputLayout()
+        local extraOffset = 0
+        if ReplyTarget then extraOffset = extraOffset + 26 end
+
+        if extraOffset > 0 then
+            InputBar.Size = UDim2.new(1, 0, 0, 46 + extraOffset)
+            ChatScroll.Size = UDim2.new(1, 0, 1, -(103 + extraOffset))
+            TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -(47 + extraOffset))
+            ChatInput.Position = UDim2.new(0, 8, 0, 8 + extraOffset)
+            SendBtn.Position = UDim2.new(1, -30, 0, 8 + extraOffset)
+            MentionMenu.Position = UDim2.new(0, 8, 1, -(50 + extraOffset)) -- Shift up for replies
+        else
+            ReplyBanner.Visible = false
+            InputBar.Size = UDim2.new(1, 0, 0, 46)
+            ChatScroll.Size = UDim2.new(1, 0, 1, -103)
+            TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
+            ChatInput.Position = UDim2.new(0, 8, 0, 8)
+            SendBtn.Position = UDim2.new(1, -30, 0, 8)
+            MentionMenu.Position = UDim2.new(0, 8, 1, -50)
+        end
+
+        if ReplyTarget then
+            ReplyBanner.Visible = true
+            ReplyBanner.Position = UDim2.new(0, 8, 0, 4)
+            ChatInput.PlaceholderText = "Message @" .. GetDisplayName(ReplyTarget.Username)
+        else
+            ReplyBanner.Visible = false
+        end
+
+        if IsLocallyMuted() then
+            ChatInput.BackgroundColor3 = Color3.fromRGB(40, 42, 46)
+            ChatInput.TextColor3 = Color3.fromRGB(120, 122, 128)
+            ChatInput.TextEditable = false
+            SendBtn.Active = false
+            SendBtn.BackgroundColor3 = Color3.fromRGB(60, 62, 68)
+            local remTime = math.max(0, LocalMuteExpiration - tick())
+            ChatInput.PlaceholderText = "U are muted. Timer: " .. FormatDuration(remTime)
+            SendBtn.Text = "Muted"
+            MentionMenu.Visible = false
+        else
+            ChatInput.BackgroundColor3 = Library.Scheme.BackgroundColor or Color3.fromRGB(30, 31, 34)
+            ChatInput.TextColor3 = Library.Scheme.FontColor
+            ChatInput.TextEditable = true
+            SendBtn.Active = true
+            SendBtn.BackgroundColor3 = Library.Scheme.AccentColor
+
+            if NicknameTarget then
+                ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
+                SendBtn.Text = "Set"
+            elseif MuteDurationTarget then
+                ChatInput.PlaceholderText = "Type time. Example : 1d 1h 1m 1s"
+                SendBtn.Text = "Mute"
+            else
+                SendBtn.Text = "Send"
+                if not ReplyTarget then
+                    ChatInput.PlaceholderText = "Send a message..."
+                end
+            end
+        end
+    end
+
+    task.spawn(function()
+        while true do
+            if IsLocallyMuted() then
+                UpdateInputLayout()
+            end
+            task.wait(1)
+        end
+    end)
+
+    ReplyCancelBtn.MouseButton1Click:Connect(function()
+        ReplyTarget = nil
+        UpdateInputLayout()
+        for _, rData in pairs(ActiveMessageRows) do
+            if rData.SetHighlight then rData.SetHighlight(false) end
+        end
+    end)
+
+    local ActiveContextMenu = nil
+    local function CloseContextMenu()
+        if ActiveContextMenu then
+            ActiveContextMenu:Destroy()
+            ActiveContextMenu = nil
+        end
+    end
+    --testing38883
     return Window
 end
 
