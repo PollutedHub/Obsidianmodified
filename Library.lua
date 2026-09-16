@@ -9430,12 +9430,9 @@ end
         Library.IsRobloxFocused = false
     end))
 
--- ==========================================
--- CHATBOX WINDOW.lua (Fully Updated & Fixed)
--- ==========================================
--- CHATBOX WINDOW.lua
--- CHATBOX WINDOW.lua
+
 -- CHATBOX WINDOW_2.lua
+-- CHATBOX WINDOW.lua
 do
     local ChatOpen = false
     local ChatMessages = {}
@@ -9546,7 +9543,7 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(380, 480),
+        Size = UDim2.fromOffset(480, 480), -- Expanded width slightly to accommodate left navigation panel
         Visible = false,
         ZIndex = 500,
         Parent = ScreenGui,
@@ -9555,11 +9552,139 @@ do
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
     table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
 
+    -- Left Navigation Panel for selecting menus
+    local LeftNavPanel = New("Frame", {
+        BackgroundColor3 = "MainColor",
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 110, 1, 0),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = LeftNavPanel })
+    -- Cover curved corner overlap on the right side of the nav panel
+    New("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = "MainColor",
+        BorderSizePixel = 0,
+        Position = UDim2.fromScale(1, 0),
+        Size = UDim2.new(0, Library.CornerRadius, 1, 0),
+        ZIndex = 501,
+        Parent = LeftNavPanel,
+    })
+
+    New("Frame", {
+        BackgroundColor3 = "OutlineColor",
+        BorderSizePixel = 0,
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(0, 1, 1, 0),
+        ZIndex = 502,
+        Parent = LeftNavPanel,
+    })
+
+    local NavListLayout = New("UIListLayout", {
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = LeftNavPanel,
+    })
+    New("UIPadding", {
+        PaddingTop = UDim.new(0, 42),
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        Parent = LeftNavPanel,
+    })
+
+    -- Main Content Container (Right side area)
+    local MainContentContainer = New("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 111, 0, 0),
+        Size = UDim2.new(1, -111, 1, 0),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+
+    -- Views definition
+    local GlobalChatView = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Visible = true,
+        ZIndex = 501,
+        Parent = MainContentContainer,
+    })
+
+    local AdminPanelView = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 501,
+        Parent = MainContentContainer,
+    })
+
+    local SettingsView = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Visible = false,
+        ZIndex = 501,
+        Parent = MainContentContainer,
+    })
+
+    -- Admin Panel Content
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(16, 50),
+        Size = UDim2.new(1, -32, 0, 30),
+        Text = "Admin Control Panel",
+        TextColor3 = "FontColor",
+        TextSize = 16,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
+        Parent = AdminPanelView,
+    })
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(16, 85),
+        Size = UDim2.new(1, -32, 0, 60),
+        Text = "Welcome to the restricted admin panel. Use right-click on user names in chat to mute or manage users.",
+        TextColor3 = Color3.fromRGB(170, 172, 178),
+        TextSize = 13,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
+        Parent = AdminPanelView,
+    })
+
+    -- Settings View Content
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(16, 50),
+        Size = UDim2.new(1, -32, 0, 30),
+        Text = "Chat Settings",
+        TextColor3 = "FontColor",
+        TextSize = 16,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
+        Parent = SettingsView,
+    })
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(16, 85),
+        Size = UDim2.new(1, -32, 0, 60),
+        Text = "Global chatbox configurations and preferences are active. Custom nicknames can be assigned via user context menus.",
+        TextColor3 = Color3.fromRGB(170, 172, 178),
+        TextSize = 13,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
+        Parent = SettingsView,
+    })
+
+    -- Chat Title Bar (Restored inside GlobalChatView)
     local ChatTitleBar = New("Frame", {
         BackgroundColor3 = "MainColor",
         Size = UDim2.new(1, 0, 0, 36),
         ZIndex = 501,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ChatTitleBar })
     New("Frame", {
@@ -9602,7 +9727,7 @@ do
         Position = UDim2.fromOffset(0, 36),
         Size = UDim2.new(1, 0, 0, 1),
         ZIndex = 501,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
 
     local ChatScroll = New("ScrollingFrame", {
@@ -9615,7 +9740,7 @@ do
         ScrollBarThickness = 3,
         Size = UDim2.new(1, 0, 1, -103),
         ZIndex = 501,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
     local ChatList = New("UIListLayout", {
         Padding = UDim.new(0, 4),
@@ -9637,7 +9762,7 @@ do
         Size = UDim2.new(1, -16, 0, 18),
         Visible = false,
         ZIndex = 505,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
 
     local TypingDotsHolder = New("Frame", {
@@ -9708,7 +9833,7 @@ do
         Position = UDim2.new(0, 0, 1, -46),
         Size = UDim2.new(1, 0, 0, 1),
         ZIndex = 501,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
 
     local InputBar = New("Frame", {
@@ -9717,7 +9842,7 @@ do
         Position = UDim2.fromScale(0, 1),
         Size = UDim2.new(1, 0, 0, 46),
         ZIndex = 501,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = InputBar })
     New("Frame", {
@@ -9804,7 +9929,7 @@ do
         Size = UDim2.new(1, -16, 0, 150),
         Visible = false,
         ZIndex = 550,
-        Parent = ChatGui,
+        Parent = GlobalChatView,
     })
     New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = MentionMenu })
     New("UIStroke", { Color = Color3.fromRGB(30, 31, 34), Thickness = 1, Parent = MentionMenu })
@@ -9844,6 +9969,58 @@ do
         PaddingRight = UDim.new(0, 4),
         Parent = MentionScroll,
     })
+
+    -- Navigation Menu Selection Logic
+    local currentActiveTab = "Global"
+    local function SwitchNavTab(tabName)
+        if tabName == "Panel" and not IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
+            Library:Notify({ Title = "Access Denied", Description = "This panel is restricted to Admins only.", Time = 2 })
+            return
+        end
+
+        currentActiveTab = tabName
+        GlobalChatView.Visible = (tabName == "Global")
+        AdminPanelView.Visible = (tabName == "Panel")
+        SettingsView.Visible = (tabName == "Settings")
+
+        -- Update buttons styling
+        for _, child in ipairs(LeftNavPanel:GetChildren()) do
+            if child:IsA("TextButton") then
+                if child.Name == tabName .. "NavBtn" then
+                    child.BackgroundColor3 = Library.Scheme.AccentColor or Color3.fromRGB(88, 101, 242)
+                    child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                else
+                    child.BackgroundColor3 = Color3.fromRGB(35, 37, 42)
+                    child.TextColor3 = Color3.fromRGB(185, 187, 190)
+                end
+            end
+        end
+    end
+
+    local function CreateNavButton(name, text)
+        local btn = New("TextButton", {
+            Name = name .. "NavBtn",
+            BackgroundColor3 = (name == "Global") and (Library.Scheme.AccentColor or Color3.fromRGB(88, 101, 242)) or Color3.fromRGB(35, 37, 42),
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, 32),
+            AutoButtonColor = false,
+            Text = text,
+            TextColor3 = (name == "Global") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(185, 187, 190),
+            TextSize = 13,
+            Font = Enum.Font.GothamMedium,
+            ZIndex = 503,
+            Parent = LeftNavPanel,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = btn })
+
+        btn.MouseButton1Click:Connect(function()
+            SwitchNavTab(name)
+        end)
+    end
+
+    CreateNavButton("Global", "Global Chat")
+    CreateNavButton("Panel", "Panel")
+    CreateNavButton("Settings", "Settings")
 
     local function PopulateMentionMenu(filterText)
         for _, child in ipairs(MentionScroll:GetChildren()) do
@@ -11025,7 +11202,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing388811111
+    --testing38881111133333
     return Window
 end
 
