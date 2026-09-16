@@ -9435,6 +9435,7 @@ end
 -- ==========================================
 -- CHATBOX WINDOW.lua
 -- CHATBOX WINDOW.lua
+-- CHATBOX WINDOW_2.lua
 do
     local ChatOpen = false
     local ChatMessages = {}
@@ -10851,8 +10852,20 @@ do
             if rData.SetHighlight then rData.SetHighlight(false) end
         end
 
+        -- Parse out any @mentions to automatically trigger server pings
+        local targetPingUser = nil
+        for word in CurrentMsg:gmatch("%S+") do
+            if word:sub(1, 1) == "@" then
+                local possibleName = word:sub(2)
+                if possibleName ~= "" then
+                    targetPingUser = possibleName
+                    break
+                end
+            end
+        end
+
         AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil)
-        SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, nil, nil, false)
+        SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
     end
 
     local function FetchMessages()
@@ -10904,6 +10917,51 @@ do
 
                         if wasPreviouslyMuted ~= IsLocallyMuted() then
                             UpdateInputLayout()
+                        end
+
+                        -- Handle Pings polling and processing
+                        local pingsList = Decoded.Pings or {}
+                        local localNameLower = game:GetService("Players").LocalPlayer and game:GetService("Players").LocalPlayer.Name:lower() or ""
+                        local acknowledgedPingIds = {}
+
+                        for _, pingObj in ipairs(pingsList) do
+                            if pingObj.Id and not ProcessedPings[pingObj.Id] then
+                                local targetUser = pingObj.TargetUser or ""
+                                if targetUser:lower() == localNameLower then
+                                    ProcessedPings[pingObj.Id] = true
+                                    table.insert(acknowledgedPingIds, pingObj.Id)
+
+                                    -- Fire notification with the requested sound ID
+                                    pcall(function()
+                                        Library:Notify({
+                                            Title = "Mentioned!",
+                                            Description = (pingObj.Sender or "Someone") .. " mentioned you in chat.",
+                                            Time = 5,
+                                            SoundId = "rbxassetid://18595195017"
+                                        })
+                                    end)
+                                end
+                            end
+                        end
+
+                        -- Acknowledge processed pings back to the VPS endpoint
+                        if #acknowledgedPingIds > 0 then
+                            task.spawn(function()
+                                pcall(function()
+                                    HttpRequest({
+                                        Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
+                                        Method = "POST",
+                                        Headers = {
+                                            ["Content-Type"] = "application/json",
+                                            ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                        },
+                                        Body = game:GetService("HttpService"):JSONEncode({
+                                            Username = game:GetService("Players").LocalPlayer.Name,
+                                            PingIds = acknowledgedPingIds
+                                        })
+                                    })
+                                end)
+                            end)
                         end
 
                         local messageList = Decoded.Messages or Decoded
