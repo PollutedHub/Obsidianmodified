@@ -9863,11 +9863,14 @@ local function OpenUserContextMenu(targetUser, targetUserId)
     local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
     local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
+    -- Calculate exact height to prevent AutomaticSize layout/hitbox lag on the final button
+    local optionCount = isAdminUser and 4 or 3
+    local menuHeight = (optionCount * 28) + ((optionCount - 1) * 2) + 12
+
     ActiveContextMenu = New("Frame", {
         BackgroundColor3 = Color3.fromRGB(18, 19, 22),
         Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-        Size = UDim2.fromOffset(160, 0), -- Width 160, height will auto-scale
-        AutomaticSize = Enum.AutomaticSize.Y, -- Automatically fits all child elements
+        Size = UDim2.fromOffset(160, menuHeight),
         ZIndex = 800,
         Parent = ScreenGui,
     })
@@ -9957,7 +9960,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
             task.spawn(function()
                 print("[ContextDebug] Mute/Unmute task started for:", targetUser)
                 local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                
+
                 local resolvedUserId = targetUserId
                 if not resolvedUserId then
                     local success, fetchedId = pcall(function()
@@ -11169,7 +11172,7 @@ end
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing386
+    --testing389
     return Window
 end
 
