@@ -9711,60 +9711,6 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
-    -- Nickname Edit Banner (Shown directly above main input bar)
-    local NicknameTargetUser = nil
-    local NicknameBanner = New("Frame", {
-        BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-        Position = UDim2.new(0, 8, 0, 4),
-        Size = UDim2.new(1, -16, 0, 26),
-        Visible = false,
-        ZIndex = 502,
-        Parent = InputBar,
-    })
-    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = NicknameBanner })
-    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = NicknameBanner })
-
-    local NicknameInput = New("TextBox", {
-        BackgroundTransparency = 1,
-        ClearTextOnFocus = false,
-        PlaceholderText = "Type new nickname...",
-        PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
-        Position = UDim2.new(0, 8, 0, 0),
-        Size = UDim2.new(1, -80, 1, 0),
-        Text = "",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 503,
-        Parent = NicknameBanner,
-    })
-
-    local NicknameSaveBtn = New("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundColor3 = Color3.fromRGB(88, 101, 242),
-        Position = UDim2.new(1, -26, 0.5, 0),
-        Size = UDim2.fromOffset(40, 18),
-        Text = "Save",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 11,
-        ZIndex = 504,
-        Parent = NicknameBanner,
-    })
-    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = NicknameSaveBtn })
-
-    local NicknameCancelBtn = New("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundColor3 = Color3.fromRGB(50, 52, 58),
-        Position = UDim2.new(1, -4, 0.5, 0),
-        Size = UDim2.fromOffset(18, 18),
-        Text = "✕",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 10,
-        ZIndex = 504,
-        Parent = NicknameBanner,
-    })
-    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = NicknameCancelBtn })
-
     -- Main Chat Input box
     local ChatInput = New("TextBox", {
         AnchorPoint = Vector2.new(0, 0),
@@ -9815,7 +9761,6 @@ do
     local function UpdateInputLayout()
         local extraOffset = 0
         if ReplyTarget then extraOffset = extraOffset + 26 end
-        if NicknameTargetUser then extraOffset = extraOffset + 30 end
 
         if extraOffset > 0 then
             InputBar.Size = UDim2.new(1, 0, 0, 46 + extraOffset)
@@ -9825,7 +9770,6 @@ do
             SendBtn.Position = UDim2.new(1, -30, 0, 8 + extraOffset)
         else
             ReplyBanner.Visible = false
-            NicknameBanner.Visible = false
             InputBar.Size = UDim2.new(1, 0, 0, 46)
             ChatScroll.Size = UDim2.new(1, 0, 1, -103)
             TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
@@ -9841,14 +9785,6 @@ do
         else
             ReplyBanner.Visible = false
         end
-
-        if NicknameTargetUser then
-            NicknameBanner.Visible = true
-            NicknameBanner.Position = UDim2.new(0, 8, 0, ReplyTarget and 32 or 4)
-            NicknameInput.PlaceholderText = "Set nickname for @" .. NicknameTargetUser
-        else
-            NicknameBanner.Visible = false
-        end
     end
 
     ReplyCancelBtn.MouseButton1Click:Connect(function()
@@ -9857,12 +9793,6 @@ do
         for _, rData in pairs(ActiveMessageRows) do
             if rData.SetHighlight then rData.SetHighlight(false) end
         end
-    end)
-
-    NicknameCancelBtn.MouseButton1Click:Connect(function()
-        NicknameTargetUser = nil
-        NicknameInput.Text = ""
-        UpdateInputLayout()
     end)
 
     -- Context Menu (Discord Style)
@@ -9882,7 +9812,7 @@ do
         ActiveContextMenu = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-            Size = UDim2.fromOffset(140, 100),
+            Size = UDim2.fromOffset(160, 108),
             ZIndex = 800,
             Parent = ScreenGui,
         })
@@ -9906,7 +9836,7 @@ do
             local btn = New("TextButton", {
                 BackgroundColor3 = Color3.fromRGB(18, 19, 22),
                 BackgroundTransparency = 0,
-                Size = UDim2.new(1, 0, 0, 26),
+                Size = UDim2.new(1, 0, 0, 28),
                 Text = "",
                 ZIndex = 801,
                 Parent = ActiveContextMenu,
@@ -9958,34 +9888,21 @@ do
 
         -- Option 3: Set Nickname
         CreateMenuOption("Set Nickname", function()
-            NicknameTargetUser = targetUser
-            NicknameInput.Text = CustomNicknames[targetUser] or ""
-            UpdateInputLayout()
-            task.defer(function()
-                NicknameInput:CaptureFocus()
-            end)
-        end)
-    end
-
-    NicknameSaveBtn.MouseButton1Click:Connect(function()
-        if NicknameTargetUser then
-            local newNick = NicknameInput.Text:gsub("^%s*(.-)%s*$", "%1")
+            local newNick = ChatInput.Text:gsub("^%s*(.-)%s*$", "%1")
             if newNick ~= "" then
-                CustomNicknames[NicknameTargetUser] = newNick
+                CustomNicknames[targetUser] = newNick
             else
-                CustomNicknames[NicknameTargetUser] = nil
+                CustomNicknames[targetUser] = nil
             end
             SaveNicknames()
-            NicknameTargetUser = nil
-            NicknameInput.Text = ""
-            UpdateInputLayout()
+            ChatInput.Text = ""
 
             -- Live Refresh Displayed Names
             for msgId, rowData in pairs(ActiveMessageRows) do
                 if rowData.RefreshName then rowData.RefreshName() end
             end
-        end
-    end)
+        end)
+    end
 
     -- Close context menu on outside click
     game:GetService("UserInputService").InputBegan:Connect(function(input)
@@ -10959,7 +10876,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing36
+    --testing31
     return Window
 end
 
