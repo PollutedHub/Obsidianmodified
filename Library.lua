@@ -9828,7 +9828,7 @@ end
                 Parent = ChatScroll,
             })
             New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
-            
+
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
                 PaddingLeft = UDim.new(0, 6),
@@ -9937,7 +9937,7 @@ end
                 })
                 New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activePickerMenu })
                 New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activePickerMenu })
-                
+
                 local pickerLayout = New("UIListLayout", {
                     FillDirection = Enum.FillDirection.Horizontal,
                     HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -9964,7 +9964,7 @@ end
                         Parent = activePickerMenu,
                     })
 
-                    emojiBtn.MouseButton1Click:Connect(function()
+                    emojiBtn.Activated:Connect(function()
                         local currentRx = {}
                         for e, list in pairs(currentRowReactions) do
                             currentRx[e] = {}
@@ -10001,6 +10001,17 @@ end
                 ActiveReactorMenus[activePickerMenu] = function()
                     if not activePickerMenu or not activePickerMenu.Parent then return true end
                     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                    
+                    for _, child in ipairs(activePickerMenu:GetDescendants()) do
+                        if child:IsA("GuiObject") then
+                            local cPos = child.AbsolutePosition
+                            local cSize = child.AbsoluteSize
+                            if mousePos.X >= cPos.X and mousePos.X <= cPos.X + cSize.X and mousePos.Y >= cPos.Y and mousePos.Y <= cPos.Y + cSize.Y then
+                                return false
+                            end
+                        end
+                    end
+
                     local absPos = activePickerMenu.AbsolutePosition
                     local absSize = activePickerMenu.AbsoluteSize
                     local isInside = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
@@ -10530,7 +10541,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing35
+    --testing36
     return Window
 end
 
