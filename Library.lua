@@ -10654,22 +10654,21 @@ do
                     local finishEpoch = os.time() + totalSeconds
                     local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
 local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-local muteData = {
+                    local muteData = {
                         Username = LocalPlayer.Name,
                         UserId = tostring(LocalPlayer.UserId),
                         Roles = {"user"},
                         Message = Msg,
                         Time = timestamp,
                         MuteUser = targetUsername,
-                        MuteLength = timeLength,
-                        FinishDate = finishDateFormatted,
+                        MuteDuration = timeLength,
                         MuteUserId = tostring(targetUserId)
                     }
 
                     if HttpRequest then
                         task.spawn(function()
-                            pcall(function()
-                                HttpRequest({
+                            local success, response = pcall(function()
+                                return HttpRequest({
                                     Url = "http://167.99.144.89:8081/chatbox",
                                     Method = "POST",
                                     Headers = {
@@ -10679,10 +10678,16 @@ local muteData = {
                                     Body = game:GetService("HttpService"):JSONEncode(muteData),
                                 })
                             end)
+
+                            if success and response and response.StatusCode == 200 then
+                                AddMessage("System", "Successfully sent mute command for " .. targetUsername, true)
+                            else
+                                local errBody = response and response.Body or "Unknown error"
+                                AddMessage("System", "Failed to send mute command: " .. tostring(errBody), true)
+                            end
                         end)
                     end
 
-                    AddMessage("System", "Successfully sent mute command for " .. targetUsername, true)
                     ChatInput.Text = ""
                     return
                 else
@@ -10991,7 +10996,7 @@ local muteData = {
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing3
+    --testing1
     return Window
 end
 
