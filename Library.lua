@@ -10665,13 +10665,7 @@ do
                     elseif unit == "h" then multiplier = 3600
                     elseif unit == "d" then multiplier = 86400 end
 
-                    local totalSeconds = (tonumber(timeLength) or value) * (unit == "s" or unit == "m" or unit == "h" or unit == "d" and multiplier or 1)
-                    if unit == "m" or unit == "h" or unit == "d" then
-                        totalSeconds = (tonumber(timeLength:sub(1, -2)) or 1) * multiplier
-                    else
-                        totalSeconds = tonumber(timeLength) or 60
-                    end
-
+                    local totalSeconds = (tonumber(timeLength) or value) * multiplier
                     local finishEpoch = os.time() + totalSeconds
                     local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
                     local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
@@ -10733,6 +10727,8 @@ do
         end
 
         LastMessageTime = tick()
+        
+        -- Copy message and clear input safely *after* capturing variables
         local CurrentMsg = Msg
         ChatInput.Text = ""
 
@@ -10758,7 +10754,7 @@ do
         -- 1. Display locally on your screen
         AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
 
-        -- 2. Send the ACTUAL message to the VPS endpoint (IsTyping set to false)
+        -- 2. Send the ACTUAL message to the VPS endpoint
         SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
     end
 
@@ -11049,7 +11045,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing8
+    --testing35
     return Window
 end
 
