@@ -9863,7 +9863,6 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
         local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
-        -- Adjust menu height dynamically if admin mute option is added
         local menuHeight = isAdminUser and 138 or 108
 
         ActiveContextMenu = New("Frame", {
@@ -9953,71 +9952,38 @@ local function OpenUserContextMenu(targetUser, targetUserId)
             ChatInput:CaptureFocus()
         end)
 
-        -- Option 4: Admin Quick Mute / Unmute Shortcut
+        -- Option 4: Admin Quick Mute / Unmute Shortcut (Sends command text directly)
         if isAdminUser then
-            if isTargetMuted then
-                CreateMenuOption("Unmute", Color3.fromRGB(255, 60, 60), function()
+            local commandText = isTargetMuted and (",unmute " .. targetUser) or (",mute " .. targetUser .. " 1h")
+            
+            CreateMenuOption(isTargetMuted and "Unmute" or "Mute", Color3.fromRGB(255, 60, 60), function()
+                task.spawn(function()
                     local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                    local unmuteData = {
+                    local payload = {
                         Username = LocalPlayer.Name,
                         UserId = tostring(LocalPlayer.UserId),
                         Roles = {"user"},
-                        Message = ",unmute " .. targetUser,
-                        Time = timestamp,
-                        MuteUser = targetUser,
-                        MuteDuration = "unmute",
-                        MuteUserId = tostring(targetUserId or 0)
+                        Message = commandText,
+                        MessageId = "cmd_" .. math.random(100000, 999999),
+                        Time = timestamp
                     }
 
                     if HttpRequest then
-                        task.spawn(function()
-                            pcall(function()
-                                HttpRequest({
-                                    Url = "http://167.99.144.89:8081/chatbox",
-                                    Method = "POST",
-                                    Headers = {
-                                        ["Content-Type"] = "application/json",
-                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                                    },
-                                    Body = game:GetService("HttpService"):JSONEncode(unmuteData),
-                                })
-                            end)
+                        pcall(function()
+                            HttpRequest({
+                                Url = "http://167.99.144.89:8081/chatbox",
+                                Method = "POST",
+                                Headers = {
+                                    ["Content-Type"] = "application/json",
+                                    ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                },
+                                Body = game:GetService("HttpService"):JSONEncode(payload),
+                            })
                         end)
                     end
-                    AddMessage("System", "Successfully sent unmute command for " .. targetUser, true)
+                    AddMessage("System", "Executed command: " .. commandText, true)
                 end)
-            else
-                CreateMenuOption("Mute", Color3.fromRGB(255, 60, 60), function()
-                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                    local muteData = {
-                        Username = LocalPlayer.Name,
-                        UserId = tostring(LocalPlayer.UserId),
-                        Roles = {"user"},
-                        Message = ",mute " .. targetUser .. " 1h",
-                        Time = timestamp,
-                        MuteUser = targetUser,
-                        MuteDuration = "1h",
-                        MuteUserId = tostring(targetUserId or 0)
-                    }
-
-                    if HttpRequest then
-                        task.spawn(function()
-                            pcall(function()
-                                HttpRequest({
-                                    Url = "http://167.99.144.89:8081/chatbox",
-                                    Method = "POST",
-                                    Headers = {
-                                        ["Content-Type"] = "application/json",
-                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                                    },
-                                    Body = game:GetService("HttpService"):JSONEncode(muteData),
-                                })
-                            end)
-                        end)
-                    end
-                    AddMessage("System", "Successfully sent mute command for " .. targetUser, true)
-                end)
-            end
+            end)
         end
     end
     -- Close context menu on outside click
@@ -11193,7 +11159,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing38
+    --testing383
     return Window
 end
 
