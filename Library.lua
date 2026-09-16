@@ -9709,7 +9709,7 @@ end
         local NicknameBar = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(35, 37, 42),
             Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -38, 0, 26),
+            Size = UDim2.new(1, -16, 0, 26),
             Visible = false,
             ZIndex = 502,
             Parent = InputBar,
@@ -9723,7 +9723,7 @@ end
             PlaceholderText = "Enter nickname...",
             PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
             Position = UDim2.new(0, 8, 0, 0),
-            Size = UDim2.new(1, -84, 1, 0),
+            Size = UDim2.new(1, -64, 1, 0),
             Text = "",
             TextColor3 = Color3.fromRGB(255, 255, 255),
             TextSize = 12,
@@ -9736,7 +9736,7 @@ end
             AnchorPoint = Vector2.new(1, 0.5),
             BackgroundColor3 = Color3.fromRGB(88, 101, 242),
             Position = UDim2.new(1, -26, 0.5, 0),
-            Size = UDim2.fromOffset(45, 18),
+            Size = UDim2.fromOffset(32, 18),
             Text = "Set",
             TextColor3 = Color3.fromRGB(255, 255, 255),
             TextSize = 11,
@@ -9810,16 +9810,16 @@ end
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -129)
                 TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
-                ChatInput.Position = UDim2.new(0, 8, 0, 32)
-                SendBtn.Position = UDim2.new(1, -30, 0, 32)
+                ChatInput.Position = UDim2.new(0, 8, 0, 34)
+                SendBtn.Position = UDim2.new(1, -30, 0, 34)
             elseif ReplyTarget then
                 NicknameBar.Visible = false
                 ReplyBanner.Visible = true
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -129)
                 TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
-                ChatInput.Position = UDim2.new(0, 8, 0, 32)
-                SendBtn.Position = UDim2.new(1, -30, 0, 32)
+                ChatInput.Position = UDim2.new(0, 8, 0, 34)
+                SendBtn.Position = UDim2.new(1, -30, 0, 34)
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
                 NicknameBar.Visible = false
@@ -10351,7 +10351,7 @@ end
                 Parent = ContentLayout,
             })
 
-            -- Context Menu handling (Right-Click Only, Emojis removed)
+            -- Context Menu handling (Right-Click Only)
             local activeUserContextMenu = nil
 
             local function CloseUserContextMenu()
@@ -10372,8 +10372,8 @@ end
 
                 activeUserContextMenu = New("Frame", {
                     BackgroundColor3 = Color3.fromRGB(30, 32, 36),
-                    Position = UDim2.fromOffset(math.clamp(relativePos.X, 4, 180), math.clamp(relativePos.Y, 4, 320)),
-                    Size = UDim2.fromOffset(150, 72),
+                    Position = UDim2.fromOffset(math.clamp(relativePos.X, 4, 180), math.clamp(relativePos.Y, 4, 300)),
+                    Size = UDim2.fromOffset(150, 96),
                     ZIndex = 700,
                     Parent = ChatGui,
                 })
@@ -10423,13 +10423,22 @@ end
                     end)
                 end
 
-                -- 1. Copy Identifier Info (Combined or separate based on preference, here offering copy options cleanly)
                 CreateContextOption("Copy Username", function()
                     pcall(function() setclipboard(sender) end)
                     Library:Notify({ Title = "Copied", Description = "Copied Username: " .. sender, Time = 3 })
                 end)
 
-                -- 2. Set Nickname (Triggers inline box above send bar)
+                CreateContextOption("Copy User ID", function()
+                    local idToCopy = tostring(senderUserId or "")
+                    if idToCopy == "" or idToCopy == "nil" then
+                        pcall(function()
+                            idToCopy = tostring(game:GetService("Players"):GetUserIdFromNameAsync(sender))
+                        end)
+                    end
+                    pcall(function() setclipboard(idToCopy) end)
+                    Library:Notify({ Title = "Copied", Description = "Copied ID: " .. idToCopy, Time = 3 })
+                end)
+
                 CreateContextOption("Set Nickname", function()
                     NicknameEditTargetUser = sender
                     NicknameInputBox.Text = UserNicknames[sender] or ""
@@ -10447,7 +10456,6 @@ end
                 end
             end
 
-            -- Connected only to Right-Click (MouseButton2Click)
             NameLabel.MouseButton2Click:Connect(OpenUserContextMenu)
 
             New("TextLabel", {
@@ -10906,7 +10914,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing37
+    --testing39
     return Window
 end
 
