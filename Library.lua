@@ -9445,6 +9445,9 @@ do
     local MutedUsernamesMap = {}
     local LocalMuteExpiration = 0
 
+    -- Move HttpRequest declaration to the top so all functions can access it
+    local HttpRequest = request or http_request or (syn and syn.request) or nil
+
     local NICKNAME_FILE = "chatbox_nicknames.json"
     local CustomNicknames = {}
 
@@ -9945,6 +9948,13 @@ do
                         resolvedUserId = success and fetchedId or 0
                     end
 
+                    -- Update local map immediately
+                    MutedUsernamesMap[targetUser:lower()] = nil
+                    if resolvedUserId then MutedUsernamesMap[tostring(resolvedUserId):lower()] = nil end
+                    for _, rowData in pairs(ActiveMessageRows) do
+                        if rowData.RefreshName then rowData.RefreshName() end
+                    end
+
                     local payload = {
                         Username = LocalPlayer.Name,
                         UserId = tostring(LocalPlayer.UserId),
@@ -10025,7 +10035,6 @@ do
 
     Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
-    local HttpRequest = request or http_request or (syn and syn.request) or nil
     local ProcessedSignatures = {}
     local ProcessedPings = {}
 
@@ -10739,7 +10748,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing38883333
+    --testing38889393
     return Window
 end
 
