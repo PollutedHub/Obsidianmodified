@@ -9475,7 +9475,7 @@ do
         local days = math.floor(seconds / 86400)
         local hours = math.floor((seconds % 86400) / 3600)
         local mins = math.floor((seconds % 3600) / 60)
-        local secs = seconds % 60
+        local secs = math.floor(seconds % 60)
 
         local parts = {}
         if days > 0 then table.insert(parts, days .. "d") end
@@ -10004,7 +10004,7 @@ do
         Position = UDim2.fromScale(1, 1),
         Size = UDim2.fromOffset(24, 24),
         Text = "",
-        ZIndex = ChatGui.ZIndex + 10,
+        ZIndex = ChatGui.ZIndex + 1,
         Parent = ChatGui,
     })
     if ResizeIcon then
@@ -10015,7 +10015,7 @@ do
             ImageRectOffset = ResizeIcon.ImageRectOffset,
             ImageRectSize = ResizeIcon.ImageRectSize,
             Size = UDim2.fromScale(1, 1),
-            ZIndex = ChatGui.ZIndex + 11,
+            ZIndex = ChatGui.ZIndex + 2,
             Parent = ChatResizeBtn,
         })
     end
@@ -10659,9 +10659,9 @@ do
                             if muteObj.Target then MutedUsernamesMap[tostring(muteObj.Target):lower()] = true end
                             if muteObj.TargetUserId then MutedUsernamesMap[tostring(muteObj.TargetUserId):lower()] = true end
 
-                            local isTargetMatch = (muteObj.Target and muteObj.Target:lower() == LocalPlayer.Name:lower()) or 
+                            local isTargetMatch = (muteObj.Target and muteObj.Target:lower() == LocalPlayer.Name:lower()) or
                                                   (muteObj.TargetUserId and tostring(muteObj.TargetUserId) == tostring(LocalPlayer.UserId))
-                            
+
                             if isTargetMatch then
                                 foundLocalMute = true
                                 local durationSec = muteObj.RemainingSeconds or 3600
@@ -10739,7 +10739,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing3888
+    --testing38883333
     return Window
 end
 
