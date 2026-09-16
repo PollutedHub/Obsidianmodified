@@ -9966,7 +9966,7 @@ end
                         Parent = activePickerMenu,
                     })
 
-                    emojiBtn.MouseButton1Click:Connect(function()
+                    emojiBtn.MouseButton1Down:Connect(function()
                         local currentRx = {}
                         for e, list in pairs(currentRowReactions) do
                             currentRx[e] = {}
@@ -9990,18 +9990,18 @@ end
                         end
 
                         currentRowReactions = currentRx
-                        SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
-
+                        
                         if activePickerMenu then
                             ActiveReactorMenus[activePickerMenu] = nil
                             activePickerMenu:Destroy()
                             activePickerMenu = nil
                         end
+
+                        SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
                     end)
                 end
 
                 ActiveReactorMenus[activePickerMenu] = function()
-                    -- Ignore check for the first 0.15 seconds to avoid race conditions with initial click
                     if tick() - menuOpenedTick < 0.15 then return false end
                     if not activePickerMenu or not activePickerMenu.Parent then return true end
                     
@@ -10547,7 +10547,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing37
+    --testing38
     return Window
 end
 
