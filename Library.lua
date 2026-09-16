@@ -9858,7 +9858,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         CloseContextMenu()
 
         local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-        
+
         -- Check if target user is currently muted
         local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
         local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
@@ -9888,36 +9888,33 @@ local function OpenUserContextMenu(targetUser, targetUserId)
             Parent = ActiveContextMenu,
         })
 
-        local function CreateMenuOption(text, textColor, callback)
+local function CreateMenuOption(text, textColor, callback)
             local btn = New("TextButton", {
                 BackgroundColor3 = Color3.fromRGB(18, 19, 22),
                 BackgroundTransparency = 0,
                 Size = UDim2.new(1, 0, 0, 28),
-                Text = "",
-                ZIndex = 801,
-                Parent = ActiveContextMenu,
-            })
-            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
-
-            local label = New("TextLabel", {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 8, 0, 0),
-                Size = UDim2.new(1, -16, 1, 0),
+                AutoButtonColor = false,
                 Text = text,
                 TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 802,
+                ZIndex = 801,
+                Parent = ActiveContextMenu,
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
+            New("UIPadding", {
+                PaddingLeft = UDim.new(0, 8),
+                PaddingRight = UDim.new(0, 8),
                 Parent = btn,
             })
 
             btn.MouseEnter:Connect(function()
                 btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-                label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
             btn.MouseLeave:Connect(function()
                 btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
-                label.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
+                btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
             end)
 
             btn.MouseButton1Click:Connect(function()
@@ -9955,7 +9952,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         -- Option 4: Admin Quick Mute / Unmute Shortcut (Sends command text directly)
         if isAdminUser then
             local commandText = isTargetMuted and (",unmute " .. targetUser) or (",mute " .. targetUser .. " 1h")
-            
+
             CreateMenuOption(isTargetMuted and "Unmute" or "Mute", Color3.fromRGB(255, 60, 60), function()
                 task.spawn(function()
                     local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
@@ -11159,7 +11156,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing383
+    --testing381
     return Window
 end
 
