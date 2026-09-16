@@ -9814,7 +9814,7 @@ end
             MsgIndex = MsgIndex + 1
 
             local Row = New("Frame", {
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundColor3 = Color3.fromRGB(47, 49, 54),
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
                 LayoutOrder = MsgIndex,
@@ -9823,14 +9823,12 @@ end
                 ZIndex = 502,
                 Parent = ChatScroll,
             })
-            New("UICorner", {
-                CornerRadius = UDim.new(0, 4),
-                Parent = Row,
-            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
+            
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
-                PaddingLeft = UDim.new(0, 4),
-                PaddingRight = UDim.new(0, 4),
+                PaddingLeft = UDim.new(0, 6),
+                PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 4),
                 Parent = Row,
             })
@@ -9977,15 +9975,14 @@ end
             BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
             BinBtn.MouseLeave:Connect(CancelDeleteHold)
 
-            -- Discord-style row hover effect
             Row.MouseEnter:Connect(function()
-                Row.BackgroundTransparency = 0.95
                 if not isSystem then ActionBar.Visible = true end
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.94 }):Play()
             end)
             Row.MouseLeave:Connect(function()
-                Row.BackgroundTransparency = 1
                 ActionBar.Visible = false
                 CancelDeleteHold()
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
             end)
 
             local ContentLayout = New("Frame", {
@@ -10257,7 +10254,7 @@ end
                     })
                     if Result and Result.StatusCode == 200 and Result.Body then
                         local Success, Decoded = pcall(function()
-                            return game:GetService("HttpService"):JSONEncode(Result.Body)
+                            return game:GetService("HttpService"):JSONDecode(Result.Body)
                         end)
                         if Success and type(Decoded) == "table" then
                             local messageList = Decoded.Messages or Decoded
@@ -10462,7 +10459,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing37
+    --testing34
     return Window
 end
 
