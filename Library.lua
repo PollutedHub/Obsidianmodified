@@ -9796,7 +9796,7 @@ do
             SendBtn.Active = false
             SendBtn.BackgroundColor3 = Color3.fromRGB(60, 62, 68)
             local remTime = math.max(0, LocalMuteExpiration - tick())
-            ChatInput.PlaceholderText = "U ARE MUTED. Time remaining: " .. FormatDuration(remTime)
+            ChatInput.PlaceholderText = "U are muted. Timer: " .. FormatDuration(remTime)
             SendBtn.Text = "Muted"
         else
             ChatInput.BackgroundColor3 = Library.Scheme.BackgroundColor or Color3.fromRGB(30, 31, 34)
@@ -9814,7 +9814,7 @@ do
             else
                 SendBtn.Text = "Send"
                 if not ReplyTarget then
-                    ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
+                    ChatInput.PlaceholderText = "Send a message..."
                 end
             end
         end
@@ -10664,16 +10664,8 @@ do
                             
                             if isTargetMatch then
                                 foundLocalMute = true
-                                local durationSec = 3600
-                                if muteObj.Duration then
-                                    local num = tonumber(muteObj.Duration:match("(%d+)")) or 1
-                                    if muteObj.Duration:find("d") then durationSec = num * 86400
-                                    elseif muteObj.Duration:find("h") then durationSec = num * 3600
-                                    elseif muteObj.Duration:find("m") then durationSec = num * 60
-                                    elseif muteObj.Duration:find("s") then durationSec = num
-                                    end
-                                end
-                                if not LocalMuteExpiration or LocalMuteExpiration <= tick() then
+                                local durationSec = muteObj.RemainingSeconds or 3600
+                                if not LocalMuteExpiration or math.abs((LocalMuteExpiration - tick()) - durationSec) > 5 then
                                     LocalMuteExpiration = tick() + durationSec
                                 end
                             end
@@ -10747,7 +10739,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing38856
+    --testing3888
     return Window
 end
 
