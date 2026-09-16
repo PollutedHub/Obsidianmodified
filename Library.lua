@@ -9928,6 +9928,8 @@ end
                     return
                 end
 
+                local menuOpenedTick = tick()
+
                 activePickerMenu = New("Frame", {
                     BackgroundColor3 = Color3.fromRGB(35, 37, 42),
                     Position = UDim2.new(1, -140, 0, 28),
@@ -9964,7 +9966,7 @@ end
                         Parent = activePickerMenu,
                     })
 
-                    emojiBtn.Activated:Connect(function()
+                    emojiBtn.MouseButton1Click:Connect(function()
                         local currentRx = {}
                         for e, list in pairs(currentRowReactions) do
                             currentRx[e] = {}
@@ -9999,9 +10001,11 @@ end
                 end
 
                 ActiveReactorMenus[activePickerMenu] = function()
+                    -- Ignore check for the first 0.15 seconds to avoid race conditions with initial click
+                    if tick() - menuOpenedTick < 0.15 then return false end
                     if not activePickerMenu or not activePickerMenu.Parent then return true end
-                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                     
+                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                     for _, child in ipairs(activePickerMenu:GetDescendants()) do
                         if child:IsA("GuiObject") then
                             local cPos = child.AbsolutePosition
@@ -10196,6 +10200,7 @@ end
                                 activeReactorMenu:Destroy()
                                 activeReactorMenu = nil
                             else
+                                local pillOpenedTick = tick()
                                 activeReactorMenu = New("Frame", {
                                     AutomaticSize = Enum.AutomaticSize.Y,
                                     BackgroundColor3 = Color3.fromRGB(35, 37, 42),
@@ -10247,6 +10252,7 @@ end
                                 end
 
                                 ActiveReactorMenus[activeReactorMenu] = function()
+                                    if tick() - pillOpenedTick < 0.15 then return false end
                                     if not activeReactorMenu or not activeReactorMenu.Parent then return true end
                                     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                                     local absPos = activeReactorMenu.AbsolutePosition
@@ -10541,7 +10547,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing36
+    --testing37
     return Window
 end
 
