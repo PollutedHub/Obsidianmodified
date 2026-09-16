@@ -9882,7 +9882,7 @@ do
         ActiveContextMenu = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-            Size = UDim2.fromOffset(160, 108),
+            Size = UDim2.fromOffset(140, 100),
             ZIndex = 800,
             Parent = ScreenGui,
         })
@@ -9902,11 +9902,11 @@ do
             Parent = ActiveContextMenu,
         })
 
-        local function CreateMenuOption(text, iconText, callback)
+        local function CreateMenuOption(text, callback)
             local btn = New("TextButton", {
                 BackgroundColor3 = Color3.fromRGB(18, 19, 22),
                 BackgroundTransparency = 0,
-                Size = UDim2.new(1, 0, 0, 28),
+                Size = UDim2.new(1, 0, 0, 26),
                 Text = "",
                 ZIndex = 801,
                 Parent = ActiveContextMenu,
@@ -9917,7 +9917,7 @@ do
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 8, 0, 0),
                 Size = UDim2.new(1, -16, 1, 0),
-                Text = (iconText and (iconText .. "  ") or "") .. text,
+                Text = text,
                 TextColor3 = Color3.fromRGB(185, 187, 190),
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -9941,7 +9941,7 @@ do
         end
 
         -- Option 1: Copy Username
-        CreateMenuOption("Copy Username", "👤", function()
+        CreateMenuOption("Copy Username", function()
             if setclipboard then
                 setclipboard(targetUser)
                 Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
@@ -9949,7 +9949,7 @@ do
         end)
 
         -- Option 2: Copy UserID
-        CreateMenuOption("Copy UserID", "🆔", function()
+        CreateMenuOption("Copy UserID", function()
             if setclipboard then
                 setclipboard(tostring(targetUserId or 0))
                 Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
@@ -9957,11 +9957,13 @@ do
         end)
 
         -- Option 3: Set Nickname
-        CreateMenuOption("Set Nickname", "✏️", function()
+        CreateMenuOption("Set Nickname", function()
             NicknameTargetUser = targetUser
             NicknameInput.Text = CustomNicknames[targetUser] or ""
             UpdateInputLayout()
-            NicknameInput:CaptureFocus()
+            task.defer(function()
+                NicknameInput:CaptureFocus()
+            end)
         end)
     end
 
@@ -10957,7 +10959,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing35
+    --testing36
     return Window
 end
 
