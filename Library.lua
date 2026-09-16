@@ -9781,6 +9781,20 @@ end
 
         local UpdateMessageReactions
 
+        -- Global table to keep track of any open reactor menus so clicking anywhere else closes them
+        local ActiveReactorMenus = {}
+
+        game:GetService("UserInputService").InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                for menu, isOutsideFunc in pairs(ActiveReactorMenus) do
+                    if isOutsideFunc() then
+                        menu:Destroy()
+                        ActiveReactorMenus[menu] = nil
+                    end
+                end
+            end
+        end)
+
         -- Add Message Function
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
@@ -9898,7 +9912,6 @@ end
                 ChatInput:CaptureFocus()
             end)
 
-            -- Toggle reaction directly on click (Heart click toggles ❤️ reaction)
             HeartBtn.MouseButton1Click:Connect(function()
                 local currentRx = { ["❤️"] = {} }
                 if currentRowReactions and currentRowReactions["❤️"] then
@@ -9925,7 +9938,6 @@ end
                 SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
             end)
 
-            -- Hold to Delete Logic with Smooth Circular Progress Animation
             local isHoldingDelete = false
 
             BinBtn.MouseButton1Down:Connect(function()
@@ -10042,10 +10054,14 @@ end
 
             local function RenderReactionPill(rxData)
                 if currentReactionContainer then
+                    for m, _ in pairs(ActiveReactorMenus) do
+                        if m == activeReactorMenu then ActiveReactorMenus[m] = nil end
+                    end
                     currentReactionContainer:Destroy()
                     currentReactionContainer = nil
                 end
                 if activeReactorMenu then
+                    ActiveReactorMenus[activeReactorMenu] = nil
                     activeReactorMenu:Destroy()
                     activeReactorMenu = nil
                 end
@@ -10088,84 +10104,79 @@ end
                             Parent = currentReactionContainer,
                         })
 
-                        local function ShowReactorMenu()
-                            if activeReactorMenu then return end
+                        local function ToggleReactorMenu()
+                            if activeReactorMenu then
+                                ActiveReactorMenus[activeReactorMenu] = nil
+                                activeReactorMenu:Destroy()
+                                activeReactorMenu = nil
+                            else
+                                activeReactorMenu = New("Frame", {
+                                    AutomaticSize = Enum.AutomaticSize.Y,
+                                    BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+                                    Size = UDim2.fromOffset(160, 0),
+                                    ZIndex = 550,
+                                    Parent = currentReactionContainer,
+                                })
+                                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeReactorMenu })
+                                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activeReactorMenu })
+                                New("UIListLayout", {
+                                    SortOrder = Enum.SortOrder.LayoutOrder,
+                                    Padding = UDim.new(0, 2),
+                                    Parent = activeReactorMenu,
+                                })
+                                New("UIPadding", {
+                                    PaddingTop = UDim.new(0, 6),
+                                    PaddingBottom = UDim.new(0, 6),
+                                    PaddingLeft = UDim.new(0, 8),
+                                    PaddingRight = UDim.new(0, 8),
+                                    Parent = activeReactorMenu,
+                                })
 
-                            activeReactorMenu = New("Frame", {
-                                AutomaticSize = Enum.AutomaticSize.Y,
-                                BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-                                Size = UDim2.fromOffset(160, 0),
-                                ZIndex = 550,
-                                Parent = currentReactionContainer,
-                            })
-                            New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeReactorMenu })
-                            New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activeReactorMenu })
-                            New("UIListLayout", {
-                                SortOrder = Enum.SortOrder.LayoutOrder,
-                                Padding = UDim.new(0, 2),
-                                Parent = activeReactorMenu,
-                            })
-                            New("UIPadding", {
-                                PaddingTop = UDim.new(0, 6),
-                                PaddingBottom = UDim.new(0, 6),
-                                PaddingLeft = UDim.new(0, 8),
-                                PaddingRight = UDim.new(0, 8),
-                                Parent = activeReactorMenu,
-                            })
+                                New("TextLabel", {
+                                    BackgroundTransparency = 1,
+                                    Size = UDim2.new(1, 0, 0, 16),
+                                    Text = "Reacted by:",
+                                    TextColor3 = Color3.fromRGB(150, 150, 150),
+                                    TextSize = 11,
+                                    TextXAlignment = Enum.TextXAlignment.Left,
+                                    ZIndex = 551,
+                                    Parent = activeReactorMenu,
+                                })
 
-                            New("TextLabel", {
-                                BackgroundTransparency = 1,
-                                Size = UDim2.new(1, 0, 0, 16),
-                                Text = "Reacted by:",
-                                TextColor3 = Color3.fromRGB(150, 150, 150),
-                                TextSize = 11,
-                                TextXAlignment = Enum.TextXAlignment.Left,
-                                ZIndex = 551,
-                                Parent = activeReactorMenu,
-                            })
-
-                            for emoji, list in pairs(rxData) do
-                                if type(list) == "table" and #list > 0 then
-                                    for _, user in ipairs(list) do
-                                        New("TextLabel", {
-                                            BackgroundTransparency = 1,
-                                            Size = UDim2.new(1, 0, 0, 18),
-                                            Text = emoji .. "  " .. user,
-                                            TextColor3 = Color3.fromRGB(240, 240, 240),
-                                            TextSize = 12,
-                                            TextXAlignment = Enum.TextXAlignment.Left,
-                                            ZIndex = 551,
-                                            Parent = activeReactorMenu,
-                                        })
+                                for emoji, list in pairs(rxData) do
+                                    if type(list) == "table" and #list > 0 then
+                                        for _, user in ipairs(list) do
+                                            New("TextLabel", {
+                                                BackgroundTransparency = 1,
+                                                Size = UDim2.new(1, 0, 0, 18),
+                                                Text = emoji .. "  " .. user,
+                                                TextColor3 = Color3.fromRGB(240, 240, 240),
+                                                TextSize = 12,
+                                                TextXAlignment = Enum.TextXAlignment.Left,
+                                                ZIndex = 551,
+                                                Parent = activeReactorMenu,
+                                            })
+                                        end
                                     end
+                                end
+
+                                ActiveReactorMenus[activeReactorMenu] = function()
+                                    if not activeReactorMenu or not activeReactorMenu.Parent then return true end
+                                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                                    local absPos = activeReactorMenu.AbsolutePosition
+                                    local absSize = activeReactorMenu.AbsoluteSize
+                                    
+                                    local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
+                                    local pillPos = currentReactionContainer.AbsolutePosition
+                                    local pillSize = currentReactionContainer.AbsoluteSize
+                                    local isInsidePill = (mousePos.X >= pillPos.X and mousePos.X <= pillPos.X + pillSize.X and mousePos.Y >= pillPos.Y and mousePos.Y <= pillPos.Y + pillSize.Y)
+                                    
+                                    return not (isInsideMenu or isInsidePill)
                                 end
                             end
                         end
 
-                        local function HideReactorMenu()
-                            if activeReactorMenu then
-                                activeReactorMenu:Destroy()
-                                activeReactorMenu = nil
-                            end
-                        end
-
-                        local isHoldingPill = false
-                        currentReactionContainer.MouseButton1Down:Connect(function()
-                            isHoldingPill = true
-                            ShowReactorMenu()
-                        end)
-
-                        currentReactionContainer.MouseButton1Up:Connect(function()
-                            isHoldingPill = false
-                            HideReactorMenu()
-                        end)
-
-                        currentReactionContainer.MouseLeave:Connect(function()
-                            if isHoldingPill then
-                                isHoldingPill = false
-                                HideReactorMenu()
-                            end
-                        end)
+                        currentReactionContainer.MouseButton1Click:Connect(ToggleReactorMenu)
                     end
                 end
             end
@@ -10444,7 +10455,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing30
+    --testing31
     return Window
 end
 
