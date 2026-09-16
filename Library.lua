@@ -9581,7 +9581,7 @@ end
         local ReplyBanner = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(35, 37, 42),
             Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -32, 0, 22), -- Shortened width to avoid resize handle overlap
+            Size = UDim2.new(1, -32, 0, 22),
             Visible = false,
             ZIndex = 502,
             Parent = InputBar,
@@ -9665,9 +9665,9 @@ end
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -109)
                 ChatInput.Position = UDim2.new(0, 8, 0, 32)
-                ChatInput.Size = UDim2.new(1, -96, 0, 28) -- Shortened so it clears resize arrows cleanly
-                SendBtn.Position = UDim2.new(1, -32, 0, 32) -- Pushed slightly left to avoid resize handle overlap
-                SendBtn.Size = UDim2.fromOffset(24, 28) -- Compact send button to fit safely
+                ChatInput.Size = UDim2.new(1, -38, 0, 28) -- Leaves 30px clear on the right for resize arrows
+                SendBtn.Position = UDim2.new(1, -34, 0, 32) -- Sits safely inside right edge, avoiding resize handles
+                SendBtn.Size = UDim2.fromOffset(26, 28) -- Normal proportions instead of a square
                 SendBtn.Text = "➤"
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
@@ -9691,7 +9691,7 @@ end
             end
         end)
 
-        -- Resize handle (Enlarged and positioned properly at bottom right)
+        -- Resize handle
         local ChatResizeBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 1),
             BackgroundTransparency = 1,
@@ -9794,7 +9794,6 @@ end
             return false
         end
 
-        -- Global table to keep track of any open reactor menus so clicking anywhere else closes them
         local ActiveReactorMenus = {}
 
         game:GetService("UserInputService").InputBegan:Connect(function(input)
@@ -9838,20 +9837,9 @@ end
             })
             New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
 
-            -- Discord-style blue highlight strip on the left when replying to this specific message
-            local ReplyHighlightBar = New("Frame", {
-                BackgroundColor3 = Color3.fromRGB(88, 101, 242),
-                BorderSizePixel = 0,
-                Size = UDim2.new(0, 3, 1, 0),
-                Visible = false,
-                ZIndex = 506,
-                Parent = Row,
-            })
-            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyHighlightBar })
-
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
-                PaddingLeft = UDim.new(0, 10), -- Extra padding to fit the highlight bar cleanly
+                PaddingLeft = UDim.new(0, 6),
                 PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 4),
                 Parent = Row,
@@ -9902,7 +9890,6 @@ end
                 Parent = ActionBar,
             })
 
-            -- Smooth Circular Progress Ring around Bin Button
             local BinProgressGui = New("Frame", {
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 56, 0, 0),
@@ -9931,6 +9918,31 @@ end
 
             local currentRowReactions = reactions or {}
 
+            local ContentLayout = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                ZIndex = 503,
+                Parent = Row,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                Padding = UDim.new(0, 2),
+                Parent = ContentLayout,
+            })
+
+            -- Discord-style blue highlight strip positioned nicely next to the message content block
+            local ReplyHighlightBar = New("Frame", {
+                BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, -6, 0, 0),
+                Size = UDim2.new(0, 3, 1, 0),
+                Visible = false,
+                ZIndex = 506,
+                Parent = ContentLayout,
+            })
+            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyHighlightBar })
+
             local function SetRowHighlight(state)
                 ReplyHighlightBar.Visible = state
                 if state then
@@ -9954,7 +9966,6 @@ end
                 ChatInput:CaptureFocus()
             end)
 
-            -- Multi-Emoji Picker Menu on Heart Button Click
             local activePickerMenu = nil
             HeartBtn.MouseButton1Click:Connect(function()
                 if activePickerMenu then
@@ -10042,23 +10053,13 @@ end
                     if not activePickerMenu or not activePickerMenu.Parent then return true end
                     
                     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                    for _, child in ipairs(activePickerMenu:GetDescendants()) do
-                        if child:IsA("GuiObject") then
-                            local cPos = child.AbsolutePosition
-                            local cSize = child.AbsoluteSize
-                            if mousePos.X >= cPos.X and mousePos.X <= cPos.X + cSize.X and mousePos.Y >= cPos.Y and mousePos.Y <= cPos.Y + cSize.Y then
-                                return false
-                            end
-                        end
-                    end
-
                     local absPos = activePickerMenu.AbsolutePosition
                     local absSize = activePickerMenu.AbsoluteSize
-                    local isInside = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
                     local heartPos = HeartBtn.AbsolutePosition
                     local heartSize = HeartBtn.AbsoluteSize
+                    local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
                     local isInsideHeart = (mousePos.X >= heartPos.X and mousePos.X <= heartPos.X + heartSize.X and mousePos.Y >= heartPos.Y and mousePos.Y <= heartPos.Y + heartSize.Y)
-                    return not (isInside or isInsideHeart)
+                    return not (isInsideMenu or isInsideHeart)
                 end
             end)
 
@@ -10110,19 +10111,6 @@ end
                     TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
                 end
             end)
-
-            local ContentLayout = New("Frame", {
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                ZIndex = 503,
-                Parent = Row,
-            })
-            New("UIListLayout", {
-                FillDirection = Enum.FillDirection.Vertical,
-                Padding = UDim.new(0, 2),
-                Parent = ContentLayout,
-            })
 
             if replyData and replyData.Username and replyData.Text then
                 New("TextLabel", {
@@ -10297,10 +10285,10 @@ end
                                     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                                     local absPos = activeReactorMenu.AbsolutePosition
                                     local absSize = activeReactorMenu.AbsoluteSize
-
-                                    local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
                                     local pillPos = currentReactionContainer.AbsolutePosition
                                     local pillSize = currentReactionContainer.AbsoluteSize
+
+                                    local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
                                     local isInsidePill = (mousePos.X >= pillPos.X and mousePos.X <= pillPos.X + pillSize.X and mousePos.Y >= pillPos.Y and mousePos.Y <= pillPos.Y + pillSize.Y)
 
                                     return not (isInsideMenu or isInsidePill)
@@ -10591,7 +10579,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing40
+    --testing41
     return Window
 end
 
