@@ -9436,28 +9436,6 @@ end
         local ChatMessages = {}
         local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
         local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
-        local AllMessageRowReferences = {} -- Tracks all message rows for global nickname updates
-        
-        -- Persistent Nicknames Setup
-        local NicknamesFileName = "chat_nicknames.json"
-        local UserNicknames = {} -- Local-only nicknames table: [Username] = customNickname
-
-        pcall(function()
-            if isfile and isfile(NicknamesFileName) then
-                local content = readfile(NicknamesFileName)
-                local decoded = game:GetService("HttpService"):JSONDecode(content)
-                if type(decoded) == "table" then
-                    UserNicknames = decoded
-                end
-            end
-        end)
-
-        local function SaveNicknames()
-            pcall(function()
-                local encoded = game:GetService("HttpService"):JSONEncode(UserNicknames)
-                writefile(NicknamesFileName, encoded)
-            end)
-        end
 
         local ChatGui = New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9567,7 +9545,7 @@ end
             Parent = ChatScroll,
         })
 
-        -- Typing Indicator Container
+        -- Typing Indicator Container (Sits right above the input bar)
         local TypingIndicatorFrame = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundTransparency = 1,
@@ -9578,6 +9556,7 @@ end
             Parent = ChatGui,
         })
 
+        -- Animated mini dots container
         local TypingDotsHolder = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.fromOffset(22, 18),
@@ -9626,6 +9605,7 @@ end
             Parent = TypingIndicatorFrame,
         })
 
+        -- Dot bouncing loop animation
         task.spawn(function()
             local t = 0
             while true do
@@ -9639,6 +9619,7 @@ end
             end
         end)
 
+        -- Bottom divider above input container area
         New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "OutlineColor",
@@ -9649,6 +9630,7 @@ end
             Parent = ChatGui,
         })
 
+        -- Input Bar Container (Dynamic height when replying)
         local InputBar = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "MainColor",
@@ -9669,6 +9651,7 @@ end
             Parent = InputBar,
         })
 
+        -- Reply Context Banner (Hidden by default)
         local ReplyBanner = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(35, 37, 42),
             Position = UDim2.new(0, 8, 0, 4),
@@ -9705,60 +9688,7 @@ end
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
-        -- Nickname Editor Inline Bar
-        local NicknameEditTargetUser = nil
-        local NicknameBar = New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-            Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -16, 0, 26),
-            Visible = false,
-            ZIndex = 502,
-            Parent = InputBar,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = NicknameBar })
-        New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = NicknameBar })
-
-        local NicknameInputBox = New("TextBox", {
-            BackgroundTransparency = 1,
-            ClearTextOnFocus = false,
-            PlaceholderText = "Enter nickname...",
-            PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
-            Position = UDim2.new(0, 8, 0, 0),
-            Size = UDim2.new(1, -64, 1, 0),
-            Text = "",
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 12,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 503,
-            Parent = NicknameBar,
-        })
-
-        local NicknameSetBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundColor3 = Color3.fromRGB(88, 101, 242),
-            Position = UDim2.new(1, -26, 0.5, 0),
-            Size = UDim2.fromOffset(32, 18),
-            Text = "Set",
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 11,
-            ZIndex = 503,
-            Parent = NicknameBar,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 3), Parent = NicknameSetBtn })
-
-        local NicknameCloseBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundColor3 = Color3.fromRGB(60, 62, 68),
-            Position = UDim2.new(1, -4, 0.5, 0),
-            Size = UDim2.fromOffset(18, 18),
-            Text = "✕",
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 10,
-            ZIndex = 503,
-            Parent = NicknameBar,
-        })
-        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = NicknameCloseBtn })
-
+        -- Main Chat Input box (Shortened on right so resize arrows never overlap it)
         local ChatInput = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0),
             BackgroundColor3 = "BackgroundColor",
@@ -9788,6 +9718,7 @@ end
             Parent = ChatInput,
         })
 
+        -- Send Button (Keeps standard size and text cleanly clear of resize grip)
         local SendBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = "AccentColor",
@@ -9805,25 +9736,15 @@ end
         })
 
         local function UpdateInputLayout()
-            if NicknameEditTargetUser then
-                NicknameBar.Visible = true
-                ReplyBanner.Visible = false
-                InputBar.Size = UDim2.new(1, 0, 0, 72)
-                ChatScroll.Size = UDim2.new(1, 0, 1, -129)
-                TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
-                ChatInput.Position = UDim2.new(0, 8, 0, 34)
-                SendBtn.Position = UDim2.new(1, -30, 0, 34)
-            elseif ReplyTarget then
-                NicknameBar.Visible = false
+            if ReplyTarget then
                 ReplyBanner.Visible = true
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -129)
                 TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
-                ChatInput.Position = UDim2.new(0, 8, 0, 34)
-                SendBtn.Position = UDim2.new(1, -30, 0, 34)
+                ChatInput.Position = UDim2.new(0, 8, 0, 32)
+                SendBtn.Position = UDim2.new(1, -30, 0, 32)
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
-                NicknameBar.Visible = false
                 ReplyBanner.Visible = false
                 InputBar.Size = UDim2.new(1, 0, 0, 46)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -103)
@@ -9842,30 +9763,7 @@ end
             end
         end)
 
-        NicknameCloseBtn.MouseButton1Click:Connect(function()
-            NicknameEditTargetUser = nil
-            UpdateInputLayout()
-        end)
-
-        NicknameSetBtn.MouseButton1Click:Connect(function()
-            if NicknameEditTargetUser then
-                local newNick = NicknameInputBox.Text
-                if newNick:gsub("%s", "") == "" then
-                    UserNicknames[NicknameEditTargetUser] = nil
-                else
-                    UserNicknames[NicknameEditTargetUser] = newNick
-                end
-                SaveNicknames()
-
-                for _, rowObj in pairs(AllMessageRowReferences) do
-                    if rowObj.RefreshName then rowObj.RefreshName() end
-                end
-
-                NicknameEditTargetUser = nil
-                UpdateInputLayout()
-            end
-        end)
-
+        -- Resize handle
         local ChatResizeBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 1),
             BackgroundTransparency = 1,
@@ -9893,6 +9791,7 @@ end
 
         Library:MakeDraggable(ChatGui, ChatTitleBar, true)
 
+        -- HTTP & ID Setup
         local HttpRequest = request or http_request or (syn and syn.request) or nil
         local ProcessedSignatures = {}
         local ProcessedPings = {}
@@ -9935,6 +9834,7 @@ end
             end)
         end
 
+        -- Typing ping handler loop
         local LastTypingSent = 0
         local WasTyping = false
         ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
@@ -9949,6 +9849,7 @@ end
             end
         end)
 
+        -- Admin Lookup
         local AdminUserIds = {
             [11117216138] = true,
             [2327711124] = true,
@@ -9994,6 +9895,7 @@ end
             end
         end)
 
+        -- Add Message Function
         local MsgIndex = 0
         local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
             local msgIdStr = messageId or tostring(math.random(1000,9999))
@@ -10104,6 +10006,7 @@ end
 
             local currentRowReactions = reactions or {}
 
+            -- Wrapper for the message content block to safely anchor the discord-style highlight bar
             local MessageContentWrapper = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
@@ -10112,6 +10015,7 @@ end
                 Parent = Row,
             })
 
+            -- Discord-style blue highlight strip sitting precisely next to the message block
             local ReplyHighlightBar = New("Frame", {
                 BackgroundColor3 = Color3.fromRGB(88, 101, 242),
                 BorderSizePixel = 0,
@@ -10329,20 +10233,16 @@ end
                 NameColor = Color3.fromRGB(255, 90, 90)
             end
 
-            local function GetFormattedName(origSender)
-                local currentNick = UserNicknames[origSender]
-                local base = currentNick and (currentNick .. " (" .. origSender .. ")") or origSender
-                if not isSystem and IsAdmin(senderUserId, origSender) then
-                    base = base .. " 👑"
-                end
-                return base
+            local DisplayName = sender
+            if not isSystem and IsAdmin(senderUserId, sender) then
+                DisplayName = sender .. " 👑"
             end
 
-            local NameLabel = New("TextButton", {
+            New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
-                Text = GetFormattedName(sender),
+                Text = DisplayName,
                 TextColor3 = NameColor,
                 TextSize = 13,
                 TextWrapped = true,
@@ -10350,112 +10250,6 @@ end
                 ZIndex = 504,
                 Parent = ContentLayout,
             })
-
-            local activeUserContextMenu = nil
-
-            local function CloseUserContextMenu()
-                if activeUserContextMenu then
-                    ActiveReactorMenus[activeUserContextMenu] = nil
-                    activeUserContextMenu:Destroy()
-                    activeUserContextMenu = nil
-                end
-            end
-
-            local function OpenUserContextMenu()
-                if isSystem then return end
-                CloseUserContextMenu()
-
-                local menuOpenedTick = tick()
-                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                local relativePos = Vector2.new(mousePos.X - ChatGui.AbsolutePosition.X, mousePos.Y - ChatGui.AbsolutePosition.Y)
-
-                activeUserContextMenu = New("Frame", {
-                    BackgroundColor3 = Color3.fromRGB(30, 32, 36),
-                    Position = UDim2.fromOffset(math.clamp(relativePos.X, 4, 180), math.clamp(relativePos.Y, 4, 300)),
-                    Size = UDim2.fromOffset(150, 96),
-                    ZIndex = 700,
-                    Parent = ChatGui,
-                })
-                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeUserContextMenu })
-                New("UIStroke", { Color = Color3.fromRGB(60, 64, 72), Parent = activeUserContextMenu })
-
-                New("UIListLayout", {
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 2),
-                    Parent = activeUserContextMenu,
-                })
-                New("UIPadding", {
-                    PaddingTop = UDim.new(0, 6),
-                    PaddingBottom = UDim.new(0, 6),
-                    PaddingLeft = UDim.new(0, 6),
-                    PaddingRight = UDim.new(0, 6),
-                    Parent = activeUserContextMenu,
-                })
-
-                local function CreateContextOption(text, onClick)
-                    local btn = New("TextButton", {
-                        BackgroundColor3 = Color3.fromRGB(40, 43, 48),
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 0, 26),
-                        Text = text,
-                        TextColor3 = Color3.fromRGB(220, 222, 225),
-                        TextSize = 12,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        ZIndex = 701,
-                        Parent = activeUserContextMenu,
-                    })
-                    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
-                    New("UIPadding", { PaddingLeft = UDim.new(0, 8), Parent = btn })
-
-                    btn.MouseEnter:Connect(function()
-                        btn.BackgroundTransparency = 0
-                        btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-                        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    end)
-                    btn.MouseLeave:Connect(function()
-                        btn.BackgroundTransparency = 1
-                        btn.TextColor3 = Color3.fromRGB(220, 222, 225)
-                    end)
-                    btn.MouseButton1Click:Connect(function()
-                        CloseUserContextMenu()
-                        onClick()
-                    end)
-                end
-
-                CreateContextOption("Copy Username", function()
-                    pcall(function() setclipboard(sender) end)
-                    Library:Notify({ Title = "Copied", Description = "Copied Username: " .. sender, Time = 3 })
-                end)
-
-                CreateContextOption("Copy User ID", function()
-                    local idToCopy = tostring(senderUserId or "")
-                    if idToCopy == "" or idToCopy == "nil" then
-                        pcall(function()
-                            idToCopy = tostring(game:GetService("Players"):GetUserIdFromNameAsync(sender))
-                        end)
-                    end
-                    pcall(function() setclipboard(idToCopy) end)
-                    Library:Notify({ Title = "Copied", Description = "Copied ID: " .. idToCopy, Time = 3 })
-                end)
-
-                CreateContextOption("Set Nickname", function()
-                    NicknameEditTargetUser = sender
-                    NicknameInputBox.Text = UserNicknames[sender] or ""
-                    UpdateInputLayout()
-                    NicknameInputBox:CaptureFocus()
-                end)
-
-                ActiveReactorMenus[activeUserContextMenu] = function()
-                    if tick() - menuOpenedTick < 0.15 then return false end
-                    if not activeUserContextMenu or not activeUserContextMenu.Parent then return true end
-                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                    local absPos = activeUserContextMenu.AbsolutePosition
-                    local absSize = activeUserContextMenu.AbsoluteSize
-                    return not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
-                end
-            end
-
-            NameLabel.MouseButton2Click:Connect(OpenUserContextMenu)
 
             New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.Y,
@@ -10606,19 +10400,13 @@ end
 
             RenderReactionPill(reactions)
 
-            local rowRef = {
+            ActiveMessageRows[msgIdStr] = {
                 UpdateReactions = function(newRx)
                     currentRowReactions = newRx or {}
                     RenderReactionPill(currentRowReactions)
                 end,
-                SetHighlight = SetRowHighlight,
-                RefreshName = function()
-                    NameLabel.Text = GetFormattedName(sender)
-                end
+                SetHighlight = SetRowHighlight
             }
-
-            ActiveMessageRows[msgIdStr] = rowRef
-            table.insert(AllMessageRowReferences, rowRef)
 
             table.insert(ChatMessages, { Sender = sender, Text = text })
 
@@ -10675,6 +10463,7 @@ end
             SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
         end
 
+        -- Initial Fetch & Polling
         local function FetchMessages()
             pcall(function()
                 if HttpRequest then
@@ -10688,6 +10477,7 @@ end
                             return game:GetService("HttpService"):JSONDecode(Result.Body)
                         end)
                         if Success and type(Decoded) == "table" then
+                            -- Handle Typing Users list from backend
                             local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
                             local activeTypingNames = {}
                             for _, uName in ipairs(typingList) do
@@ -10739,8 +10529,7 @@ end
                                 end
                             end
 
-                            -- Fixed Pings Handling
-                            local pingsList = Decoded.Pings or Decoded.pings
+                            local pingsList = Decoded.Pings
                             if type(pingsList) == "table" then
                                 local unreadPingsCount = 0
                                 local lastSender = ""
@@ -10748,12 +10537,10 @@ end
                                 local localNameLower = LocalPlayer.Name:lower()
 
                                 for _, pingObj in ipairs(pingsList) do
-                                    local targetUser = pingObj.TargetUser or pingObj.targetUser
-                                    if targetUser and targetUser:lower() == localNameLower then
+                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
                                         local isDelivered = false
-                                        local deliveredUsers = pingObj.deliveredUsers or pingObj.DeliveredUsers
-                                        if deliveredUsers and type(deliveredUsers) == "table" then
-                                            for _, user in ipairs(deliveredUsers) do
+                                        if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
+                                            for _, user in ipairs(pingObj.deliveredUsers) do
                                                 if user:lower() == localNameLower then
                                                     isDelivered = true
                                                     break
@@ -10762,12 +10549,11 @@ end
                                         end
 
                                         if not isDelivered then
-                                            local senderName = pingObj.Sender or pingObj.sender or "Someone"
-                                            local pingSig = tostring(senderName) .. "|" .. tostring(pingObj.Time or pingObj.time or "")
+                                            local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
                                             if not ProcessedPings[pingSig] then
                                                 ProcessedPings[pingSig] = true
                                                 unreadPingsCount = unreadPingsCount + 1
-                                                lastSender = senderName
+                                                lastSender = pingObj.Sender
                                                 hasNewPings = true
                                             end
                                         end
@@ -10778,7 +10564,7 @@ end
                                     if unreadPingsCount == 1 then
                                         Library:Notify({
                                             Title = "Chat Mention",
-                                            Description = "Ping received from " .. lastSender,
+                                            Description = "Ping received off " .. lastSender,
                                             Time = 4,
                                             SoundId = 18595195017
                                         })
@@ -10836,6 +10622,7 @@ end
             end
         end)
 
+        -- Sidebar tab setup
         local ChatTabButton = New("TextButton", {
             BackgroundColor3 = "MainColor",
             BackgroundTransparency = 1,
@@ -10917,7 +10704,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing40
+    --testing35
     return Window
 end
 
