@@ -9433,15 +9433,17 @@ end
 -- ==========================================
 -- CHATBOX WINDOW.lua (Fully Updated & Fixed)
 -- ==========================================
--- CHATBOX WINDOW.lua[cite: 1]
+-- CHATBOX WINDOW.lua
 do
     local ChatOpen = false
     local ChatMessages = {}
     local ReplyTarget = nil
     local NicknameTarget = nil
+    local MuteDurationTarget = nil -- Tracks which user we are setting a custom mute duration for
     local ActiveMessageRows = {}
 
     local MutedUsernamesMap = {}
+    local ActiveMutedDetailsMap = {} -- Tracks remaining time / expiry for the local player or others
 
     local NICKNAME_FILE = "chatbox_nicknames.json"
     local CustomNicknames = {}
@@ -9756,6 +9758,27 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SendBtn })
 
+    local function IsLocalUserMuted()
+        local lName = LocalPlayer.Name:lower()
+        local lId = tostring(LocalPlayer.UserId):lower()
+        return MutedUsernamesMap[lName] or MutedUsernamesMap[lId]
+    end
+
+    local function GetLocalMuteRemainingText()
+        local lName = LocalPlayer.Name:lower()
+        local lId = tostring(LocalPlayer.UserId):lower()
+        local data = ActiveMutedDetailsMap[lName] or ActiveMutedDetailsMap[lId]
+        if not data then return "UARE MUTED." end
+        if data.IsPermanent then
+            return "U ARE MUTED. Time remaining: Permanent"
+        end
+        local remaining = data.RemainingSeconds
+        if remaining and remaining > 0 then
+            return "U ARE MUTED. Time remaining: " .. FormatDuration(remaining)
+        end
+        return "U ARE MUTED."
+    end
+
     local function UpdateInputLayout()
         local extraOffset = 0
         if ReplyTarget then extraOffset = extraOffset + 26 end
@@ -9783,9 +9806,26 @@ do
             ReplyBanner.Visible = false
         end
 
+        if IsLocalUserMuted() then
+            ChatInput.Text = ""
+            ChatInput.PlaceholderText = GetLocalMuteRemainingText()
+            ChatInput.Editable = false
+            SendBtn.Text = "Muted"
+            SendBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            SendBtn.Active = false
+            return
+        else
+            ChatInput.Editable = true
+            SendBtn.BackgroundColor3 = Library.Scheme.AccentColor
+            SendBtn.Active = true
+        end
+
         if NicknameTarget then
             ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
             SendBtn.Text = "Set"
+        elseif MuteDurationTarget then
+            ChatInput.PlaceholderText = "Enter mute duration (e.g. 1h, 30m, 1d) for " .. MuteDurationTarget
+            SendBtn.Text = "Mute"
         else
             SendBtn.Text = "Send"
             if not ReplyTarget then
@@ -9891,13 +9931,13 @@ do
         CreateMenuOption("Set Nickname", nil, function()
             NicknameTarget = targetUser
             ReplyTarget = nil
+            MuteDurationTarget = nil
             ChatInput.Text = ""
             UpdateInputLayout()
             ChatInput:CaptureFocus()
         end)
 
         if isAdminUser then
-            local commandText = isTargetMuted and (",unmute " .. targetUser) or (",mute " .. targetUser .. " 1h")
             local actionButtonText = isTargetMuted and "Unmute User" or "Mute User"
 
             CreateMenuOption(actionButtonText, Color3.fromRGB(255, 60, 60), function()
@@ -9910,32 +9950,44 @@ do
                     resolvedUserId = success and fetchedId or 0
                 end
 
-                local payload = {
-                    Username = LocalPlayer.Name,
-                    UserId = tostring(LocalPlayer.UserId),
-                    Roles = {"user"},
-                    Message = commandText,
-                    MessageId = "cmd_" .. math.random(100000, 999999),
-                    Time = timestamp,
-                    MuteUser = targetUser,
-                    MuteDuration = isTargetMuted and "unmute" or "1h",
-                    MuteUserId = tostring(resolvedUserId)
-                }
+                if isTargetMuted then
+                    -- Send clear unmute command directly
+                    local commandText = ",unmute " .. targetUser
+                    local payload = {
+                        Username = LocalPlayer.Name,
+                        UserId = tostring(LocalPlayer.UserId),
+                        Roles = {"user"},
+                        Message = commandText,
+                        MessageId = "cmd_" .. math.random(100000, 999999),
+                        Time = timestamp,
+                        MuteUser = targetUser,
+                        MuteDuration = "unmute",
+                        MuteUserId = tostring(resolvedUserId)
+                    }
 
-                if HttpRequest then
-                    pcall(function()
-                        HttpRequest({
-                            Url = "http://167.99.144.89:8081/chatbox",
-                            Method = "POST",
-                            Headers = {
-                                ["Content-Type"] = "application/json",
-                                ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                            },
-                            Body = game:GetService("HttpService"):JSONEncode(payload),
-                        })
-                    end)
+                    if HttpRequest then
+                        pcall(function()
+                            HttpRequest({
+                                Url = "http://167.99.144.89:8081/chatbox",
+                                Method = "POST",
+                                Headers = {
+                                    ["Content-Type"] = "application/json",
+                                    ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                },
+                                Body = game:GetService("HttpService"):JSONEncode(payload),
+                            })
+                        end)
+                    end
+                    Window.ChatAddMessage("System", "Successfully executed: " .. commandText, true)
+                else
+                    -- Prompt duration input in chat box like nickname
+                    MuteDurationTarget = targetUser
+                    NicknameTarget = nil
+                    ReplyTarget = nil
+                    ChatInput.Text = ""
+                    UpdateInputLayout()
+                    ChatInput:CaptureFocus()
                 end
-                Window.ChatAddMessage("System", "Successfully executed: " .. commandText, true)
             end)
         end
     end
@@ -10028,6 +10080,7 @@ do
     local LastTypingSent = 0
     local WasTyping = false
     ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
+        if IsLocalUserMuted() then return end
         local hasText = #ChatInput.Text > 0
         if hasText ~= WasTyping then
             WasTyping = hasText
@@ -10253,13 +10306,13 @@ do
                         if user == LocalPlayer.Name then foundIndex = i; break end
                     end
 
-                    if foundIndex then 
+                    if foundIndex then
                         table.remove(currentRx[emoji], foundIndex)
                         if #currentRx[emoji] == 0 then
                             currentRx[emoji] = nil
                         end
-                    else 
-                        table.insert(currentRx[emoji], LocalPlayer.Name) 
+                    else
+                        table.insert(currentRx[emoji], LocalPlayer.Name)
                     end
 
                     currentRowReactions = currentRx
@@ -10410,7 +10463,7 @@ do
             for _, child in ipairs(reactionContainer:GetChildren()) do
                 if child:IsA("GuiObject") then child:Destroy() end
             end
-            
+
             if not rxData then return end
             for emojiStr, userList in pairs(rxData) do
                 if type(userList) == "table" and #userList > 0 then
@@ -10440,11 +10493,11 @@ do
                             if user == LocalPlayer.Name then foundIndex = i; break end
                         end
 
-                        if foundIndex then 
+                        if foundIndex then
                             table.remove(currentRx[emojiStr], foundIndex)
                             if #currentRx[emojiStr] == 0 then currentRx[emojiStr] = nil end
-                        else 
-                            table.insert(currentRx[emojiStr], LocalPlayer.Name) 
+                        else
+                            table.insert(currentRx[emojiStr], LocalPlayer.Name)
                         end
 
                         currentRowReactions = currentRx
@@ -10476,6 +10529,8 @@ do
     end
 
     local function SendMessage()
+        if IsLocalUserMuted() then return end
+
         if NicknameTarget then
             local newNick = ChatInput.Text:gsub("^%s*(.-)%s*$", "%1")
             if newNick ~= "" then CustomNicknames[NicknameTarget] = newNick
@@ -10487,6 +10542,47 @@ do
             end
 
             NicknameTarget = nil
+            ChatInput.Text = ""
+            UpdateInputLayout()
+            return
+        end
+
+        if MuteDurationTarget then
+            local durationInput = ChatInput.Text:gsub("^%s*(.-)%s*$", "%1")
+            if durationInput == "" then durationInput = "1h" end
+
+            local targetUser = MuteDurationTarget
+            local success, targetUserId = pcall(function() return game:GetService("Players"):GetUserIdFromNameAsync(targetUser) end)
+            local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            local commandText = ",mute " .. targetUser .. " " .. durationInput
+
+            local payload = {
+                Username = LocalPlayer.Name,
+                UserId = tostring(LocalPlayer.UserId),
+                Roles = {"user"},
+                Message = commandText,
+                MessageId = "cmd_" .. math.random(100000, 999999),
+                Time = timestamp,
+                MuteUser = targetUser,
+                MuteDuration = durationInput,
+                MuteUserId = tostring(success and targetUserId or 0)
+            }
+
+            if HttpRequest then
+                task.spawn(function()
+                    pcall(function()
+                        HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox",
+                            Method = "POST",
+                            Headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "") },
+                            Body = game:GetService("HttpService"):JSONEncode(payload),
+                        })
+                    end)
+                end)
+            end
+            Window.ChatAddMessage("System", "Successfully executed: " .. commandText, true)
+
+            MuteDurationTarget = nil
             ChatInput.Text = ""
             UpdateInputLayout()
             return
@@ -10508,6 +10604,7 @@ do
                         UserId = tostring(LocalPlayer.UserId),
                         Roles = {"user"},
                         Message = Msg,
+                        MessageId = "cmd_" .. math.random(100000, 999999),
                         Time = timestamp,
                         MuteUser = targetUsername,
                         MuteDuration = Msg:sub(1, 5) == ",mute" and (args[3] or "1h") or "unmute",
@@ -10525,7 +10622,7 @@ do
                             end)
                         end)
                     end
-                    AddMessage("System", "Executed command: " .. Msg, true)
+                    Window.ChatAddMessage("System", "Executed command: " .. Msg, true)
                 end
                 ChatInput.Text = ""
                 return
@@ -10565,10 +10662,21 @@ do
                     if Success and type(Decoded) == "table" then
                         local MutedUsersList = Decoded.MutedUsers or {}
                         MutedUsernamesMap = {}
+                        ActiveMutedDetailsMap = {}
                         for _, muteObj in ipairs(MutedUsersList) do
-                            if muteObj.Target then MutedUsernamesMap[tostring(muteObj.Target):lower()] = true end
-                            if muteObj.TargetUserId then MutedUsernamesMap[tostring(muteObj.TargetUserId):lower()] = true end
+                            if muteObj.Target then
+                                local targetStr = tostring(muteObj.Target):lower()
+                                MutedUsernamesMap[targetStr] = true
+                                ActiveMutedDetailsMap[targetStr] = muteObj
+                            end
+                            if muteObj.TargetUserId then
+                                local targetIdStr = tostring(muteObj.TargetUserId):lower()
+                                MutedUsernamesMap[targetIdStr] = true
+                                ActiveMutedDetailsMap[targetIdStr] = muteObj
+                            end
                         end
+
+                        UpdateInputLayout()
 
                         local messageList = Decoded.Messages or Decoded
                         if type(messageList) == "table" then
@@ -10630,7 +10738,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing388
+    --testing321
     return Window
 end
 
