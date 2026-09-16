@@ -9809,7 +9809,7 @@ do
                 ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
                 SendBtn.Text = "Set"
             elseif MuteDurationTarget then
-                ChatInput.PlaceholderText = "Type mute duration for " .. GetDisplayName(MuteDurationTarget) .. " (e.g. 1h)"
+                ChatInput.PlaceholderText = "Type time. Example : 1d 1h 1m 1s"
                 SendBtn.Text = "Mute"
             else
                 SendBtn.Text = "Send"
@@ -10664,12 +10664,17 @@ do
                             
                             if isTargetMatch then
                                 foundLocalMute = true
-                                local expiresAt = muteObj.ExpiresAt or (tick() + 3600)
-                                if type(expiresAt) == "string" then
-                                    -- simple fallback if ISO string
-                                    LocalMuteExpiration = tick() + 3600
-                                else
-                                    LocalMuteExpiration = tonumber(expiresAt) or (tick() + 3600)
+                                local durationSec = 3600
+                                if muteObj.Duration then
+                                    local num = tonumber(muteObj.Duration:match("(%d+)")) or 1
+                                    if muteObj.Duration:find("d") then durationSec = num * 86400
+                                    elseif muteObj.Duration:find("h") then durationSec = num * 3600
+                                    elseif muteObj.Duration:find("m") then durationSec = num * 60
+                                    elseif muteObj.Duration:find("s") then durationSec = num
+                                    end
+                                end
+                                if not LocalMuteExpiration or LocalMuteExpiration <= tick() then
+                                    LocalMuteExpiration = tick() + durationSec
                                 end
                             end
                         end
@@ -10742,7 +10747,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing3881
+    --testing38856
     return Window
 end
 
