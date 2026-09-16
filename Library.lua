@@ -9581,7 +9581,7 @@ end
         local ReplyBanner = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(35, 37, 42),
             Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -32, 0, 22),
+            Size = UDim2.new(1, -38, 0, 22),
             Visible = false,
             ZIndex = 502,
             Parent = InputBar,
@@ -9614,6 +9614,7 @@ end
         })
         New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
+        -- Main Chat Input box (Shortened on right so resize arrows never overlap it)
         local ChatInput = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0),
             BackgroundColor3 = "BackgroundColor",
@@ -9621,7 +9622,7 @@ end
             PlaceholderText = "Send a message...",
             PlaceholderColor3 = "FontColor",
             Position = UDim2.new(0, 8, 0, 8),
-            Size = UDim2.new(1, -72, 0, 28),
+            Size = UDim2.new(1, -74, 0, 28),
             Text = "",
             TextColor3 = "FontColor",
             TextSize = 14,
@@ -9643,11 +9644,12 @@ end
             Parent = ChatInput,
         })
 
+        -- Send Button (Keeps standard size and text cleanly clear of resize grip)
         local SendBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = "AccentColor",
-            Position = UDim2.new(1, -8, 0, 8),
-            Size = UDim2.fromOffset(54, 28),
+            Position = UDim2.new(1, -30, 0, 8),
+            Size = UDim2.fromOffset(40, 28),
             Text = "Send",
             TextColor3 = "FontColor",
             TextSize = 13,
@@ -9665,20 +9667,14 @@ end
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -109)
                 ChatInput.Position = UDim2.new(0, 8, 0, 32)
-                ChatInput.Size = UDim2.new(1, -38, 0, 28) -- Leaves 30px clear on the right for resize arrows
-                SendBtn.Position = UDim2.new(1, -34, 0, 32) -- Sits safely inside right edge, avoiding resize handles
-                SendBtn.Size = UDim2.fromOffset(26, 28) -- Normal proportions instead of a square
-                SendBtn.Text = "➤"
+                SendBtn.Position = UDim2.new(1, -30, 0, 32)
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
                 ReplyBanner.Visible = false
                 InputBar.Size = UDim2.new(1, 0, 0, 46)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -83)
                 ChatInput.Position = UDim2.new(0, 8, 0, 8)
-                ChatInput.Size = UDim2.new(1, -72, 0, 28)
-                SendBtn.Position = UDim2.new(1, -8, 0, 8)
-                SendBtn.Size = UDim2.fromOffset(54, 28)
-                SendBtn.Text = "Send"
+                SendBtn.Position = UDim2.new(1, -30, 0, 8)
                 ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
             end
         end
@@ -9918,20 +9914,16 @@ end
 
             local currentRowReactions = reactions or {}
 
-            local ContentLayout = New("Frame", {
+            -- Wrapper for the message content block to safely anchor the discord-style highlight bar
+            local MessageContentWrapper = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 AutomaticSize = Enum.AutomaticSize.Y,
                 ZIndex = 503,
                 Parent = Row,
             })
-            New("UIListLayout", {
-                FillDirection = Enum.FillDirection.Vertical,
-                Padding = UDim.new(0, 2),
-                Parent = ContentLayout,
-            })
 
-            -- Discord-style blue highlight strip positioned nicely next to the message content block
+            -- Discord-style blue highlight strip sitting precisely next to the message block
             local ReplyHighlightBar = New("Frame", {
                 BackgroundColor3 = Color3.fromRGB(88, 101, 242),
                 BorderSizePixel = 0,
@@ -9939,7 +9931,7 @@ end
                 Size = UDim2.new(0, 3, 1, 0),
                 Visible = false,
                 ZIndex = 506,
-                Parent = ContentLayout,
+                Parent = MessageContentWrapper,
             })
             New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyHighlightBar })
 
@@ -10111,6 +10103,19 @@ end
                     TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
                 end
             end)
+
+            local ContentLayout = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                ZIndex = 503,
+                Parent = MessageContentWrapper,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                Padding = UDim.new(0, 2),
+                Parent = ContentLayout,
+            })
 
             if replyData and replyData.Username and replyData.Text then
                 New("TextLabel", {
@@ -10579,7 +10584,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing41
+    --testing42
     return Window
 end
 
