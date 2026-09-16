@@ -9581,7 +9581,7 @@ end
         local ReplyBanner = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(35, 37, 42),
             Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -16, 0, 22),
+            Size = UDim2.new(1, -32, 0, 22), -- Shortened width to avoid resize handle overlap
             Visible = false,
             ZIndex = 502,
             Parent = InputBar,
@@ -9665,14 +9665,20 @@ end
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -109)
                 ChatInput.Position = UDim2.new(0, 8, 0, 32)
-                SendBtn.Position = UDim2.new(1, -8, 0, 32)
+                ChatInput.Size = UDim2.new(1, -96, 0, 28) -- Shortened so it clears resize arrows cleanly
+                SendBtn.Position = UDim2.new(1, -32, 0, 32) -- Pushed slightly left to avoid resize handle overlap
+                SendBtn.Size = UDim2.fromOffset(24, 28) -- Compact send button to fit safely
+                SendBtn.Text = "➤"
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
                 ReplyBanner.Visible = false
                 InputBar.Size = UDim2.new(1, 0, 0, 46)
                 ChatScroll.Size = UDim2.new(1, 0, 1, -83)
                 ChatInput.Position = UDim2.new(0, 8, 0, 8)
+                ChatInput.Size = UDim2.new(1, -72, 0, 28)
                 SendBtn.Position = UDim2.new(1, -8, 0, 8)
+                SendBtn.Size = UDim2.fromOffset(54, 28)
+                SendBtn.Text = "Send"
                 ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
             end
         end
@@ -9680,6 +9686,9 @@ end
         ReplyCancelBtn.MouseButton1Click:Connect(function()
             ReplyTarget = nil
             UpdateInputLayout()
+            for _, rData in pairs(ActiveMessageRows) do
+                if rData.SetHighlight then rData.SetHighlight(false) end
+            end
         end)
 
         -- Resize handle (Enlarged and positioned properly at bottom right)
@@ -9829,9 +9838,20 @@ end
             })
             New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
 
+            -- Discord-style blue highlight strip on the left when replying to this specific message
+            local ReplyHighlightBar = New("Frame", {
+                BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+                BorderSizePixel = 0,
+                Size = UDim2.new(0, 3, 1, 0),
+                Visible = false,
+                ZIndex = 506,
+                Parent = Row,
+            })
+            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyHighlightBar })
+
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
-                PaddingLeft = UDim.new(0, 6),
+                PaddingLeft = UDim.new(0, 10), -- Extra padding to fit the highlight bar cleanly
                 PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 4),
                 Parent = Row,
@@ -9911,7 +9931,23 @@ end
 
             local currentRowReactions = reactions or {}
 
+            local function SetRowHighlight(state)
+                ReplyHighlightBar.Visible = state
+                if state then
+                    Row.BackgroundColor3 = Color3.fromRGB(53, 56, 63)
+                    Row.BackgroundTransparency = 0.5
+                else
+                    Row.BackgroundColor3 = Color3.fromRGB(47, 49, 54)
+                    Row.BackgroundTransparency = 1
+                end
+            end
+
             ReplyBtn.MouseButton1Click:Connect(function()
+                for _, rData in pairs(ActiveMessageRows) do
+                    if rData.SetHighlight then rData.SetHighlight(false) end
+                end
+                SetRowHighlight(true)
+
                 ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
                 ReplyBannerText.Text = "Replying to " .. sender
                 UpdateInputLayout()
@@ -10063,12 +10099,16 @@ end
 
             Row.MouseEnter:Connect(function()
                 if not isSystem then ActionBar.Visible = true end
-                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.94 }):Play()
+                if not ReplyTarget or ReplyTarget.Id ~= msgIdStr then
+                    TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.94 }):Play()
+                end
             end)
             Row.MouseLeave:Connect(function()
                 ActionBar.Visible = false
                 CancelDeleteHold()
-                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+                if not ReplyTarget or ReplyTarget.Id ~= msgIdStr then
+                    TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+                end
             end)
 
             local ContentLayout = New("Frame", {
@@ -10279,7 +10319,8 @@ end
                 UpdateReactions = function(newRx)
                     currentRowReactions = newRx or {}
                     RenderReactionPill(currentRowReactions)
-                end
+                end,
+                SetHighlight = SetRowHighlight
             }
 
             table.insert(ChatMessages, { Sender = sender, Text = text })
@@ -10319,6 +10360,9 @@ end
 
             ReplyTarget = nil
             UpdateInputLayout()
+            for _, rData in pairs(ActiveMessageRows) do
+                if rData.SetHighlight then rData.SetHighlight(false) end
+            end
 
             local targetPingUser = nil
             for match in CurrentMsg:gmatch("@([%w_]+)") do
@@ -10547,7 +10591,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing38
+    --testing40
     return Window
 end
 
