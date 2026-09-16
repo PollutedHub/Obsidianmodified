@@ -9863,6 +9863,8 @@ local function OpenUserContextMenu(targetUser, targetUserId)
     local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
     local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
+    print("[ContextDebug] Target:", targetUser, "| IsMuted:", tostring(isTargetMuted), "| IsAdmin:", tostring(isAdminUser))
+
     local menuHeight = isAdminUser and 138 or 108
 
     ActiveContextMenu = New("Frame", {
@@ -9918,6 +9920,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         end)
 
         btn.MouseButton1Click:Connect(function()
+            print("[ContextDebug] Button clicked:", text)
             CloseContextMenu()
             callback()
         end)
@@ -9955,9 +9958,9 @@ local function OpenUserContextMenu(targetUser, targetUserId)
 
         CreateMenuOption(isTargetMuted and "Unmute" or "Mute", Color3.fromRGB(255, 60, 60), function()
             task.spawn(function()
+                print("[ContextDebug] Mute/Unmute task started for:", targetUser)
                 local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                 
-                -- Resolve target user ID if missing
                 local resolvedUserId = targetUserId
                 if not resolvedUserId then
                     local success, fetchedId = pcall(function()
@@ -9978,9 +9981,11 @@ local function OpenUserContextMenu(targetUser, targetUserId)
                     MuteUserId = tostring(resolvedUserId)
                 }
 
+                print("[ContextDebug] HttpRequest availability:", tostring(HttpRequest ~= nil))
+
                 if HttpRequest then
-                    pcall(function()
-                        HttpRequest({
+                    local success, res = pcall(function()
+                        return HttpRequest({
                             Url = "http://167.99.144.89:8081/chatbox",
                             Method = "POST",
                             Headers = {
@@ -9990,6 +9995,9 @@ local function OpenUserContextMenu(targetUser, targetUserId)
                             Body = game:GetService("HttpService"):JSONEncode(payload),
                         })
                     end)
+                    print("[ContextDebug] Request success:", success, "Response:", tostring(res))
+                else
+                    warn("[ContextDebug] HttpRequest function is missing!")
                 end
                 AddMessage("System", "Executed command: " .. commandText, true)
             end)
@@ -11169,7 +11177,7 @@ end
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing380
+    --testing384
     return Window
 end
 
