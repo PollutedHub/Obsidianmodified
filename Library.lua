@@ -9430,7 +9430,9 @@ end
         Library.IsRobloxFocused = false
     end))
 
--- CHATBOX WINDOW.lua
+-- ==========================================
+-- CHATBOX WINDOW.lua (Fully Updated)
+-- ==========================================
 do
     local ChatOpen = false
     local ChatMessages = {}
@@ -9823,7 +9825,7 @@ do
         end
     end)
 
-    -- Context Menu (Discord Style)
+    -- Context Menu (Discord Style) with Admin Quick Mute/Unmute Shortcut
     local ActiveContextMenu = nil
     local function CloseContextMenu()
         if ActiveContextMenu then
@@ -9836,11 +9838,18 @@ do
         CloseContextMenu()
 
         local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+        
+        -- Check if target user is currently muted
+        local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
+        local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
+
+        -- Adjust menu height dynamically if admin mute option is added
+        local menuHeight = isAdminUser and 138 or 108
 
         ActiveContextMenu = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-            Size = UDim2.fromOffset(160, 108),
+            Size = UDim2.fromOffset(160, menuHeight),
             ZIndex = 800,
             Parent = ScreenGui,
         })
@@ -9860,7 +9869,7 @@ do
             Parent = ActiveContextMenu,
         })
 
-        local function CreateMenuOption(text, callback)
+        local function CreateMenuOption(text, textColor, callback)
             local btn = New("TextButton", {
                 BackgroundColor3 = Color3.fromRGB(18, 19, 22),
                 BackgroundTransparency = 0,
@@ -9876,7 +9885,7 @@ do
                 Position = UDim2.new(0, 8, 0, 0),
                 Size = UDim2.new(1, -16, 1, 0),
                 Text = text,
-                TextColor3 = Color3.fromRGB(185, 187, 190),
+                TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 802,
@@ -9889,7 +9898,7 @@ do
             end)
             btn.MouseLeave:Connect(function()
                 btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
-                label.TextColor3 = Color3.fromRGB(185, 187, 190)
+                label.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
             end)
 
             btn.MouseButton1Click:Connect(function()
@@ -9899,7 +9908,7 @@ do
         end
 
         -- Option 1: Copy Username
-        CreateMenuOption("Copy Username", function()
+        CreateMenuOption("Copy Username", nil, function()
             if setclipboard then
                 setclipboard(targetUser)
                 Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
@@ -9907,7 +9916,7 @@ do
         end)
 
         -- Option 2: Copy UserID
-        CreateMenuOption("Copy UserID", function()
+        CreateMenuOption("Copy UserID", nil, function()
             if setclipboard then
                 setclipboard(tostring(targetUserId or 0))
                 Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
@@ -9915,7 +9924,7 @@ do
         end)
 
         -- Option 3: Set Nickname
-        CreateMenuOption("Set Nickname", function()
+        CreateMenuOption("Set Nickname", nil, function()
             NicknameTarget = targetUser
             ReplyTarget = nil
             ChatInput.Text = ""
@@ -9923,6 +9932,73 @@ do
             UpdateInputLayout()
             ChatInput:CaptureFocus()
         end)
+
+        -- Option 4: Admin Quick Mute / Unmute Shortcut
+        if isAdminUser then
+            if isTargetMuted then
+                CreateMenuOption("Unmute", Color3.fromRGB(255, 60, 60), function()
+                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                    local unmuteData = {
+                        Username = LocalPlayer.Name,
+                        UserId = tostring(LocalPlayer.UserId),
+                        Roles = {"user"},
+                        Message = ",unmute " .. targetUser,
+                        Time = timestamp,
+                        MuteUser = targetUser,
+                        MuteDuration = "unmute",
+                        MuteUserId = tostring(targetUserId or 0)
+                    }
+
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode(unmuteData),
+                                })
+                            end)
+                        end)
+                    end
+                    AddMessage("System", "Successfully sent unmute command for " .. targetUser, true)
+                end)
+            else
+                CreateMenuOption("Mute", Color3.fromRGB(255, 60, 60), function()
+                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                    local muteData = {
+                        Username = LocalPlayer.Name,
+                        UserId = tostring(LocalPlayer.UserId),
+                        Roles = {"user"},
+                        Message = ",mute " .. targetUser .. " 1h",
+                        Time = timestamp,
+                        MuteUser = targetUser,
+                        MuteDuration = "1h",
+                        MuteUserId = tostring(targetUserId or 0)
+                    }
+
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode(muteData),
+                                })
+                            end)
+                        end)
+                    end
+                    AddMessage("System", "Successfully sent mute command for " .. targetUser, true)
+                end)
+            end
+        end
     end
 
     -- Close context menu on outside click
@@ -10796,7 +10872,6 @@ do
 
         LastMessageTime = tick()
 
-        -- Copy message and clear input safely *after* capturing variables
         local CurrentMsg = Msg
         ChatInput.Text = ""
 
@@ -10819,10 +10894,7 @@ do
 
         local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
 
-        -- 1. Display locally on your screen
         AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
-
-        -- 2. Send the ACTUAL message to the VPS endpoint
         SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
     end
 
@@ -10841,7 +10913,6 @@ do
                     end)
                     if Success and type(Decoded) == "table" then
 
-                        -- Mute State & Countdown Check (Using Formatted Duration)
                         local MutedUsersList = Decoded.MutedUsers or {}
                         local isMutedLocally = false
                         local muteRemainingSeconds = 0
@@ -10865,7 +10936,6 @@ do
                             end
                         end
 
-                        -- Refresh all visible row usernames to handle mute colors dynamically
                         for _, rowData in pairs(ActiveMessageRows) do
                             if rowData.RefreshName then rowData.RefreshName() end
                         end
@@ -10889,7 +10959,6 @@ do
                             end
                         end
 
-                        -- Handle Typing Users list from backend
                         local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
                         local activeTypingNames = {}
                         for _, uName in ipairs(typingList) do
@@ -11125,7 +11194,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing399
+    --testing39
     return Window
 end
 
