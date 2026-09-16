@@ -9985,7 +9985,7 @@ do
                 HttpRequest({
                     Url = "http://167.99.144.89:8081/chatbox",
                     Method = "POST",
-                    Headers = { 
+                    Headers = {
                         ["Content-Type"] = "application/json",
                         ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
                     },
@@ -10616,6 +10616,81 @@ do
         local Msg = ChatInput.Text
         if not Msg or Msg:gsub("%s", "") == "" then return end
 
+        -- Admin Mute Command Interception
+        if Msg:sub(1, 5) == ",mute" then
+            if IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
+                local args = {}
+                for word in Msg:gmatch("%S+") do
+                    table.insert(args, word)
+                end
+                
+                if #args >= 3 then
+                    local targetUsername = args[2]
+                    local timeLength = args[3]
+                    
+                    local success, targetUserId = pcall(function()
+                        return game:GetService("Players"):GetUserIdFromNameAsync(targetUsername)
+                    end)
+                    
+                    if not success or not targetUserId then
+                        targetUserId = 0
+                    end
+
+                    -- Calculate finish date (simplistic example parsing seconds/minutes or using raw length string)
+                    local multiplier = 1
+                    local unit = timeLength:sub(-1):lower()
+                    local value = tonumber(timeLength:sub(1, -2)) or 60
+                    if unit == "m" then multiplier = 60
+                    elseif unit == "h" then multiplier = 3600
+                    elseif unit == "d" then multiplier = 86400 end
+                    
+                    local totalSeconds = (tonumber(timeLength) or value) * (unit == "s" or unit == "m" or unit == "h" or unit == "d" and multiplier or 1)
+                    if unit == "m" or unit == "h" or unit == "d" then
+                        totalSeconds = (tonumber(timeLength:sub(1, -2)) or 1) * multiplier
+                    else
+                        totalSeconds = tonumber(timeLength) or 60
+                    end
+
+                    local finishEpoch = os.time() + totalSeconds
+                    local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
+
+                    local muteData = {
+                        username = targetUsername,
+                        mutelength = timeLength,
+                        finishdate = finishDateFormatted,
+                        userid = tostring(targetUserId)
+                    }
+
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode(muteData),
+                                })
+                            end)
+                        end)
+                    end
+
+                    AddMessage("System", "Successfully sent mute command for " .. targetUsername, true)
+                    ChatInput.Text = ""
+                    return
+                else
+                    AddMessage("System", "Usage: ,mute username time", true)
+                    return
+                end
+            else
+                AddMessage("System", "You do not have permission to use this command.", true)
+                ChatInput.Text = ""
+                return
+            end
+        end
+
         if #Msg > 100 then
             AddMessage("System", "Message too long. Max 100 characters.", true)
             return
@@ -10782,7 +10857,7 @@ do
                                         HttpRequest({
                                             Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
                                             Method = "POST",
-                                            Headers = { 
+                                            Headers = {
                                                 ["Content-Type"] = "application/json",
                                                 ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
                                             },
@@ -10911,7 +10986,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing50
+    --testing1
     return Window
 end
 
