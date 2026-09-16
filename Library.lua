@@ -9444,6 +9444,7 @@ do
     local MutedUsernamesMap = {}
     local LocalMuteExpiration = 0
 
+    -- Move HttpRequest declaration to the top so all functions can access it
     local HttpRequest = request or http_request or (syn and syn.request) or nil
 
     local NICKNAME_FILE = "chatbox_nicknames.json"
@@ -9506,6 +9507,7 @@ do
         return false
     end
 
+    -- Cache of users for @mentions (populated strictly via VPS KnownUsers)
     local SeenUsers = {}
     local function RegisterSeenUser(username)
         if username and type(username) == "string" and username ~= "" then
@@ -9513,6 +9515,7 @@ do
         end
     end
 
+    -- Function to register user to the VPS for cross-server visibility
     local function RegisterUserToVPS(username)
         if not HttpRequest then return end
         task.spawn(function()
@@ -9530,6 +9533,7 @@ do
         end)
     end
 
+    -- Send ONLY the local player's username to the VPS on load and add to local mentions
     if game:GetService("Players").LocalPlayer then
         RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
         RegisterUserToVPS(game:GetService("Players").LocalPlayer.Name)
@@ -9539,7 +9543,7 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(520, 480),
+        Size = UDim2.fromOffset(520, 480), -- Expanded width to accommodate left navigation panel nicely
         Visible = false,
         ZIndex = 500,
         Parent = ScreenGui,
@@ -9548,18 +9552,17 @@ do
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
     table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
 
-    -- Left Navigation Panel properly anchored inside ChatGui
+    -- Left Navigation Panel for selecting menus
     local LeftNavPanel = New("Frame", {
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 0, 0),
         Size = UDim2.new(0, 110, 1, 0),
         ZIndex = 501,
-        Parent = ChatGui,
     })
+    LeftNavPanel.Parent = ChatGui
 
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = LeftNavPanel })
-    
     -- Cover curved corner overlap on the right side of the nav panel
     New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
@@ -9580,16 +9583,24 @@ do
         Parent = LeftNavPanel,
     })
 
+    -- Container specifically for navigation buttons to avoid list layout displacing them
+    local NavButtonContainer = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 502,
+        Parent = LeftNavPanel,
+    })
+
     local NavListLayout = New("UIListLayout", {
         Padding = UDim.new(0, 6),
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = LeftNavPanel,
+        Parent = NavButtonContainer,
     })
     New("UIPadding", {
         PaddingTop = UDim.new(0, 42),
         PaddingLeft = UDim.new(0, 8),
         PaddingRight = UDim.new(0, 8),
-        Parent = LeftNavPanel,
+        Parent = NavButtonContainer,
     })
 
     -- Main Content Container (Right side area)
@@ -9601,6 +9612,7 @@ do
         Parent = ChatGui,
     })
 
+    -- Views definition
     local GlobalChatView = New("Frame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -9677,7 +9689,7 @@ do
         Parent = SettingsView,
     })
 
-    -- Chat Title Bar
+    -- Chat Title Bar (Restored inside GlobalChatView)
     local ChatTitleBar = New("Frame", {
         BackgroundColor3 = "MainColor",
         Size = UDim2.new(1, 0, 0, 36),
@@ -9919,6 +9931,7 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SendBtn })
 
+    -- Discord-style Mention Auto-complete Menu
     local MentionMenu = New("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = Color3.fromRGB(43, 45, 49),
@@ -9967,6 +9980,7 @@ do
         Parent = MentionScroll,
     })
 
+    -- Navigation Menu Selection Logic
     local currentActiveTab = "Global"
     local function SwitchNavTab(tabName)
         if tabName == "Panel" and not IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
@@ -9979,7 +9993,8 @@ do
         AdminPanelView.Visible = (tabName == "Panel")
         SettingsView.Visible = (tabName == "Settings")
 
-        for _, child in ipairs(LeftNavPanel:GetChildren()) do
+        -- Update buttons styling (Changed to reference NavButtonContainer)
+        for _, child in ipairs(NavButtonContainer:GetChildren()) do
             if child:IsA("TextButton") then
                 if child.Name == tabName .. "NavBtn" then
                     child.BackgroundColor3 = Library.Scheme.AccentColor or Color3.fromRGB(88, 101, 242)
@@ -10004,7 +10019,7 @@ do
             TextSize = 13,
             Font = Enum.Font.GothamMedium,
             ZIndex = 503,
-            Parent = LeftNavPanel,
+            Parent = NavButtonContainer, -- Added button to the new container
         })
         New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = btn })
 
@@ -10477,6 +10492,15 @@ do
     local LastMessageTime = 0
     local SpamCooldown = 2
     local BannedWords = {}
+
+    local function ContainsBannedWord(Msg)
+        local Lower = Msg:lower()
+        if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
+        for _, Word in BannedWords do
+            if Lower:match(Word:lower()) then return true end
+        end
+        return false
+    end
 
     local ActiveReactorMenus = {}
 
@@ -11016,6 +11040,7 @@ do
             if rData.SetHighlight then rData.SetHighlight(false) end
         end
 
+        -- Parse out any @mentions to automatically trigger server pings
         local targetPingUser = nil
         for word in CurrentMsg:gmatch("%S+") do
             if word:sub(1, 1) == "@" then
@@ -11043,6 +11068,7 @@ do
                     local Success, Decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(Result.Body) end)
                     if Success and type(Decoded) == "table" then
 
+                        -- FIX: Rebuild SeenUsers strictly from VPS KnownUsers data. No local server player auto-discovery.
                         local KnownUsersList = Decoded.KnownUsers or {}
                         SeenUsers = {}
                         if game:GetService("Players").LocalPlayer then
@@ -11081,6 +11107,7 @@ do
                             UpdateInputLayout()
                         end
 
+                        -- Handle Pings polling and processing
                         local pingsList = Decoded.Pings or {}
                         local localNameLower = game:GetService("Players").LocalPlayer and game:GetService("Players").LocalPlayer.Name:lower() or ""
                         local acknowledgedPingIds = {}
@@ -11092,6 +11119,7 @@ do
                                     ProcessedPings[pingObj.Id] = true
                                     table.insert(acknowledgedPingIds, pingObj.Id)
 
+                                    -- Fire notification with the requested sound ID
                                     pcall(function()
                                         Library:Notify({
                                             Title = "Mentioned!",
@@ -11104,6 +11132,7 @@ do
                             end
                         end
 
+                        -- Acknowledge processed pings back to the VPS endpoint
                         if #acknowledgedPingIds > 0 then
                             task.spawn(function()
                                 pcall(function()
@@ -11183,7 +11212,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing38881111111111111112
+    --testing3888111112342
     return Window
 end
 
