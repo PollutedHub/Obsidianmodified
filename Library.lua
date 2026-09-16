@@ -9528,7 +9528,7 @@ end
             Position = UDim2.fromOffset(0, 37),
             ScrollBarImageColor3 = "OutlineColor",
             ScrollBarThickness = 3,
-            Size = UDim2.new(1, 0, 1, -83),
+            Size = UDim2.new(1, 0, 1, -103),
             ZIndex = 501,
             Parent = ChatGui,
         })
@@ -9544,6 +9544,80 @@ end
             PaddingTop = UDim.new(0, 6),
             Parent = ChatScroll,
         })
+
+        -- Typing Indicator Container (Sits right above the input bar)
+        local TypingIndicatorFrame = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 1, -47),
+            Size = UDim2.new(1, -16, 0, 18),
+            Visible = false,
+            ZIndex = 505,
+            Parent = ChatGui,
+        })
+
+        -- Animated mini dots container
+        local TypingDotsHolder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromOffset(22, 18),
+            ZIndex = 506,
+            Parent = TypingIndicatorFrame,
+        })
+        local TypingDot1 = New("Frame", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+            Position = UDim2.new(0, 2, 0.5, 0),
+            Size = UDim2.fromOffset(4, 4),
+            ZIndex = 506,
+            Parent = TypingDotsHolder,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot1 })
+
+        local TypingDot2 = New("Frame", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+            Position = UDim2.new(0, 9, 0.5, 0),
+            Size = UDim2.fromOffset(4, 4),
+            ZIndex = 506,
+            Parent = TypingDotsHolder,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot2 })
+
+        local TypingDot3 = New("Frame", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+            Position = UDim2.new(0, 16, 0.5, 0),
+            Size = UDim2.fromOffset(4, 4),
+            ZIndex = 506,
+            Parent = TypingDotsHolder,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot3 })
+
+        local TypingLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 26, 0, 0),
+            Size = UDim2.new(1, -26, 1, 0),
+            Text = "",
+            TextColor3 = Color3.fromRGB(180, 182, 188),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 506,
+            Parent = TypingIndicatorFrame,
+        })
+
+        -- Dot bouncing loop animation
+        task.spawn(function()
+            local t = 0
+            while true do
+                t = t + 0.15
+                if TypingIndicatorFrame.Visible then
+                    TypingDot1.Position = UDim2.new(0, 2, 0.5, math.sin(t * 5) * 2)
+                    TypingDot2.Position = UDim2.new(0, 9, 0.5, math.sin(t * 5 - 0.7) * 2)
+                    TypingDot3.Position = UDim2.new(0, 16, 0.5, math.sin(t * 5 - 1.4) * 2)
+                end
+                task.wait(0.03)
+            end
+        end)
 
         -- Bottom divider above input container area
         New("Frame", {
@@ -9665,14 +9739,16 @@ end
             if ReplyTarget then
                 ReplyBanner.Visible = true
                 InputBar.Size = UDim2.new(1, 0, 0, 72)
-                ChatScroll.Size = UDim2.new(1, 0, 1, -109)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -129)
+                TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
                 ChatInput.Position = UDim2.new(0, 8, 0, 32)
                 SendBtn.Position = UDim2.new(1, -30, 0, 32)
                 ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
             else
                 ReplyBanner.Visible = false
                 InputBar.Size = UDim2.new(1, 0, 0, 46)
-                ChatScroll.Size = UDim2.new(1, 0, 1, -83)
+                ChatScroll.Size = UDim2.new(1, 0, 1, -103)
+                TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
                 ChatInput.Position = UDim2.new(0, 8, 0, 8)
                 SendBtn.Position = UDim2.new(1, -30, 0, 8)
                 ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
@@ -9724,7 +9800,7 @@ end
             return tostring(math.random(100000, 999999))
         end
 
-        local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser, deleteMessageId)
+        local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser, deleteMessageId, isTypingState)
             if not HttpRequest then return end
             local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
             local data = {
@@ -9736,7 +9812,8 @@ end
                 Time = timestamp,
                 Reactions = reactions or {},
                 PingUser = targetPingUser,
-                DeleteId = deleteMessageId
+                DeleteId = deleteMessageId,
+                IsTyping = isTypingState
             }
             if replyData then
                 data.ReplyToId = replyData.Id
@@ -9756,6 +9833,21 @@ end
                 end)
             end)
         end
+
+        -- Typing ping handler loop
+        local LastTypingSent = 0
+        local WasTyping = false
+        ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
+            local hasText = #ChatInput.Text > 0
+            if hasText ~= WasTyping then
+                WasTyping = hasText
+                LastTypingSent = tick()
+                SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, hasText)
+            elseif hasText and tick() - LastTypingSent > 3 then
+                LastTypingSent = tick()
+                SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, true)
+            end
+        end)
 
         -- Admin Lookup
         local AdminUserIds = {
@@ -10352,6 +10444,9 @@ end
             local currentReply = ReplyTarget
 
             ReplyTarget = nil
+            WasTyping = false
+            SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, false)
+
             UpdateInputLayout()
             for _, rData in pairs(ActiveMessageRows) do
                 if rData.SetHighlight then rData.SetHighlight(false) end
@@ -10365,7 +10460,7 @@ end
 
             local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
             AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
-            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil)
+            SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
         end
 
         -- Initial Fetch & Polling
@@ -10382,6 +10477,29 @@ end
                             return game:GetService("HttpService"):JSONDecode(Result.Body)
                         end)
                         if Success and type(Decoded) == "table" then
+                            -- Handle Typing Users list from backend
+                            local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
+                            local activeTypingNames = {}
+                            for _, uName in ipairs(typingList) do
+                                if uName and uName ~= LocalPlayer.Name then
+                                    table.insert(activeTypingNames, uName)
+                                end
+                            end
+
+                            if #activeTypingNames > 0 then
+                                TypingIndicatorFrame.Visible = true
+                                TypingDotsHolder.Visible = true
+                                if #activeTypingNames == 1 then
+                                    TypingLabel.Text = activeTypingNames[1] .. " is typing..."
+                                elseif #activeTypingNames == 2 then
+                                    TypingLabel.Text = activeTypingNames[1] .. " and " .. activeTypingNames[2] .. " are typing..."
+                                else
+                                    TypingLabel.Text = "Several people are typing..."
+                                end
+                            else
+                                TypingIndicatorFrame.Visible = false
+                            end
+
                             local messageList = Decoded.Messages or Decoded
 
                             if type(messageList) == "table" then
@@ -10495,6 +10613,8 @@ end
         ChatCloseBtn.MouseButton1Click:Connect(function()
             ChatGui.Visible = false
             ChatOpen = false
+            WasTyping = false
+            SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, false)
             TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
             TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
             if ChatBtnIcon then
@@ -10584,7 +10704,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing42
+    --testing43
     return Window
 end
 
