@@ -9863,14 +9863,11 @@ local function OpenUserContextMenu(targetUser, targetUserId)
     local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
     local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
-    print("[ContextDebug] Target:", targetUser, "| IsMuted:", tostring(isTargetMuted), "| IsAdmin:", tostring(isAdminUser))
-
-    local menuHeight = isAdminUser and 138 or 108
-
     ActiveContextMenu = New("Frame", {
         BackgroundColor3 = Color3.fromRGB(18, 19, 22),
         Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-        Size = UDim2.fromOffset(160, menuHeight),
+        Size = UDim2.fromOffset(160, 0), -- Width 160, height will auto-scale
+        AutomaticSize = Enum.AutomaticSize.Y, -- Automatically fits all child elements
         ZIndex = 800,
         Parent = ScreenGui,
     })
@@ -9981,11 +9978,9 @@ local function OpenUserContextMenu(targetUser, targetUserId)
                     MuteUserId = tostring(resolvedUserId)
                 }
 
-                print("[ContextDebug] HttpRequest availability:", tostring(HttpRequest ~= nil))
-
                 if HttpRequest then
-                    local success, res = pcall(function()
-                        return HttpRequest({
+                    pcall(function()
+                        HttpRequest({
                             Url = "http://167.99.144.89:8081/chatbox",
                             Method = "POST",
                             Headers = {
@@ -9995,9 +9990,6 @@ local function OpenUserContextMenu(targetUser, targetUserId)
                             Body = game:GetService("HttpService"):JSONEncode(payload),
                         })
                     end)
-                    print("[ContextDebug] Request success:", success, "Response:", tostring(res))
-                else
-                    warn("[ContextDebug] HttpRequest function is missing!")
                 end
                 AddMessage("System", "Executed command: " .. commandText, true)
             end)
@@ -11177,7 +11169,7 @@ end
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing384
+    --testing386
     return Window
 end
 
