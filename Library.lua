@@ -9433,12 +9433,13 @@ end
 -- ==========================================
 -- CHATBOX WINDOW.lua (Fully Updated & Fixed)
 -- ==========================================
+-- CHATBOX WINDOW.lua[cite: 1]
 do
     local ChatOpen = false
     local ChatMessages = {}
-    local ReplyTarget = nil 
-    local NicknameTarget = nil 
-    local ActiveMessageRows = {} 
+    local ReplyTarget = nil
+    local NicknameTarget = nil
+    local ActiveMessageRows = {}
 
     local MutedUsernamesMap = {}
 
@@ -9867,7 +9868,6 @@ do
                 btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
             end)
 
-            -- Fixed to use MouseButton1Down to guarantee full execution before closure
             btn.MouseButton1Down:Connect(function()
                 CloseContextMenu()
                 task.spawn(callback)
@@ -9898,8 +9898,9 @@ do
 
         if isAdminUser then
             local commandText = isTargetMuted and (",unmute " .. targetUser) or (",mute " .. targetUser .. " 1h")
+            local actionButtonText = isTargetMuted and "Unmute User" or "Mute User"
 
-            CreateMenuOption(isTargetMuted and "Unmute" or "Mute", Color3.fromRGB(255, 60, 60), function()
+            CreateMenuOption(actionButtonText, Color3.fromRGB(255, 60, 60), function()
                 local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
                 local resolvedUserId = targetUserId
                 if not resolvedUserId then
@@ -9934,7 +9935,7 @@ do
                         })
                     end)
                 end
-                Window.ChatAddMessage("System", "Executed command: " .. commandText, true)
+                Window.ChatAddMessage("System", "Successfully executed: " .. commandText, true)
             end)
         end
     end
@@ -10252,8 +10253,14 @@ do
                         if user == LocalPlayer.Name then foundIndex = i; break end
                     end
 
-                    if foundIndex then table.remove(currentRx[emoji], foundIndex)
-                    else table.insert(currentRx[emoji], LocalPlayer.Name) end
+                    if foundIndex then 
+                        table.remove(currentRx[emoji], foundIndex)
+                        if #currentRx[emoji] == 0 then
+                            currentRx[emoji] = nil
+                        end
+                    else 
+                        table.insert(currentRx[emoji], LocalPlayer.Name) 
+                    end
 
                     currentRowReactions = currentRx
                     if activePickerMenu then
@@ -10554,7 +10561,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing383
+    --testing381
     return Window
 end
 
