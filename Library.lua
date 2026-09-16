@@ -10623,15 +10623,15 @@ do
                 for word in Msg:gmatch("%S+") do
                     table.insert(args, word)
                 end
-                
+
                 if #args >= 3 then
                     local targetUsername = args[2]
                     local timeLength = args[3]
-                    
+
                     local success, targetUserId = pcall(function()
                         return game:GetService("Players"):GetUserIdFromNameAsync(targetUsername)
                     end)
-                    
+
                     if not success or not targetUserId then
                         targetUserId = 0
                     end
@@ -10643,7 +10643,7 @@ do
                     if unit == "m" then multiplier = 60
                     elseif unit == "h" then multiplier = 3600
                     elseif unit == "d" then multiplier = 86400 end
-                    
+
                     local totalSeconds = (tonumber(timeLength) or value) * (unit == "s" or unit == "m" or unit == "h" or unit == "d" and multiplier or 1)
                     if unit == "m" or unit == "h" or unit == "d" then
                         totalSeconds = (tonumber(timeLength:sub(1, -2)) or 1) * multiplier
@@ -10653,12 +10653,17 @@ do
 
                     local finishEpoch = os.time() + totalSeconds
                     local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
-
-                    local muteData = {
-                        username = targetUsername,
-                        mutelength = timeLength,
-                        finishdate = finishDateFormatted,
-                        userid = tostring(targetUserId)
+local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+local muteData = {
+                        Username = LocalPlayer.Name,
+                        UserId = tostring(LocalPlayer.UserId),
+                        Roles = {"user"},
+                        Message = Msg,
+                        Time = timestamp,
+                        MuteUser = targetUsername,
+                        MuteLength = timeLength,
+                        FinishDate = finishDateFormatted,
+                        MuteUserId = tostring(targetUserId)
                     }
 
                     if HttpRequest then
@@ -10986,7 +10991,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing1
+    --testing3
     return Window
 end
 
