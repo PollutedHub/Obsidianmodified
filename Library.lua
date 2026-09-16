@@ -9579,34 +9579,40 @@ end
 
         -- Reply Context Banner (Hidden by default)
         local ReplyBanner = New("Frame", {
-            BackgroundTransparency = 1,
+            BackgroundColor3 = Color3.fromRGB(35, 37, 42),
             Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -16, 0, 20),
+            Size = UDim2.new(1, -16, 0, 22),
             Visible = false,
             ZIndex = 502,
             Parent = InputBar,
         })
+        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ReplyBanner })
+        New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = ReplyBanner })
+
         local ReplyBannerText = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -24, 1, 0),
+            Position = UDim2.new(0, 8, 0, 0),
+            Size = UDim2.new(1, -32, 1, 0),
             Text = "Replying to user",
-            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextColor3 = Color3.fromRGB(220, 220, 220),
             TextSize = 12,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 503,
             Parent = ReplyBanner,
         })
         local ReplyCancelBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(1, 0, 0.5, 0),
-            Size = UDim2.fromOffset(18, 18),
+            BackgroundColor3 = Color3.fromRGB(50, 52, 58),
+            Position = UDim2.new(1, -4, 0.5, 0),
+            Size = UDim2.fromOffset(16, 16),
             Text = "✕",
-            TextColor3 = Color3.fromRGB(180, 180, 180),
-            TextSize = 12,
-            ZIndex = 503,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextSize = 10,
+            ZIndex = 504,
             Parent = ReplyBanner,
         })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
 
         local ChatInput = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0),
@@ -9676,14 +9682,14 @@ end
             UpdateInputLayout()
         end)
 
-        -- Resize handle
+        -- Resize handle (Enlarged and positioned properly at bottom right)
         local ChatResizeBtn = New("TextButton", {
             AnchorPoint = Vector2.new(1, 1),
             BackgroundTransparency = 1,
             Position = UDim2.fromScale(1, 1),
-            Size = UDim2.fromOffset(16, 16),
+            Size = UDim2.fromOffset(24, 24),
             Text = "",
-            ZIndex = ChatGui.ZIndex + 1,
+            ZIndex = ChatGui.ZIndex + 10,
             Parent = ChatGui,
         })
         if ResizeIcon then
@@ -9694,7 +9700,7 @@ end
                 ImageRectOffset = ResizeIcon.ImageRectOffset,
                 ImageRectSize = ResizeIcon.ImageRectSize,
                 Size = UDim2.fromScale(1, 1),
-                ZIndex = ChatGui.ZIndex + 2,
+                ZIndex = ChatGui.ZIndex + 11,
                 Parent = ChatResizeBtn,
             })
         end
@@ -9778,8 +9784,6 @@ end
             end
             return false
         end
-
-        local UpdateMessageReactions
 
         -- Global table to keep track of any open reactor menus so clicking anywhere else closes them
         local ActiveReactorMenus = {}
@@ -9905,7 +9909,7 @@ end
                 Parent = BinProgressStroke,
             })
 
-            local currentRowReactions = reactions or { ["❤️"] = {} }
+            local currentRowReactions = reactions or {}
 
             ReplyBtn.MouseButton1Click:Connect(function()
                 ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
@@ -9914,30 +9918,97 @@ end
                 ChatInput:CaptureFocus()
             end)
 
+            -- Multi-Emoji Picker Menu on Heart Button Click
+            local activePickerMenu = nil
             HeartBtn.MouseButton1Click:Connect(function()
-                local currentRx = { ["❤️"] = {} }
-                if currentRowReactions and currentRowReactions["❤️"] then
-                    for _, u in ipairs(currentRowReactions["❤️"]) do
-                        table.insert(currentRx["❤️"], u)
-                    end
+                if activePickerMenu then
+                    ActiveReactorMenus[activePickerMenu] = nil
+                    activePickerMenu:Destroy()
+                    activePickerMenu = nil
+                    return
                 end
 
-                local foundIndex = nil
-                for i, user in ipairs(currentRx["❤️"]) do
-                    if user == LocalPlayer.Name then
-                        foundIndex = i
-                        break
-                    end
+                activePickerMenu = New("Frame", {
+                    BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+                    Position = UDim2.new(1, -140, 0, 28),
+                    Size = UDim2.fromOffset(140, 34),
+                    ZIndex = 600,
+                    Parent = ActionBar,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activePickerMenu })
+                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activePickerMenu })
+                
+                local pickerLayout = New("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 4),
+                    Parent = activePickerMenu,
+                })
+                New("UIPadding", {
+                    PaddingTop = UDim.new(0, 5),
+                    PaddingBottom = UDim.new(0, 5),
+                    PaddingLeft = UDim.new(0, 5),
+                    PaddingRight = UDim.new(0, 5),
+                    Parent = activePickerMenu,
+                })
+
+                local availableEmojis = {"👍", "❤️", "😂", "😮", "😢", "🔥"}
+                for _, emoji in ipairs(availableEmojis) do
+                    local emojiBtn = New("TextButton", {
+                        BackgroundTransparency = 1,
+                        Size = UDim2.fromOffset(20, 20),
+                        Text = emoji,
+                        TextSize = 13,
+                        ZIndex = 601,
+                        Parent = activePickerMenu,
+                    })
+
+                    emojiBtn.MouseButton1Click:Connect(function()
+                        local currentRx = {}
+                        for e, list in pairs(currentRowReactions) do
+                            currentRx[e] = {}
+                            for _, u in ipairs(list) do table.insert(currentRx[e], u) end
+                        end
+
+                        if not currentRx[emoji] then currentRx[emoji] = {} end
+
+                        local foundIndex = nil
+                        for i, user in ipairs(currentRx[emoji]) do
+                            if user == LocalPlayer.Name then
+                                foundIndex = i
+                                break
+                            end
+                        end
+
+                        if foundIndex then
+                            table.remove(currentRx[emoji], foundIndex)
+                        else
+                            table.insert(currentRx[emoji], LocalPlayer.Name)
+                        end
+
+                        currentRowReactions = currentRx
+                        SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
+
+                        if activePickerMenu then
+                            ActiveReactorMenus[activePickerMenu] = nil
+                            activePickerMenu:Destroy()
+                            activePickerMenu = nil
+                        end
+                    end)
                 end
 
-                if foundIndex then
-                    table.remove(currentRx["❤️"], foundIndex)
-                else
-                    table.insert(currentRx["❤️"], LocalPlayer.Name)
+                ActiveReactorMenus[activePickerMenu] = function()
+                    if not activePickerMenu or not activePickerMenu.Parent then return true end
+                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                    local absPos = activePickerMenu.AbsolutePosition
+                    local absSize = activePickerMenu.AbsoluteSize
+                    local isInside = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
+                    local heartPos = HeartBtn.AbsolutePosition
+                    local heartSize = HeartBtn.AbsoluteSize
+                    local isInsideHeart = (mousePos.X >= heartPos.X and mousePos.X <= heartPos.X + heartSize.X and mousePos.Y >= heartPos.Y and mousePos.Y <= heartPos.Y + heartSize.Y)
+                    return not (isInside or isInsideHeart)
                 end
-
-                currentRowReactions = currentRx
-                SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
             end)
 
             local isHoldingDelete = false
@@ -10189,7 +10260,7 @@ end
 
             ActiveMessageRows[msgIdStr] = {
                 UpdateReactions = function(newRx)
-                    currentRowReactions = newRx or { ["❤️"] = {} }
+                    currentRowReactions = newRx or {}
                     RenderReactionPill(currentRowReactions)
                 end
             }
@@ -10459,7 +10530,7 @@ end
 
         Window.ChatAddMessage = AddMessage
     end
-    --testing34
+    --testing35
     return Window
 end
 
