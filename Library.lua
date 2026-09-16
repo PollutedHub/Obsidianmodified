@@ -9431,7 +9431,7 @@ end
     end))
 
 -- ==========================================
--- CHATBOX WINDOW.lua (Fully Updated)
+-- CHATBOX WINDOW.lua (Fully Updated & Fixed)
 -- ==========================================
 do
     local ChatOpen = false
@@ -9482,6 +9482,26 @@ do
         if mins > 0 then table.insert(parts, mins .. "m") end
         if secs > 0 or #parts == 0 then table.insert(parts, secs .. "s") end
         return table.concat(parts, " ")
+    end
+
+    -- Admin Lookup (Declared early so it is always available)
+    local AdminUserIds = {
+        [11117216138] = true,
+        [2327711124] = true,
+    }
+
+    local function IsAdmin(userId, username)
+        if userId then
+            local numId = tonumber(userId)
+            if numId and AdminUserIds[numId] then return true end
+        end
+        if username then
+            local success, fetchedId = pcall(function()
+                return game:GetService("Players"):GetUserIdFromNameAsync(username)
+            end)
+            if success and fetchedId and AdminUserIds[fetchedId] then return true end
+        end
+        return false
     end
 
     local ChatGui = New("Frame", {
@@ -10103,26 +10123,6 @@ do
             SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, true)
         end
     end)
-
-    -- Admin Lookup
-    local AdminUserIds = {
-        [11117216138] = true,
-        [2327711124] = true,
-    }
-
-    local function IsAdmin(userId, username)
-        if userId then
-            local numId = tonumber(userId)
-            if numId and AdminUserIds[numId] then return true end
-        end
-        if username then
-            local success, fetchedId = pcall(function()
-                return game:GetService("Players"):GetUserIdFromNameAsync(username)
-            end)
-            if success and fetchedId and AdminUserIds[fetchedId] then return true end
-        end
-        return false
-    end
 
     local LastMessageTime = 0
     local SpamCooldown = 2
@@ -11194,7 +11194,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing39
+    --testing38
     return Window
 end
 
