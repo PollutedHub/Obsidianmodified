@@ -9444,7 +9444,6 @@ do
     local MutedUsernamesMap = {}
     local LocalMuteExpiration = 0
 
-    -- Move HttpRequest declaration to the top so all functions can access it
     local HttpRequest = request or http_request or (syn and syn.request) or nil
 
     local NICKNAME_FILE = "chatbox_nicknames.json"
@@ -9507,7 +9506,6 @@ do
         return false
     end
 
-    -- Cache of users for @mentions (populated strictly via VPS KnownUsers)
     local SeenUsers = {}
     local function RegisterSeenUser(username)
         if username and type(username) == "string" and username ~= "" then
@@ -9515,7 +9513,6 @@ do
         end
     end
 
-    -- Function to register user to the VPS for cross-server visibility
     local function RegisterUserToVPS(username)
         if not HttpRequest then return end
         task.spawn(function()
@@ -9533,7 +9530,6 @@ do
         end)
     end
 
-    -- Send ONLY the local player's username to the VPS on load and add to local mentions
     if game:GetService("Players").LocalPlayer then
         RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
         RegisterUserToVPS(game:GetService("Players").LocalPlayer.Name)
@@ -9552,15 +9548,15 @@ do
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
     table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
 
-    -- Left Navigation Panel for selecting menus
+    -- Left Navigation Panel properly anchored inside ChatGui
     local LeftNavPanel = New("Frame", {
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 0, 0),
         Size = UDim2.new(0, 110, 1, 0),
         ZIndex = 501,
+        Parent = ChatGui,
     })
-    LeftNavPanel.Parent = ChatGui
 
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = LeftNavPanel })
     
@@ -9605,7 +9601,6 @@ do
         Parent = ChatGui,
     })
 
-    -- Views definition
     local GlobalChatView = New("Frame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -9682,7 +9677,7 @@ do
         Parent = SettingsView,
     })
 
-    -- Chat Title Bar (Restored inside GlobalChatView)
+    -- Chat Title Bar
     local ChatTitleBar = New("Frame", {
         BackgroundColor3 = "MainColor",
         Size = UDim2.new(1, 0, 0, 36),
@@ -9924,7 +9919,6 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SendBtn })
 
-    -- Discord-style Mention Auto-complete Menu
     local MentionMenu = New("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = Color3.fromRGB(43, 45, 49),
@@ -9973,7 +9967,6 @@ do
         Parent = MentionScroll,
     })
 
-    -- Navigation Menu Selection Logic
     local currentActiveTab = "Global"
     local function SwitchNavTab(tabName)
         if tabName == "Panel" and not IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
@@ -9986,7 +9979,6 @@ do
         AdminPanelView.Visible = (tabName == "Panel")
         SettingsView.Visible = (tabName == "Settings")
 
-        -- Update buttons styling
         for _, child in ipairs(LeftNavPanel:GetChildren()) do
             if child:IsA("TextButton") then
                 if child.Name == tabName .. "NavBtn" then
@@ -10485,15 +10477,6 @@ do
     local LastMessageTime = 0
     local SpamCooldown = 2
     local BannedWords = {}
-
-    local function ContainsBannedWord(Msg)
-        local Lower = Msg:lower()
-        if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
-        for _, Word in BannedWords do
-            if Lower:match(Word:lower()) then return true end
-        end
-        return false
-    end
 
     local ActiveReactorMenus = {}
 
@@ -11033,7 +11016,6 @@ do
             if rData.SetHighlight then rData.SetHighlight(false) end
         end
 
-        -- Parse out any @mentions to automatically trigger server pings
         local targetPingUser = nil
         for word in CurrentMsg:gmatch("%S+") do
             if word:sub(1, 1) == "@" then
@@ -11201,7 +11183,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing388811111333333333
+    --testing38881111111111111112
     return Window
 end
 
