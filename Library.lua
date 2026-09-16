@@ -9431,1283 +9431,1533 @@ end
     end))
 
 -- CHATBOX WINDOW
-    do
-        local ChatOpen = false
-        local ChatMessages = {}
-        local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
-        local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
+do
+    local ChatOpen = false
+    local ChatMessages = {}
+    local ReplyTarget = nil -- Stores {Id = string, Username = string, Text = string}
+    local ActiveMessageRows = {} -- Stores row references by MessageId for live reaction updates
 
-        local ChatGui = New("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = "BackgroundColor",
-            Position = UDim2.fromScale(0.5, 0.5),
-            Size = UDim2.fromOffset(380, 480),
-            Visible = false,
-            ZIndex = 500,
+    -- Local Nicknames Management (writefile / readfile)
+    local NICKNAME_FILE = "chatbox_nicknames.json"
+    local CustomNicknames = {}
+
+    local function LoadNicknames()
+        if isfile and readfile and isfile(NICKNAME_FILE) then
+            pcall(function()
+                CustomNicknames = game:GetService("HttpService"):JSONDecode(readfile(NICKNAME_FILE)) or {}
+            end)
+        end
+    end
+
+    local function SaveNicknames()
+        if writefile then
+            pcall(function()
+                writefile(NICKNAME_FILE, game:GetService("HttpService"):JSONEncode(CustomNicknames))
+            end)
+        end
+    end
+
+    LoadNicknames()
+
+    local function GetDisplayName(username)
+        return CustomNicknames[username] or username
+    end
+
+    local ChatGui = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = "BackgroundColor",
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(380, 480),
+        Visible = false,
+        ZIndex = 500,
+        Parent = ScreenGui,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius),
+        Parent = ChatGui,
+    })
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Thickness = 1,
+        Parent = ChatGui,
+    })
+    table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
+
+    -- Title bar
+    local ChatTitleBar = New("Frame", {
+        BackgroundColor3 = "MainColor",
+        Size = UDim2.new(1, 0, 0, 36),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius),
+        Parent = ChatTitleBar,
+    })
+    New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "MainColor",
+        BorderSizePixel = 0,
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+        ZIndex = 501,
+        Parent = ChatTitleBar,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "Global Chat",
+        TextColor3 = "FontColor",
+        TextSize = 15,
+        ZIndex = 502,
+        Parent = ChatTitleBar,
+    })
+
+    -- Close button
+    local ChatCloseBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(24, 24),
+        Text = "X",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 13,
+        ZIndex = 510,
+        Parent = ChatTitleBar,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+        Parent = ChatCloseBtn,
+    })
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Parent = ChatCloseBtn,
+    })
+
+    -- Divider under title
+    New("Frame", {
+        BackgroundColor3 = "OutlineColor",
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(0, 36),
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+
+    -- Messages scroll area
+    local ChatScroll = New("ScrollingFrame", {
+        AnchorPoint = Vector2.new(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        CanvasSize = UDim2.fromScale(0, 0),
+        Position = UDim2.fromOffset(0, 37),
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
+        Size = UDim2.new(1, 0, 1, -103),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    local ChatList = New("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = ChatScroll,
+    })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        PaddingTop = UDim.new(0, 6),
+        Parent = ChatScroll,
+    })
+
+    -- Typing Indicator Container
+    local TypingIndicatorFrame = New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 1, -47),
+        Size = UDim2.new(1, -16, 0, 18),
+        Visible = false,
+        ZIndex = 505,
+        Parent = ChatGui,
+    })
+
+    local TypingDotsHolder = New("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromOffset(22, 18),
+        ZIndex = 506,
+        Parent = TypingIndicatorFrame,
+    })
+    local TypingDot1 = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+        Position = UDim2.new(0, 2, 0.5, 0),
+        Size = UDim2.fromOffset(4, 4),
+        ZIndex = 506,
+        Parent = TypingDotsHolder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot1 })
+
+    local TypingDot2 = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+        Position = UDim2.new(0, 9, 0.5, 0),
+        Size = UDim2.fromOffset(4, 4),
+        ZIndex = 506,
+        Parent = TypingDotsHolder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot2 })
+
+    local TypingDot3 = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = Color3.fromRGB(180, 182, 188),
+        Position = UDim2.new(0, 16, 0.5, 0),
+        Size = UDim2.fromOffset(4, 4),
+        ZIndex = 506,
+        Parent = TypingDotsHolder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot3 })
+
+    local TypingLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 26, 0, 0),
+        Size = UDim2.new(1, -26, 1, 0),
+        Text = "",
+        TextColor3 = Color3.fromRGB(180, 182, 188),
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 506,
+        Parent = TypingIndicatorFrame,
+    })
+
+    task.spawn(function()
+        local t = 0
+        while true do
+            t = t + 0.15
+            if TypingIndicatorFrame.Visible then
+                TypingDot1.Position = UDim2.new(0, 2, 0.5, math.sin(t * 5) * 2)
+                TypingDot2.Position = UDim2.new(0, 9, 0.5, math.sin(t * 5 - 0.7) * 2)
+                TypingDot3.Position = UDim2.new(0, 16, 0.5, math.sin(t * 5 - 1.4) * 2)
+            end
+            task.wait(0.03)
+        end
+    end)
+
+    New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "OutlineColor",
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, -46),
+        Size = UDim2.new(1, 0, 0, 1),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+
+    -- Input Bar Container
+    local InputBar = New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, 46),
+        ZIndex = 501,
+        Parent = ChatGui,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius),
+        Parent = InputBar,
+    })
+    New("Frame", {
+        BackgroundColor3 = "MainColor",
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, Library.CornerRadius),
+        ZIndex = 501,
+        Parent = InputBar,
+    })
+
+    -- Reply Context Banner
+    local ReplyBanner = New("Frame", {
+        BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+        Position = UDim2.new(0, 8, 0, 4),
+        Size = UDim2.new(1, -38, 0, 22),
+        Visible = false,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ReplyBanner })
+    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = ReplyBanner })
+
+    local ReplyBannerText = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 0, 0),
+        Size = UDim2.new(1, -32, 1, 0),
+        Text = "Replying to user",
+        TextColor3 = Color3.fromRGB(220, 220, 220),
+        TextSize = 12,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 503,
+        Parent = ReplyBanner,
+    })
+    local ReplyCancelBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = Color3.fromRGB(50, 52, 58),
+        Position = UDim2.new(1, -4, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16),
+        Text = "✕",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 10,
+        ZIndex = 504,
+        Parent = ReplyBanner,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
+
+    -- Nickname Edit Banner (Shown directly above main input bar)
+    local NicknameTargetUser = nil
+    local NicknameBanner = New("Frame", {
+        BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+        Position = UDim2.new(0, 8, 0, 4),
+        Size = UDim2.new(1, -16, 0, 26),
+        Visible = false,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = NicknameBanner })
+    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = NicknameBanner })
+
+    local NicknameInput = New("TextBox", {
+        BackgroundTransparency = 1,
+        ClearTextOnFocus = false,
+        PlaceholderText = "Type new nickname...",
+        PlaceholderColor3 = Color3.fromRGB(150, 150, 150),
+        Position = UDim2.new(0, 8, 0, 0),
+        Size = UDim2.new(1, -80, 1, 0),
+        Text = "",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 503,
+        Parent = NicknameBanner,
+    })
+
+    local NicknameSaveBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+        Position = UDim2.new(1, -26, 0.5, 0),
+        Size = UDim2.fromOffset(40, 18),
+        Text = "Save",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 11,
+        ZIndex = 504,
+        Parent = NicknameBanner,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = NicknameSaveBtn })
+
+    local NicknameCancelBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = Color3.fromRGB(50, 52, 58),
+        Position = UDim2.new(1, -4, 0.5, 0),
+        Size = UDim2.fromOffset(18, 18),
+        Text = "✕",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 10,
+        ZIndex = 504,
+        Parent = NicknameBanner,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = NicknameCancelBtn })
+
+    -- Main Chat Input box
+    local ChatInput = New("TextBox", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = "BackgroundColor",
+        ClearTextOnFocus = false,
+        PlaceholderText = "Send a message...",
+        PlaceholderColor3 = "FontColor",
+        Position = UDim2.new(0, 8, 0, 8),
+        Size = UDim2.new(1, -74, 0, 28),
+        Text = "",
+        TextColor3 = "FontColor",
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+        Parent = ChatInput,
+    })
+    New("UIStroke", {
+        Color = "OutlineColor",
+        Parent = ChatInput,
+    })
+    New("UIPadding", {
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        Parent = ChatInput,
+    })
+
+    -- Send Button
+    local SendBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = "AccentColor",
+        Position = UDim2.new(1, -30, 0, 8),
+        Size = UDim2.fromOffset(40, 28),
+        Text = "Send",
+        TextColor3 = "FontColor",
+        TextSize = 13,
+        ZIndex = 502,
+        Parent = InputBar,
+    })
+    New("UICorner", {
+        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+        Parent = SendBtn,
+    })
+
+    local function UpdateInputLayout()
+        local extraOffset = 0
+        if ReplyTarget then extraOffset = extraOffset + 26 end
+        if NicknameTargetUser then extraOffset = extraOffset + 30 end
+
+        if extraOffset > 0 then
+            InputBar.Size = UDim2.new(1, 0, 0, 46 + extraOffset)
+            ChatScroll.Size = UDim2.new(1, 0, 1, -(103 + extraOffset))
+            TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -(47 + extraOffset))
+            ChatInput.Position = UDim2.new(0, 8, 0, 8 + extraOffset)
+            SendBtn.Position = UDim2.new(1, -30, 0, 8 + extraOffset)
+        else
+            ReplyBanner.Visible = false
+            NicknameBanner.Visible = false
+            InputBar.Size = UDim2.new(1, 0, 0, 46)
+            ChatScroll.Size = UDim2.new(1, 0, 1, -103)
+            TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
+            ChatInput.Position = UDim2.new(0, 8, 0, 8)
+            SendBtn.Position = UDim2.new(1, -30, 0, 8)
+            ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
+        end
+
+        if ReplyTarget then
+            ReplyBanner.Visible = true
+            ReplyBanner.Position = UDim2.new(0, 8, 0, 4)
+            ChatInput.PlaceholderText = "Message @" .. GetDisplayName(ReplyTarget.Username)
+        else
+            ReplyBanner.Visible = false
+        end
+
+        if NicknameTargetUser then
+            NicknameBanner.Visible = true
+            NicknameBanner.Position = UDim2.new(0, 8, 0, ReplyTarget and 32 or 4)
+            NicknameInput.PlaceholderText = "Set nickname for @" .. NicknameTargetUser
+        else
+            NicknameBanner.Visible = false
+        end
+    end
+
+    ReplyCancelBtn.MouseButton1Click:Connect(function()
+        ReplyTarget = nil
+        UpdateInputLayout()
+        for _, rData in pairs(ActiveMessageRows) do
+            if rData.SetHighlight then rData.SetHighlight(false) end
+        end
+    end)
+
+    NicknameCancelBtn.MouseButton1Click:Connect(function()
+        NicknameTargetUser = nil
+        NicknameInput.Text = ""
+        UpdateInputLayout()
+    end)
+
+    -- Context Menu (Discord Style)
+    local ActiveContextMenu = nil
+    local function CloseContextMenu()
+        if ActiveContextMenu then
+            ActiveContextMenu:Destroy()
+            ActiveContextMenu = nil
+        end
+    end
+
+    local function OpenUserContextMenu(targetUser, targetUserId)
+        CloseContextMenu()
+
+        local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+
+        ActiveContextMenu = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+            Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
+            Size = UDim2.fromOffset(160, 108),
+            ZIndex = 800,
             Parent = ScreenGui,
         })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius),
-            Parent = ChatGui,
-        })
-        New("UIStroke", {
-            Color = "OutlineColor",
-            Thickness = 1,
-            Parent = ChatGui,
-        })
-        table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
+        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ActiveContextMenu })
+        New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ActiveContextMenu })
 
-        -- Title bar
-        local ChatTitleBar = New("Frame", {
-            BackgroundColor3 = "MainColor",
-            Size = UDim2.new(1, 0, 0, 36),
-            ZIndex = 501,
-            Parent = ChatGui,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius),
-            Parent = ChatTitleBar,
-        })
-        New("Frame", {
-            AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = "MainColor",
-            BorderSizePixel = 0,
-            Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(1, 0, 0, Library.CornerRadius),
-            ZIndex = 501,
-            Parent = ChatTitleBar,
-        })
-
-        New("TextLabel", {
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 1),
-            Text = "Global Chat",
-            TextColor3 = "FontColor",
-            TextSize = 15,
-            ZIndex = 502,
-            Parent = ChatTitleBar,
-        })
-
-        -- Close button
-        local ChatCloseBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundColor3 = "MainColor",
-            Position = UDim2.new(1, -8, 0.5, 0),
-            Size = UDim2.fromOffset(24, 24),
-            Text = "X",
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 13,
-            ZIndex = 510,
-            Parent = ChatTitleBar,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-            Parent = ChatCloseBtn,
-        })
-        New("UIStroke", {
-            Color = "OutlineColor",
-            Parent = ChatCloseBtn,
-        })
-
-        -- Divider under title
-        New("Frame", {
-            BackgroundColor3 = "OutlineColor",
-            BorderSizePixel = 0,
-            Position = UDim2.fromOffset(0, 36),
-            Size = UDim2.new(1, 0, 0, 1),
-            ZIndex = 501,
-            Parent = ChatGui,
-        })
-
-        -- Messages scroll area
-        local ChatScroll = New("ScrollingFrame", {
-            AnchorPoint = Vector2.new(0, 0),
-            AutomaticCanvasSize = Enum.AutomaticSize.Y,
-            BackgroundTransparency = 1,
-            CanvasSize = UDim2.fromScale(0, 0),
-            Position = UDim2.fromOffset(0, 37),
-            ScrollBarImageColor3 = "OutlineColor",
-            ScrollBarThickness = 3,
-            Size = UDim2.new(1, 0, 1, -103),
-            ZIndex = 501,
-            Parent = ChatGui,
-        })
-        local ChatList = New("UIListLayout", {
-            Padding = UDim.new(0, 4),
+        local menuLayout = New("UIListLayout", {
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Parent = ChatScroll,
+            Padding = UDim.new(0, 2),
+            Parent = ActiveContextMenu,
         })
         New("UIPadding", {
+            PaddingTop = UDim.new(0, 6),
             PaddingBottom = UDim.new(0, 6),
             PaddingLeft = UDim.new(0, 6),
             PaddingRight = UDim.new(0, 6),
-            PaddingTop = UDim.new(0, 6),
-            Parent = ChatScroll,
+            Parent = ActiveContextMenu,
         })
 
-        -- Typing Indicator Container (Sits right above the input bar)
-        local TypingIndicatorFrame = New("Frame", {
-            AnchorPoint = Vector2.new(0, 1),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 8, 1, -47),
-            Size = UDim2.new(1, -16, 0, 18),
-            Visible = false,
-            ZIndex = 505,
-            Parent = ChatGui,
-        })
+        local function CreateMenuOption(text, iconText, callback)
+            local btn = New("TextButton", {
+                BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+                BackgroundTransparency = 0,
+                Size = UDim2.new(1, 0, 0, 28),
+                Text = "",
+                ZIndex = 801,
+                Parent = ActiveContextMenu,
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
 
-        -- Animated mini dots container
-        local TypingDotsHolder = New("Frame", {
-            BackgroundTransparency = 1,
-            Size = UDim2.fromOffset(22, 18),
-            ZIndex = 506,
-            Parent = TypingIndicatorFrame,
-        })
-        local TypingDot1 = New("Frame", {
-            AnchorPoint = Vector2.new(0, 0.5),
-            BackgroundColor3 = Color3.fromRGB(180, 182, 188),
-            Position = UDim2.new(0, 2, 0.5, 0),
-            Size = UDim2.fromOffset(4, 4),
-            ZIndex = 506,
-            Parent = TypingDotsHolder,
-        })
-        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot1 })
+            local label = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(1, -16, 1, 0),
+                Text = (iconText and (iconText .. "  ") or "") .. text,
+                TextColor3 = Color3.fromRGB(185, 187, 190),
+                TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 802,
+                Parent = btn,
+            })
 
-        local TypingDot2 = New("Frame", {
-            AnchorPoint = Vector2.new(0, 0.5),
-            BackgroundColor3 = Color3.fromRGB(180, 182, 188),
-            Position = UDim2.new(0, 9, 0.5, 0),
-            Size = UDim2.fromOffset(4, 4),
-            ZIndex = 506,
-            Parent = TypingDotsHolder,
-        })
-        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot2 })
+            btn.MouseEnter:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+                label.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end)
+            btn.MouseLeave:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
+                label.TextColor3 = Color3.fromRGB(185, 187, 190)
+            end)
 
-        local TypingDot3 = New("Frame", {
-            AnchorPoint = Vector2.new(0, 0.5),
-            BackgroundColor3 = Color3.fromRGB(180, 182, 188),
-            Position = UDim2.new(0, 16, 0.5, 0),
-            Size = UDim2.fromOffset(4, 4),
-            ZIndex = 506,
-            Parent = TypingDotsHolder,
-        })
-        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = TypingDot3 })
+            btn.MouseButton1Click:Connect(function()
+                CloseContextMenu()
+                callback()
+            end)
+        end
 
-        local TypingLabel = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 26, 0, 0),
-            Size = UDim2.new(1, -26, 1, 0),
-            Text = "",
-            TextColor3 = Color3.fromRGB(180, 182, 188),
-            TextSize = 12,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 506,
-            Parent = TypingIndicatorFrame,
-        })
-
-        -- Dot bouncing loop animation
-        task.spawn(function()
-            local t = 0
-            while true do
-                t = t + 0.15
-                if TypingIndicatorFrame.Visible then
-                    TypingDot1.Position = UDim2.new(0, 2, 0.5, math.sin(t * 5) * 2)
-                    TypingDot2.Position = UDim2.new(0, 9, 0.5, math.sin(t * 5 - 0.7) * 2)
-                    TypingDot3.Position = UDim2.new(0, 16, 0.5, math.sin(t * 5 - 1.4) * 2)
-                end
-                task.wait(0.03)
+        -- Option 1: Copy Username
+        CreateMenuOption("Copy Username", "👤", function()
+            if setclipboard then
+                setclipboard(targetUser)
+                Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
             end
         end)
 
-        -- Bottom divider above input container area
-        New("Frame", {
-            AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = "OutlineColor",
-            BorderSizePixel = 0,
-            Position = UDim2.new(0, 0, 1, -46),
-            Size = UDim2.new(1, 0, 0, 1),
-            ZIndex = 501,
-            Parent = ChatGui,
-        })
+        -- Option 2: Copy UserID
+        CreateMenuOption("Copy UserID", "🆔", function()
+            if setclipboard then
+                setclipboard(tostring(targetUserId or 0))
+                Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
+            end
+        end)
 
-        -- Input Bar Container (Dynamic height when replying)
-        local InputBar = New("Frame", {
-            AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = "MainColor",
-            Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(1, 0, 0, 46),
-            ZIndex = 501,
-            Parent = ChatGui,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius),
-            Parent = InputBar,
-        })
-        New("Frame", {
-            BackgroundColor3 = "MainColor",
-            BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 0, Library.CornerRadius),
-            ZIndex = 501,
-            Parent = InputBar,
-        })
+        -- Option 3: Set Nickname
+        CreateMenuOption("Set Nickname", "✏️", function()
+            NicknameTargetUser = targetUser
+            NicknameInput.Text = CustomNicknames[targetUser] or ""
+            UpdateInputLayout()
+            NicknameInput:CaptureFocus()
+        end)
+    end
 
-        -- Reply Context Banner (Hidden by default)
-        local ReplyBanner = New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-            Position = UDim2.new(0, 8, 0, 4),
-            Size = UDim2.new(1, -38, 0, 22),
-            Visible = false,
-            ZIndex = 502,
-            Parent = InputBar,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ReplyBanner })
-        New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = ReplyBanner })
-
-        local ReplyBannerText = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 8, 0, 0),
-            Size = UDim2.new(1, -32, 1, 0),
-            Text = "Replying to user",
-            TextColor3 = Color3.fromRGB(220, 220, 220),
-            TextSize = 12,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 503,
-            Parent = ReplyBanner,
-        })
-        local ReplyCancelBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            BackgroundColor3 = Color3.fromRGB(50, 52, 58),
-            Position = UDim2.new(1, -4, 0.5, 0),
-            Size = UDim2.fromOffset(16, 16),
-            Text = "✕",
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = 10,
-            ZIndex = 504,
-            Parent = ReplyBanner,
-        })
-        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyCancelBtn })
-
-        -- Main Chat Input box (Shortened on right so resize arrows never overlap it)
-        local ChatInput = New("TextBox", {
-            AnchorPoint = Vector2.new(0, 0),
-            BackgroundColor3 = "BackgroundColor",
-            ClearTextOnFocus = false,
-            PlaceholderText = "Send a message...",
-            PlaceholderColor3 = "FontColor",
-            Position = UDim2.new(0, 8, 0, 8),
-            Size = UDim2.new(1, -74, 0, 28),
-            Text = "",
-            TextColor3 = "FontColor",
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 502,
-            Parent = InputBar,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-            Parent = ChatInput,
-        })
-        New("UIStroke", {
-            Color = "OutlineColor",
-            Parent = ChatInput,
-        })
-        New("UIPadding", {
-            PaddingLeft = UDim.new(0, 8),
-            PaddingRight = UDim.new(0, 8),
-            Parent = ChatInput,
-        })
-
-        -- Send Button (Keeps standard size and text cleanly clear of resize grip)
-        local SendBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 0),
-            BackgroundColor3 = "AccentColor",
-            Position = UDim2.new(1, -30, 0, 8),
-            Size = UDim2.fromOffset(40, 28),
-            Text = "Send",
-            TextColor3 = "FontColor",
-            TextSize = 13,
-            ZIndex = 502,
-            Parent = InputBar,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-            Parent = SendBtn,
-        })
-
-        local function UpdateInputLayout()
-            if ReplyTarget then
-                ReplyBanner.Visible = true
-                InputBar.Size = UDim2.new(1, 0, 0, 72)
-                ChatScroll.Size = UDim2.new(1, 0, 1, -129)
-                TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -73)
-                ChatInput.Position = UDim2.new(0, 8, 0, 32)
-                SendBtn.Position = UDim2.new(1, -30, 0, 32)
-                ChatInput.PlaceholderText = "Message @" .. ReplyTarget.Username
+    NicknameSaveBtn.MouseButton1Click:Connect(function()
+        if NicknameTargetUser then
+            local newNick = NicknameInput.Text:gsub("^%s*(.-)%s*$", "%1")
+            if newNick ~= "" then
+                CustomNicknames[NicknameTargetUser] = newNick
             else
-                ReplyBanner.Visible = false
-                InputBar.Size = UDim2.new(1, 0, 0, 46)
-                ChatScroll.Size = UDim2.new(1, 0, 1, -103)
-                TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
-                ChatInput.Position = UDim2.new(0, 8, 0, 8)
-                SendBtn.Position = UDim2.new(1, -30, 0, 8)
-                ChatInput.PlaceholderText = "Send a message... (max 100 chars)"
+                CustomNicknames[NicknameTargetUser] = nil
+            end
+            SaveNicknames()
+            NicknameTargetUser = nil
+            NicknameInput.Text = ""
+            UpdateInputLayout()
+
+            -- Live Refresh Displayed Names
+            for msgId, rowData in pairs(ActiveMessageRows) do
+                if rowData.RefreshName then rowData.RefreshName() end
+            end
+        end
+    end)
+
+    -- Close context menu on outside click
+    game:GetService("UserInputService").InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
+            if ActiveContextMenu then
+                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                local absPos = ActiveContextMenu.AbsolutePosition
+                local absSize = ActiveContextMenu.AbsoluteSize
+                if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
+                    CloseContextMenu()
+                end
+            end
+        end
+    end)
+
+    -- Resize handle
+    local ChatResizeBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(1, 1),
+        BackgroundTransparency = 1,
+        Position = UDim2.fromScale(1, 1),
+        Size = UDim2.fromOffset(24, 24),
+        Text = "",
+        ZIndex = ChatGui.ZIndex + 10,
+        Parent = ChatGui,
+    })
+    if ResizeIcon then
+        New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Image = ResizeIcon.Url,
+            ImageColor3 = "OutlineColor",
+            ImageRectOffset = ResizeIcon.ImageRectOffset,
+            ImageRectSize = ResizeIcon.ImageRectSize,
+            Size = UDim2.fromScale(1, 1),
+            ZIndex = ChatGui.ZIndex + 11,
+            Parent = ChatResizeBtn,
+        })
+    end
+    Library:MakeResizable(ChatGui, ChatResizeBtn, function()
+        UpdateInputLayout()
+    end)
+
+    Library:MakeDraggable(ChatGui, ChatTitleBar, true)
+
+    -- HTTP & ID Setup
+    local HttpRequest = request or http_request or (syn and syn.request) or nil
+    local ProcessedSignatures = {}
+    local ProcessedPings = {}
+
+    local function GetUniqueMessageId()
+        return tostring(math.random(100000, 999999))
+    end
+
+    local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser, deleteMessageId, isTypingState)
+        if not HttpRequest then return end
+        local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        local data = {
+            Username = username,
+            UserId = tostring(LocalPlayer.UserId),
+            Roles = {"user"},
+            Message = message,
+            MessageId = messageId,
+            Time = timestamp,
+            Reactions = reactions or {},
+            PingUser = targetPingUser,
+            DeleteId = deleteMessageId,
+            IsTyping = isTypingState
+        }
+        if replyData then
+            data.ReplyToId = replyData.Id
+            data.ReplyToUser = replyData.Username
+            data.ReplyToText = replyData.Text
+        end
+
+        local body = game:GetService("HttpService"):JSONEncode(data)
+        task.spawn(function()
+            pcall(function()
+                HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox",
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = body,
+                })
+            end)
+        end)
+    end
+
+    -- Typing ping handler loop
+    local LastTypingSent = 0
+    local WasTyping = false
+    ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
+        local hasText = #ChatInput.Text > 0
+        if hasText ~= WasTyping then
+            WasTyping = hasText
+            LastTypingSent = tick()
+            SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, hasText)
+        elseif hasText and tick() - LastTypingSent > 3 then
+            LastTypingSent = tick()
+            SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, true)
+        end
+    end)
+
+    -- Admin Lookup
+    local AdminUserIds = {
+        [11117216138] = true,
+        [2327711124] = true,
+    }
+
+    local function IsAdmin(userId, username)
+        if userId then
+            local numId = tonumber(userId)
+            if numId and AdminUserIds[numId] then return true end
+        end
+        if username then
+            local success, fetchedId = pcall(function()
+                return game:GetService("Players"):GetUserIdFromNameAsync(username)
+            end)
+            if success and fetchedId and AdminUserIds[fetchedId] then return true end
+        end
+        return false
+    end
+
+    local LastMessageTime = 0
+    local SpamCooldown = 2
+    local BannedWords = {}
+
+    local function ContainsBannedWord(Msg)
+        local Lower = Msg:lower()
+        if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
+        for _, Word in BannedWords do
+            if Lower:match(Word:lower()) then return true end
+        end
+        return false
+    end
+
+    local ActiveReactorMenus = {}
+
+    game:GetService("UserInputService").InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            for menu, isOutsideFunc in pairs(ActiveReactorMenus) do
+                if isOutsideFunc() then
+                    menu:Destroy()
+                    ActiveReactorMenus[menu] = nil
+                end
+            end
+        end
+    end)
+
+    -- Add Message Function
+    local MsgIndex = 0
+    local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
+        local msgIdStr = messageId or tostring(math.random(1000,9999))
+
+        if ActiveMessageRows[msgIdStr] then
+            if ActiveMessageRows[msgIdStr].UpdateReactions then
+                ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
+            end
+            return
+        end
+
+        local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
+        if ProcessedSignatures[signature] then return end
+        ProcessedSignatures[signature] = true
+
+        MsgIndex = MsgIndex + 1
+
+        local Row = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(47, 49, 54),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            LayoutOrder = MsgIndex,
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            ZIndex = 502,
+            Parent = ChatScroll,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
+
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 4),
+            PaddingLeft = UDim.new(0, 6),
+            PaddingRight = UDim.new(0, 6),
+            PaddingTop = UDim.new(0, 4),
+            Parent = Row,
+        })
+
+        local ActionBar = New("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            BackgroundColor3 = Color3.fromRGB(45, 47, 52),
+            Position = UDim2.new(1, -4, 0, -6),
+            Size = UDim2.fromOffset(84, 24),
+            Visible = false,
+            ZIndex = 510,
+            Parent = Row,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ActionBar })
+        New("UIStroke", { Color = "OutlineColor", Parent = ActionBar })
+
+        local ReplyBtn = New("TextButton", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(0, 28, 1, 0),
+            Text = "↩",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 13,
+            ZIndex = 511,
+            Parent = ActionBar,
+        })
+
+        local HeartBtn = New("TextButton", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 28, 0, 0),
+            Size = UDim2.new(0, 28, 1, 0),
+            Text = "❤️",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 11,
+            ZIndex = 511,
+            Parent = ActionBar,
+        })
+
+        local BinBtn = New("TextButton", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 56, 0, 0),
+            Size = UDim2.new(0, 28, 1, 0),
+            Text = "🗑️",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = 11,
+            ZIndex = 511,
+            Parent = ActionBar,
+        })
+
+        local BinProgressGui = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 56, 0, 0),
+            Size = UDim2.fromOffset(28, 28),
+            Visible = false,
+            ZIndex = 515,
+            Parent = ActionBar,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
+
+        local BinProgressStroke = New("UIStroke", {
+            Color = Color3.fromRGB(255, 60, 60),
+            Thickness = 2.5,
+            Parent = BinProgressGui,
+        })
+        local BinProgressGradient = New("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(0.25, 0),
+                NumberSequenceKeypoint.new(0.251, 1),
+                NumberSequenceKeypoint.new(1, 1)
+            }),
+            Rotation = 0,
+            Parent = BinProgressStroke,
+        })
+
+        local currentRowReactions = reactions or {}
+
+        local MessageContentWrapper = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            ZIndex = 503,
+            Parent = Row,
+        })
+
+        local ReplyHighlightBar = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, -6, 0, 0),
+            Size = UDim2.new(0, 3, 1, 0),
+            Visible = false,
+            ZIndex = 506,
+            Parent = MessageContentWrapper,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyHighlightBar })
+
+        local function SetRowHighlight(state)
+            ReplyHighlightBar.Visible = state
+            if state then
+                Row.BackgroundColor3 = Color3.fromRGB(53, 56, 63)
+                Row.BackgroundTransparency = 0.5
+            else
+                Row.BackgroundColor3 = Color3.fromRGB(47, 49, 54)
+                Row.BackgroundTransparency = 1
             end
         end
 
-        ReplyCancelBtn.MouseButton1Click:Connect(function()
-            ReplyTarget = nil
-            UpdateInputLayout()
+        ReplyBtn.MouseButton1Click:Connect(function()
             for _, rData in pairs(ActiveMessageRows) do
                 if rData.SetHighlight then rData.SetHighlight(false) end
             end
-        end)
+            SetRowHighlight(true)
 
-        -- Resize handle
-        local ChatResizeBtn = New("TextButton", {
-            AnchorPoint = Vector2.new(1, 1),
-            BackgroundTransparency = 1,
-            Position = UDim2.fromScale(1, 1),
-            Size = UDim2.fromOffset(24, 24),
-            Text = "",
-            ZIndex = ChatGui.ZIndex + 10,
-            Parent = ChatGui,
-        })
-        if ResizeIcon then
-            New("ImageLabel", {
-                BackgroundTransparency = 1,
-                Image = ResizeIcon.Url,
-                ImageColor3 = "OutlineColor",
-                ImageRectOffset = ResizeIcon.ImageRectOffset,
-                ImageRectSize = ResizeIcon.ImageRectSize,
-                Size = UDim2.fromScale(1, 1),
-                ZIndex = ChatGui.ZIndex + 11,
-                Parent = ChatResizeBtn,
-            })
-        end
-        Library:MakeResizable(ChatGui, ChatResizeBtn, function()
+            ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
+            ReplyBannerText.Text = "Replying to " .. GetDisplayName(sender)
             UpdateInputLayout()
+            ChatInput:CaptureFocus()
         end)
 
-        Library:MakeDraggable(ChatGui, ChatTitleBar, true)
-
-        -- HTTP & ID Setup
-        local HttpRequest = request or http_request or (syn and syn.request) or nil
-        local ProcessedSignatures = {}
-        local ProcessedPings = {}
-
-        local function GetUniqueMessageId()
-            return tostring(math.random(100000, 999999))
-        end
-
-        local function SendToEndpoint(username, message, messageId, replyData, reactions, targetPingUser, deleteMessageId, isTypingState)
-            if not HttpRequest then return end
-            local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-            local data = {
-                Username = username,
-                UserId = tostring(LocalPlayer.UserId),
-                Roles = {"user"},
-                Message = message,
-                MessageId = messageId,
-                Time = timestamp,
-                Reactions = reactions or {},
-                PingUser = targetPingUser,
-                DeleteId = deleteMessageId,
-                IsTyping = isTypingState
-            }
-            if replyData then
-                data.ReplyToId = replyData.Id
-                data.ReplyToUser = replyData.Username
-                data.ReplyToText = replyData.Text
-            end
-
-            local body = game:GetService("HttpService"):JSONEncode(data)
-            task.spawn(function()
-                pcall(function()
-                    HttpRequest({
-                        Url = "http://167.99.144.89:8081/chatbox",
-                        Method = "POST",
-                        Headers = { ["Content-Type"] = "application/json" },
-                        Body = body,
-                    })
-                end)
-            end)
-        end
-
-        -- Typing ping handler loop
-        local LastTypingSent = 0
-        local WasTyping = false
-        ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
-            local hasText = #ChatInput.Text > 0
-            if hasText ~= WasTyping then
-                WasTyping = hasText
-                LastTypingSent = tick()
-                SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, hasText)
-            elseif hasText and tick() - LastTypingSent > 3 then
-                LastTypingSent = tick()
-                SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, true)
-            end
-        end)
-
-        -- Admin Lookup
-        local AdminUserIds = {
-            [11117216138] = true,
-            [2327711124] = true,
-        }
-
-        local function IsAdmin(userId, username)
-            if userId then
-                local numId = tonumber(userId)
-                if numId and AdminUserIds[numId] then return true end
-            end
-            if username then
-                local success, fetchedId = pcall(function()
-                    return game:GetService("Players"):GetUserIdFromNameAsync(username)
-                end)
-                if success and fetchedId and AdminUserIds[fetchedId] then return true end
-            end
-            return false
-        end
-
-        local LastMessageTime = 0
-        local SpamCooldown = 2
-        local BannedWords = {}
-
-        local function ContainsBannedWord(Msg)
-            local Lower = Msg:lower()
-            if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
-            for _, Word in BannedWords do
-                if Lower:match(Word:lower()) then return true end
-            end
-            return false
-        end
-
-        local ActiveReactorMenus = {}
-
-        game:GetService("UserInputService").InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                for menu, isOutsideFunc in pairs(ActiveReactorMenus) do
-                    if isOutsideFunc() then
-                        menu:Destroy()
-                        ActiveReactorMenus[menu] = nil
-                    end
-                end
-            end
-        end)
-
-        -- Add Message Function
-        local MsgIndex = 0
-        local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
-            local msgIdStr = messageId or tostring(math.random(1000,9999))
-
-            if ActiveMessageRows[msgIdStr] then
-                if ActiveMessageRows[msgIdStr].UpdateReactions then
-                    ActiveMessageRows[msgIdStr].UpdateReactions(reactions)
-                end
+        local activePickerMenu = nil
+        HeartBtn.MouseButton1Click:Connect(function()
+            if activePickerMenu then
+                ActiveReactorMenus[activePickerMenu] = nil
+                activePickerMenu:Destroy()
+                activePickerMenu = nil
                 return
             end
 
-            local signature = customSignature or (tostring(sender) .. "|" .. tostring(text) .. "|" .. msgIdStr)
-            if ProcessedSignatures[signature] then return end
-            ProcessedSignatures[signature] = true
+            local menuOpenedTick = tick()
 
-            MsgIndex = MsgIndex + 1
-
-            local Row = New("Frame", {
-                BackgroundColor3 = Color3.fromRGB(47, 49, 54),
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                LayoutOrder = MsgIndex,
-                Size = UDim2.new(1, 0, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                ZIndex = 502,
-                Parent = ChatScroll,
+            activePickerMenu = New("Frame", {
+                BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+                Position = UDim2.new(1, -140, 0, 28),
+                Size = UDim2.fromOffset(140, 34),
+                ZIndex = 600,
+                Parent = ActionBar,
             })
-            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
+            New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activePickerMenu })
+            New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activePickerMenu })
 
+            local pickerLayout = New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 4),
+                Parent = activePickerMenu,
+            })
             New("UIPadding", {
-                PaddingBottom = UDim.new(0, 4),
-                PaddingLeft = UDim.new(0, 6),
-                PaddingRight = UDim.new(0, 6),
-                PaddingTop = UDim.new(0, 4),
-                Parent = Row,
+                PaddingTop = UDim.new(0, 5),
+                PaddingBottom = UDim.new(0, 5),
+                PaddingLeft = UDim.new(0, 5),
+                PaddingRight = UDim.new(0, 5),
+                Parent = activePickerMenu,
             })
 
-            local ActionBar = New("Frame", {
-                AnchorPoint = Vector2.new(1, 0),
-                BackgroundColor3 = Color3.fromRGB(45, 47, 52),
-                Position = UDim2.new(1, -4, 0, -6),
-                Size = UDim2.fromOffset(84, 24),
-                Visible = false,
-                ZIndex = 510,
-                Parent = Row,
-            })
-            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ActionBar })
-            New("UIStroke", { Color = "OutlineColor", Parent = ActionBar })
-
-            local ReplyBtn = New("TextButton", {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 0, 0, 0),
-                Size = UDim2.new(0, 28, 1, 0),
-                Text = "↩",
-                TextColor3 = Color3.fromRGB(200, 200, 200),
-                TextSize = 13,
-                ZIndex = 511,
-                Parent = ActionBar,
-            })
-
-            local HeartBtn = New("TextButton", {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 28, 0, 0),
-                Size = UDim2.new(0, 28, 1, 0),
-                Text = "❤️",
-                TextColor3 = Color3.fromRGB(200, 200, 200),
-                TextSize = 11,
-                ZIndex = 511,
-                Parent = ActionBar,
-            })
-
-            local BinBtn = New("TextButton", {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 56, 0, 0),
-                Size = UDim2.new(0, 28, 1, 0),
-                Text = "🗑️",
-                TextColor3 = Color3.fromRGB(200, 200, 200),
-                TextSize = 11,
-                ZIndex = 511,
-                Parent = ActionBar,
-            })
-
-            local BinProgressGui = New("Frame", {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 56, 0, 0),
-                Size = UDim2.fromOffset(28, 28),
-                Visible = false,
-                ZIndex = 515,
-                Parent = ActionBar,
-            })
-            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BinProgressGui })
-
-            local BinProgressStroke = New("UIStroke", {
-                Color = Color3.fromRGB(255, 60, 60),
-                Thickness = 2.5,
-                Parent = BinProgressGui,
-            })
-            local BinProgressGradient = New("UIGradient", {
-                Transparency = NumberSequence.new({
-                    NumberSequenceKeypoint.new(0, 0),
-                    NumberSequenceKeypoint.new(0.25, 0),
-                    NumberSequenceKeypoint.new(0.251, 1),
-                    NumberSequenceKeypoint.new(1, 1)
-                }),
-                Rotation = 0,
-                Parent = BinProgressStroke,
-            })
-
-            local currentRowReactions = reactions or {}
-
-            -- Wrapper for the message content block to safely anchor the discord-style highlight bar
-            local MessageContentWrapper = New("Frame", {
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                ZIndex = 503,
-                Parent = Row,
-            })
-
-            -- Discord-style blue highlight strip sitting precisely next to the message block
-            local ReplyHighlightBar = New("Frame", {
-                BackgroundColor3 = Color3.fromRGB(88, 101, 242),
-                BorderSizePixel = 0,
-                Position = UDim2.new(0, -6, 0, 0),
-                Size = UDim2.new(0, 3, 1, 0),
-                Visible = false,
-                ZIndex = 506,
-                Parent = MessageContentWrapper,
-            })
-            New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ReplyHighlightBar })
-
-            local function SetRowHighlight(state)
-                ReplyHighlightBar.Visible = state
-                if state then
-                    Row.BackgroundColor3 = Color3.fromRGB(53, 56, 63)
-                    Row.BackgroundTransparency = 0.5
-                else
-                    Row.BackgroundColor3 = Color3.fromRGB(47, 49, 54)
-                    Row.BackgroundTransparency = 1
-                end
-            end
-
-            ReplyBtn.MouseButton1Click:Connect(function()
-                for _, rData in pairs(ActiveMessageRows) do
-                    if rData.SetHighlight then rData.SetHighlight(false) end
-                end
-                SetRowHighlight(true)
-
-                ReplyTarget = { Id = msgIdStr, Username = sender, Text = text }
-                ReplyBannerText.Text = "Replying to " .. sender
-                UpdateInputLayout()
-                ChatInput:CaptureFocus()
-            end)
-
-            local activePickerMenu = nil
-            HeartBtn.MouseButton1Click:Connect(function()
-                if activePickerMenu then
-                    ActiveReactorMenus[activePickerMenu] = nil
-                    activePickerMenu:Destroy()
-                    activePickerMenu = nil
-                    return
-                end
-
-                local menuOpenedTick = tick()
-
-                activePickerMenu = New("Frame", {
-                    BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-                    Position = UDim2.new(1, -140, 0, 28),
-                    Size = UDim2.fromOffset(140, 34),
-                    ZIndex = 600,
-                    Parent = ActionBar,
-                })
-                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activePickerMenu })
-                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activePickerMenu })
-
-                local pickerLayout = New("UIListLayout", {
-                    FillDirection = Enum.FillDirection.Horizontal,
-                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 4),
-                    Parent = activePickerMenu,
-                })
-                New("UIPadding", {
-                    PaddingTop = UDim.new(0, 5),
-                    PaddingBottom = UDim.new(0, 5),
-                    PaddingLeft = UDim.new(0, 5),
-                    PaddingRight = UDim.new(0, 5),
+            local availableEmojis = {"👍", "❤️", "😂", "😮", "😢", "🔥"}
+            for _, emoji in ipairs(availableEmojis) do
+                local emojiBtn = New("TextButton", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromOffset(20, 20),
+                    Text = emoji,
+                    TextSize = 13,
+                    ZIndex = 601,
                     Parent = activePickerMenu,
                 })
 
-                local availableEmojis = {"👍", "❤️", "😂", "😮", "😢", "🔥"}
-                for _, emoji in ipairs(availableEmojis) do
-                    local emojiBtn = New("TextButton", {
-                        BackgroundTransparency = 1,
-                        Size = UDim2.fromOffset(20, 20),
-                        Text = emoji,
-                        TextSize = 13,
-                        ZIndex = 601,
-                        Parent = activePickerMenu,
-                    })
+                emojiBtn.MouseButton1Down:Connect(function()
+                    local currentRx = {}
+                    for e, list in pairs(currentRowReactions) do
+                        currentRx[e] = {}
+                        for _, u in ipairs(list) do table.insert(currentRx[e], u) end
+                    end
 
-                    emojiBtn.MouseButton1Down:Connect(function()
-                        local currentRx = {}
-                        for e, list in pairs(currentRowReactions) do
-                            currentRx[e] = {}
-                            for _, u in ipairs(list) do table.insert(currentRx[e], u) end
-                        end
+                    if not currentRx[emoji] then currentRx[emoji] = {} end
 
-                        if not currentRx[emoji] then currentRx[emoji] = {} end
-
-                        local foundIndex = nil
-                        for i, user in ipairs(currentRx[emoji]) do
-                            if user == LocalPlayer.Name then
-                                foundIndex = i
-                                break
-                            end
-                        end
-
-                        if foundIndex then
-                            table.remove(currentRx[emoji], foundIndex)
-                        else
-                            table.insert(currentRx[emoji], LocalPlayer.Name)
-                        end
-
-                        currentRowReactions = currentRx
-
-                        if activePickerMenu then
-                            ActiveReactorMenus[activePickerMenu] = nil
-                            activePickerMenu:Destroy()
-                            activePickerMenu = nil
-                        end
-
-                        SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
-                    end)
-                end
-
-                ActiveReactorMenus[activePickerMenu] = function()
-                    if tick() - menuOpenedTick < 0.15 then return false end
-                    if not activePickerMenu or not activePickerMenu.Parent then return true end
-
-                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                    local absPos = activePickerMenu.AbsolutePosition
-                    local absSize = activePickerMenu.AbsoluteSize
-                    local heartPos = HeartBtn.AbsolutePosition
-                    local heartSize = HeartBtn.AbsoluteSize
-                    local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
-                    local isInsideHeart = (mousePos.X >= heartPos.X and mousePos.X <= heartPos.X + heartSize.X and mousePos.Y >= heartPos.Y and mousePos.Y <= heartPos.Y + heartSize.Y)
-                    return not (isInsideMenu or isInsideHeart)
-                end
-            end)
-
-            local isHoldingDelete = false
-
-            BinBtn.MouseButton1Down:Connect(function()
-                isHoldingDelete = true
-                BinProgressGui.Visible = true
-                BinProgressGradient.Rotation = 0
-
-                local startTime = tick()
-                task.spawn(function()
-                    while isHoldingDelete do
-                        local elapsed = tick() - startTime
-                        local progress = math.clamp(elapsed / 2.0, 0, 1)
-                        BinProgressGradient.Rotation = progress * 360
-
-                        if elapsed >= 2.0 then
-                            ActiveMessageRows[msgIdStr] = nil
-                            Row:Destroy()
-                            SendToEndpoint(sender, text, msgIdStr, replyData, nil, nil, msgIdStr)
+                    local foundIndex = nil
+                    for i, user in ipairs(currentRx[emoji]) do
+                        if user == LocalPlayer.Name then
+                            foundIndex = i
                             break
                         end
-                        task.wait(0.016)
                     end
+
+                    if foundIndex then
+                        table.remove(currentRx[emoji], foundIndex)
+                    else
+                        table.insert(currentRx[emoji], LocalPlayer.Name)
+                    end
+
+                    currentRowReactions = currentRx
+
+                    if activePickerMenu then
+                        ActiveReactorMenus[activePickerMenu] = nil
+                        activePickerMenu:Destroy()
+                        activePickerMenu = nil
+                    end
+
+                    SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
                 end)
-            end)
-
-            local function CancelDeleteHold()
-                if isHoldingDelete then
-                    isHoldingDelete = false
-                    BinProgressGui.Visible = false
-                end
             end
 
-            BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
-            BinBtn.MouseLeave:Connect(CancelDeleteHold)
+            ActiveReactorMenus[activePickerMenu] = function()
+                if tick() - menuOpenedTick < 0.15 then return false end
+                if not activePickerMenu or not activePickerMenu.Parent then return true end
 
-            Row.MouseEnter:Connect(function()
-                if not isSystem then ActionBar.Visible = true end
-                if not ReplyTarget or ReplyTarget.Id ~= msgIdStr then
-                    TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.94 }):Play()
+                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                local absPos = activePickerMenu.AbsolutePosition
+                local absSize = activePickerMenu.AbsoluteSize
+                local heartPos = HeartBtn.AbsolutePosition
+                local heartSize = HeartBtn.AbsoluteSize
+                local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
+                local isInsideHeart = (mousePos.X >= heartPos.X and mousePos.X <= heartPos.X + heartSize.X and mousePos.Y >= heartPos.Y and mousePos.Y <= heartPos.Y + heartSize.Y)
+                return not (isInsideMenu or isInsideHeart)
+            end
+        end)
+
+        local isHoldingDelete = false
+
+        BinBtn.MouseButton1Down:Connect(function()
+            isHoldingDelete = true
+            BinProgressGui.Visible = true
+            BinProgressGradient.Rotation = 0
+
+            local startTime = tick()
+            task.spawn(function()
+                while isHoldingDelete do
+                    local elapsed = tick() - startTime
+                    local progress = math.clamp(elapsed / 2.0, 0, 1)
+                    BinProgressGradient.Rotation = progress * 360
+
+                    if elapsed >= 2.0 then
+                        ActiveMessageRows[msgIdStr] = nil
+                        Row:Destroy()
+                        SendToEndpoint(sender, text, msgIdStr, replyData, nil, nil, msgIdStr)
+                        break
+                    end
+                    task.wait(0.016)
                 end
             end)
-            Row.MouseLeave:Connect(function()
-                ActionBar.Visible = false
-                CancelDeleteHold()
-                if not ReplyTarget or ReplyTarget.Id ~= msgIdStr then
-                    TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
-                end
-            end)
+        end)
 
-            local ContentLayout = New("Frame", {
+        local function CancelDeleteHold()
+            if isHoldingDelete then
+                isHoldingDelete = false
+                BinProgressGui.Visible = false
+            end
+        end
+
+        BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
+        BinBtn.MouseLeave:Connect(CancelDeleteHold)
+
+        Row.MouseEnter:Connect(function()
+            if not isSystem then ActionBar.Visible = true end
+            if not ReplyTarget or ReplyTarget.Id ~= msgIdStr then
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 0.94 }):Play()
+            end
+        end)
+        Row.MouseLeave:Connect(function()
+            ActionBar.Visible = false
+            CancelDeleteHold()
+            if not ReplyTarget or ReplyTarget.Id ~= msgIdStr then
+                TweenService:Create(Row, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+            end
+        end)
+
+        local ContentLayout = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            ZIndex = 503,
+            Parent = MessageContentWrapper,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            Padding = UDim.new(0, 2),
+            Parent = ContentLayout,
+        })
+
+        local ReplyTextLabel = nil
+        if replyData and replyData.Username and replyData.Text then
+            ReplyTextLabel = New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                ZIndex = 503,
-                Parent = MessageContentWrapper,
-            })
-            New("UIListLayout", {
-                FillDirection = Enum.FillDirection.Vertical,
-                Padding = UDim.new(0, 2),
+                Text = "┌ ↩ " .. GetDisplayName(replyData.Username) .. ": " .. replyData.Text,
+                TextColor3 = Color3.fromRGB(150, 150, 150),
+                TextSize = 12,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 504,
                 Parent = ContentLayout,
             })
+        end
 
-            if replyData and replyData.Username and replyData.Text then
-                New("TextLabel", {
-                    AutomaticSize = Enum.AutomaticSize.Y,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 0),
-                    Text = "┌ ↩ " .. replyData.Username .. ": " .. replyData.Text,
-                    TextColor3 = Color3.fromRGB(150, 150, 150),
-                    TextSize = 12,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    ZIndex = 504,
-                    Parent = ContentLayout,
-                })
-            end
+        local NameColor
+        if isSystem then
+            NameColor = Color3.fromRGB(255, 100, 100)
+        elseif sender == LocalPlayer.Name then
+            NameColor = Library.Scheme.AccentColor
+        else
+            NameColor = Color3.fromRGB(255, 90, 90)
+        end
 
-            local NameColor
-            if isSystem then
-                NameColor = Color3.fromRGB(255, 100, 100)
-            elseif sender == LocalPlayer.Name then
-                NameColor = Library.Scheme.AccentColor
-            else
-                NameColor = Color3.fromRGB(255, 90, 90)
-            end
-
-            local DisplayName = sender
+        local function FormatDisplayName()
+            local nick = GetDisplayName(sender)
             if not isSystem and IsAdmin(senderUserId, sender) then
-                DisplayName = sender .. " 👑"
+                return nick .. " 👑"
             end
-
-            New("TextLabel", {
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0),
-                Text = DisplayName,
-                TextColor3 = NameColor,
-                TextSize = 13,
-                TextWrapped = true,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 504,
-                Parent = ContentLayout,
-            })
-
-            New("TextLabel", {
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 0),
-                Text = text,
-                TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
-                TextSize = 14,
-                TextWrapped = true,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 504,
-                Parent = ContentLayout,
-            })
-
-            local currentReactionContainer = nil
-            local activeReactorMenu = nil
-
-            local function RenderReactionPill(rxData)
-                if currentReactionContainer then
-                    for m, _ in pairs(ActiveReactorMenus) do
-                        if m == activeReactorMenu then ActiveReactorMenus[m] = nil end
-                    end
-                    currentReactionContainer:Destroy()
-                    currentReactionContainer = nil
-                end
-                if activeReactorMenu then
-                    ActiveReactorMenus[activeReactorMenu] = nil
-                    activeReactorMenu:Destroy()
-                    activeReactorMenu = nil
-                end
-
-                if rxData and type(rxData) == "table" then
-                    local totalCount = 0
-                    local displayText = ""
-                    for emoji, list in pairs(rxData) do
-                        if type(list) == "table" and #list > 0 then
-                            displayText = displayText .. emoji .. " " .. #list .. "   "
-                            totalCount = totalCount + #list
-                        end
-                    end
-
-                    if totalCount > 0 then
-                        currentReactionContainer = New("TextButton", {
-                            AutoButtonColor = false,
-                            AutomaticSize = Enum.AutomaticSize.XY,
-                            BackgroundColor3 = Color3.fromRGB(40, 42, 48),
-                            BackgroundTransparency = 0,
-                            Size = UDim2.fromOffset(0, 20),
-                            Text = "",
-                            ZIndex = 504,
-                            Parent = ContentLayout,
-                        })
-                        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
-                        New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
-                        New("UIPadding", {
-                            PaddingLeft = UDim.new(0, 6),
-                            PaddingRight = UDim.new(0, 6),
-                            Parent = currentReactionContainer,
-                        })
-                        New("TextLabel", {
-                            BackgroundTransparency = 1,
-                            Size = UDim2.fromScale(1, 1),
-                            Text = displayText:gsub("%s+$", ""),
-                            TextColor3 = Color3.fromRGB(200, 200, 200),
-                            TextSize = 12,
-                            ZIndex = 505,
-                            Parent = currentReactionContainer,
-                        })
-
-                        local function ToggleReactorMenu()
-                            if activeReactorMenu then
-                                ActiveReactorMenus[activeReactorMenu] = nil
-                                activeReactorMenu:Destroy()
-                                activeReactorMenu = nil
-                            else
-                                local pillOpenedTick = tick()
-                                activeReactorMenu = New("Frame", {
-                                    AutomaticSize = Enum.AutomaticSize.Y,
-                                    BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-                                    Size = UDim2.fromOffset(160, 0),
-                                    ZIndex = 550,
-                                    Parent = currentReactionContainer,
-                                })
-                                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeReactorMenu })
-                                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activeReactorMenu })
-                                New("UIListLayout", {
-                                    SortOrder = Enum.SortOrder.LayoutOrder,
-                                    Padding = UDim.new(0, 2),
-                                    Parent = activeReactorMenu,
-                                })
-                                New("UIPadding", {
-                                    PaddingTop = UDim.new(0, 6),
-                                    PaddingBottom = UDim.new(0, 6),
-                                    PaddingLeft = UDim.new(0, 8),
-                                    PaddingRight = UDim.new(0, 8),
-                                    Parent = activeReactorMenu,
-                                })
-
-                                New("TextLabel", {
-                                    BackgroundTransparency = 1,
-                                    Size = UDim2.new(1, 0, 0, 16),
-                                    Text = "Reacted by:",
-                                    TextColor3 = Color3.fromRGB(150, 150, 150),
-                                    TextSize = 11,
-                                    TextXAlignment = Enum.TextXAlignment.Left,
-                                    ZIndex = 551,
-                                    Parent = activeReactorMenu,
-                                })
-
-                                for emoji, list in pairs(rxData) do
-                                    if type(list) == "table" and #list > 0 then
-                                        for _, user in ipairs(list) do
-                                            New("TextLabel", {
-                                                BackgroundTransparency = 1,
-                                                Size = UDim2.new(1, 0, 0, 18),
-                                                Text = emoji .. "  " .. user,
-                                                TextColor3 = Color3.fromRGB(240, 240, 240),
-                                                TextSize = 12,
-                                                TextXAlignment = Enum.TextXAlignment.Left,
-                                                ZIndex = 551,
-                                                Parent = activeReactorMenu,
-                                            })
-                                        end
-                                    end
-                                end
-
-                                ActiveReactorMenus[activeReactorMenu] = function()
-                                    if tick() - pillOpenedTick < 0.15 then return false end
-                                    if not activeReactorMenu or not activeReactorMenu.Parent then return true end
-                                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                                    local absPos = activeReactorMenu.AbsolutePosition
-                                    local absSize = activeReactorMenu.AbsoluteSize
-                                    local pillPos = currentReactionContainer.AbsolutePosition
-                                    local pillSize = currentReactionContainer.AbsoluteSize
-
-                                    local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
-                                    local isInsidePill = (mousePos.X >= pillPos.X and mousePos.X <= pillPos.X + pillSize.X and mousePos.Y >= pillPos.Y and mousePos.Y <= pillPos.Y + pillSize.Y)
-
-                                    return not (isInsideMenu or isInsidePill)
-                                end
-                            end
-                        end
-
-                        currentReactionContainer.MouseButton1Click:Connect(ToggleReactorMenu)
-                    end
-                end
-            end
-
-            RenderReactionPill(reactions)
-
-            ActiveMessageRows[msgIdStr] = {
-                UpdateReactions = function(newRx)
-                    currentRowReactions = newRx or {}
-                    RenderReactionPill(currentRowReactions)
-                end,
-                SetHighlight = SetRowHighlight
-            }
-
-            table.insert(ChatMessages, { Sender = sender, Text = text })
-
-            task.defer(function()
-                ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
-            end)
-
-            return Row
+            return nick
         end
 
-local function SendMessage()
-    local Msg = ChatInput.Text
-    if not Msg or Msg:gsub("%s", "") == "" then return end
-
-    if #Msg > 100 then
-        AddMessage("System", "Message too long. Max 100 characters.", true)
-        return
-    end
-
-    if tick() - LastMessageTime < SpamCooldown then
-        AddMessage("System", "Please wait before sending another message.", true)
-        return
-    end
-
-    if ContainsBannedWord(Msg) then
-        AddMessage("System", "Your message contains a banned word.", true)
-        return
-    end
-
-    LastMessageTime = tick()
-    local CurrentMsg = Msg
-    ChatInput.Text = ""
-
-    local UniqueId = GetUniqueMessageId()
-    local currentReply = ReplyTarget
-
-    ReplyTarget = nil
-    WasTyping = false
-
-    UpdateInputLayout()
-    for _, rData in pairs(ActiveMessageRows) do
-        if rData.SetHighlight then rData.SetHighlight(false) end
-    end
-
-    local targetPingUser = nil
-    for match in CurrentMsg:gmatch("@([%w_]+)") do
-        targetPingUser = match
-        break
-    end
-
-    local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
-    
-    -- 1. Display locally on your screen
-    AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
-    
-    -- 2. Send the ACTUAL message to the VPS endpoint (IsTyping set to false)
-    SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
-end
-
-        -- Initial Fetch & Polling
-        local function FetchMessages()
-            pcall(function()
-                if HttpRequest then
-                    local Result = HttpRequest({
-                        Url = "http://167.99.144.89:8081/chatbox",
-                        Method = "GET",
-                        Headers = { ["Content-Type"] = "application/json" },
-                    })
-                    if Result and Result.StatusCode == 200 and Result.Body then
-                        local Success, Decoded = pcall(function()
-                            return game:GetService("HttpService"):JSONDecode(Result.Body)
-                        end)
-                        if Success and type(Decoded) == "table" then
-                            -- Handle Typing Users list from backend
-                            local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
-                            local activeTypingNames = {}
-                            for _, uName in ipairs(typingList) do
-                                if uName and uName ~= LocalPlayer.Name then
-                                    table.insert(activeTypingNames, uName)
-                                end
-                            end
-
-                            if #activeTypingNames > 0 then
-                                TypingIndicatorFrame.Visible = true
-                                TypingDotsHolder.Visible = true
-                                if #activeTypingNames == 1 then
-                                    TypingLabel.Text = activeTypingNames[1] .. " is typing..."
-                                elseif #activeTypingNames == 2 then
-                                    TypingLabel.Text = activeTypingNames[1] .. " and " .. activeTypingNames[2] .. " are typing..."
-                                else
-                                    TypingLabel.Text = "Several people are typing..."
-                                end
-                            else
-                                TypingIndicatorFrame.Visible = false
-                            end
-
-                            local messageList = Decoded.Messages or Decoded
-
-                            if type(messageList) == "table" then
-                                local activeServerIds = {}
-                                for _, msgData in ipairs(messageList) do
-                                    if msgData.MessageId then
-                                        activeServerIds[msgData.MessageId] = true
-                                    end
-
-                                    if msgData.Username and msgData.Message then
-                                        local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
-                                        if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
-
-                                        local replyData = nil
-                                        if msgData.ReplyToId then
-                                            replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
-                                        end
-
-                                        AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
-                                    end
-                                end
-
-                                for idStr, rowData in pairs(ActiveMessageRows) do
-                                    if not activeServerIds[idStr] then
-                                        ActiveMessageRows[idStr] = nil
-                                    end
-                                end
-                            end
-
-                            local pingsList = Decoded.Pings
-                            if type(pingsList) == "table" then
-                                local unreadPingsCount = 0
-                                local lastSender = ""
-                                local hasNewPings = false
-                                local localNameLower = LocalPlayer.Name:lower()
-
-                                for _, pingObj in ipairs(pingsList) do
-                                    if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
-                                        local isDelivered = false
-                                        if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
-                                            for _, user in ipairs(pingObj.deliveredUsers) do
-                                                if user:lower() == localNameLower then
-                                                    isDelivered = true
-                                                    break
-                                                end
-                                            end
-                                        end
-
-                                        if not isDelivered then
-                                            local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
-                                            if not ProcessedPings[pingSig] then
-                                                ProcessedPings[pingSig] = true
-                                                unreadPingsCount = unreadPingsCount + 1
-                                                lastSender = pingObj.Sender
-                                                hasNewPings = true
-                                            end
-                                        end
-                                    end
-                                end
-
-                                if unreadPingsCount > 0 then
-                                    if unreadPingsCount == 1 then
-                                        Library:Notify({
-                                            Title = "Chat Mention",
-                                            Description = "Ping received off " .. lastSender,
-                                            Time = 4,
-                                            SoundId = 18595195017
-                                        })
-                                    else
-                                        Library:Notify({
-                                            Title = "Chat Mentions",
-                                            Description = "You have " .. unreadPingsCount .. " unread pings.",
-                                            Time = 4,
-                                            SoundId = 18595195017
-                                        })
-                                    end
-                                end
-
-                                if hasNewPings then
-                                    task.spawn(function()
-                                        pcall(function()
-                                            HttpRequest({
-                                                Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
-                                                Method = "POST",
-                                                Headers = { ["Content-Type"] = "application/json" },
-                                                Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
-                                            })
-                                        end)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-
-        task.spawn(FetchMessages)
-        task.spawn(function()
-            while true do
-                FetchMessages()
-                task.wait(2)
-            end
-        end)
-
-        SendBtn.MouseButton1Click:Connect(SendMessage)
-        ChatInput.FocusLost:Connect(function(Enter)
-            if Enter then SendMessage() end
-        end)
-
-        ChatCloseBtn.MouseButton1Click:Connect(function()
-            ChatGui.Visible = false
-            ChatOpen = false
-            WasTyping = false
-            SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, false)
-            TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
-            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
-            if ChatBtnIcon then
-                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
-            end
-        end)
-
-        -- Sidebar tab setup
-        local ChatTabButton = New("TextButton", {
-            BackgroundColor3 = "MainColor",
+        -- Clickable Username Button
+        local NameBtn = New("TextButton", {
+            AutomaticSize = Enum.AutomaticSize.XY,
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 40),
-            Text = "",
-            Parent = Tabs,
-        })
-        SetupTabDrag(ChatTabButton)
-
-        if SavedTabOrder and SavedTabOrder[ChatTabButton.Name] then
-            ChatTabButton.LayoutOrder = SavedTabOrder[ChatTabButton.Name]
-        end
-
-        local ChatPadding = New("UIPadding", {
-            PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
-            PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
-            PaddingRight = UDim.new(0, IsCompact and 6 or 12),
-            PaddingTop = UDim.new(0, IsCompact and 6 or 11),
-            Parent = ChatTabButton,
-        })
-
-        local ChatBtnLabel = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(30, 0),
-            Size = UDim2.new(1, -30, 1, 0),
-            Text = "Chatbox",
-            TextSize = 16,
-            TextTransparency = 0.5,
+            Text = FormatDisplayName(),
+            TextColor3 = NameColor,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Visible = not IsCompact,
-            Parent = ChatTabButton,
+            ZIndex = 504,
+            Parent = ContentLayout,
         })
 
-        local ChatLucideIcon = Library:GetIcon("message-circle")
-        local ChatBtnIcon
-        if ChatLucideIcon then
-            ChatBtnIcon = New("ImageLabel", {
-                Image = ChatLucideIcon.Url,
-                ImageColor3 = "AccentColor",
-                ImageRectOffset = ChatLucideIcon.ImageRectOffset,
-                ImageRectSize = ChatLucideIcon.ImageRectSize,
-                ImageTransparency = 0.5,
-                ScaleType = Enum.ScaleType.Fit,
-                Size = UDim2.fromScale(1, 1),
-                SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
-                Parent = ChatTabButton,
-            })
+        -- Open Context Menu on Right Click
+        NameBtn.MouseButton2Click:Connect(function()
+            if not isSystem then
+                OpenUserContextMenu(sender, senderUserId)
+            end
+        end)
+
+        New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            Text = text,
+            TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
+            TextSize = 14,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 504,
+            Parent = ContentLayout,
+        })
+
+        local currentReactionContainer = nil
+        local activeReactorMenu = nil
+
+        local function RenderReactionPill(rxData)
+            if currentReactionContainer then
+                for m, _ in pairs(ActiveReactorMenus) do
+                    if m == activeReactorMenu then ActiveReactorMenus[m] = nil end
+                end
+                currentReactionContainer:Destroy()
+                currentReactionContainer = nil
+            end
+            if activeReactorMenu then
+                ActiveReactorMenus[activeReactorMenu] = nil
+                activeReactorMenu:Destroy()
+                activeReactorMenu = nil
+            end
+
+            if rxData and type(rxData) == "table" then
+                local totalCount = 0
+                local displayText = ""
+                for emoji, list in pairs(rxData) do
+                    if type(list) == "table" and #list > 0 then
+                        displayText = displayText .. emoji .. " " .. #list .. "   "
+                        totalCount = totalCount + #list
+                    end
+                end
+
+                if totalCount > 0 then
+                    currentReactionContainer = New("TextButton", {
+                        AutoButtonColor = false,
+                        AutomaticSize = Enum.AutomaticSize.XY,
+                        BackgroundColor3 = Color3.fromRGB(40, 42, 48),
+                        BackgroundTransparency = 0,
+                        Size = UDim2.fromOffset(0, 20),
+                        Text = "",
+                        ZIndex = 504,
+                        Parent = ContentLayout,
+                    })
+                    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = currentReactionContainer })
+                    New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = currentReactionContainer })
+                    New("UIPadding", {
+                        PaddingLeft = UDim.new(0, 6),
+                        PaddingRight = UDim.new(0, 6),
+                        Parent = currentReactionContainer,
+                    })
+                    New("TextLabel", {
+                        BackgroundTransparency = 1,
+                        Size = UDim2.fromScale(1, 1),
+                        Text = displayText:gsub("%s+$", ""),
+                        TextColor3 = Color3.fromRGB(200, 200, 200),
+                        TextSize = 12,
+                        ZIndex = 505,
+                        Parent = currentReactionContainer,
+                    })
+
+                    local function ToggleReactorMenu()
+                        if activeReactorMenu then
+                            ActiveReactorMenus[activeReactorMenu] = nil
+                            activeReactorMenu:Destroy()
+                            activeReactorMenu = nil
+                        else
+                            local pillOpenedTick = tick()
+                            activeReactorMenu = New("Frame", {
+                                AutomaticSize = Enum.AutomaticSize.Y,
+                                BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+                                Size = UDim2.fromOffset(160, 0),
+                                ZIndex = 550,
+                                Parent = currentReactionContainer,
+                            })
+                            New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activeReactorMenu })
+                            New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activeReactorMenu })
+                            New("UIListLayout", {
+                                SortOrder = Enum.SortOrder.LayoutOrder,
+                                Padding = UDim.new(0, 2),
+                                Parent = activeReactorMenu,
+                            })
+                            New("UIPadding", {
+                                PaddingTop = UDim.new(0, 6),
+                                PaddingBottom = UDim.new(0, 6),
+                                PaddingLeft = UDim.new(0, 8),
+                                PaddingRight = UDim.new(0, 8),
+                                Parent = activeReactorMenu,
+                            })
+
+                            New("TextLabel", {
+                                BackgroundTransparency = 1,
+                                Size = UDim2.new(1, 0, 0, 16),
+                                Text = "Reacted by:",
+                                TextColor3 = Color3.fromRGB(150, 150, 150),
+                                TextSize = 11,
+                                TextXAlignment = Enum.TextXAlignment.Left,
+                                ZIndex = 551,
+                                Parent = activeReactorMenu,
+                            })
+
+                            for emoji, list in pairs(rxData) do
+                                if type(list) == "table" and #list > 0 then
+                                    for _, user in ipairs(list) do
+                                        New("TextLabel", {
+                                            BackgroundTransparency = 1,
+                                            Size = UDim2.new(1, 0, 0, 18),
+                                            Text = emoji .. "  " .. GetDisplayName(user),
+                                            TextColor3 = Color3.fromRGB(240, 240, 240),
+                                            TextSize = 12,
+                                            TextXAlignment = Enum.TextXAlignment.Left,
+                                            ZIndex = 551,
+                                            Parent = activeReactorMenu,
+                                        })
+                                    end
+                                end
+                            end
+
+                            ActiveReactorMenus[activeReactorMenu] = function()
+                                if tick() - pillOpenedTick < 0.15 then return false end
+                                if not activeReactorMenu or not activeReactorMenu.Parent then return true end
+                                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                                local absPos = activeReactorMenu.AbsolutePosition
+                                local absSize = activeReactorMenu.AbsoluteSize
+                                local pillPos = currentReactionContainer.AbsolutePosition
+                                local pillSize = currentReactionContainer.AbsoluteSize
+
+                                local isInsideMenu = (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y)
+                                local isInsidePill = (mousePos.X >= pillPos.X and mousePos.X <= pillPos.X + pillSize.X and mousePos.Y >= pillPos.Y and mousePos.Y <= pillPos.Y + pillSize.Y)
+
+                                return not (isInsideMenu or isInsidePill)
+                            end
+                        end
+                    end
+
+                    currentReactionContainer.MouseButton1Click:Connect(ToggleReactorMenu)
+                end
+            end
         end
 
-        table.insert(Library.TabButtons, {
-            Label = ChatBtnLabel,
-            Padding = ChatPadding,
-            Icon = ChatBtnIcon,
-        })
+        RenderReactionPill(reactions)
 
-        ChatTabButton.MouseEnter:Connect(function()
-            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.25 }):Play()
-            if ChatBtnIcon then
-                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.25 }):Play()
+        ActiveMessageRows[msgIdStr] = {
+            UpdateReactions = function(newRx)
+                currentRowReactions = newRx or {}
+                RenderReactionPill(currentRowReactions)
+            end,
+            SetHighlight = SetRowHighlight,
+            RefreshName = function()
+                NameBtn.Text = FormatDisplayName()
+                if ReplyTextLabel and replyData then
+                    ReplyTextLabel.Text = "┌ ↩ " .. GetDisplayName(replyData.Username) .. ": " .. replyData.Text
+                end
             end
-        end)
-        ChatTabButton.MouseLeave:Connect(function()
-            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
-            if ChatBtnIcon then
-                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
-            end
-        end)
+        }
 
-        ChatTabButton.MouseButton1Click:Connect(function()
-            ChatOpen = not ChatOpen
-            ChatGui.Visible = ChatOpen
+        table.insert(ChatMessages, { Sender = sender, Text = text })
 
-            TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = ChatOpen and 0 or 1 }):Play()
-            TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = ChatOpen and 0 or 0.5 }):Play()
-            if ChatBtnIcon then
-                TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = ChatOpen and 0 or 0.5 }):Play()
-            end
+        task.defer(function()
+            ChatScroll.CanvasPosition = Vector2.new(0, ChatList.AbsoluteContentSize.Y)
         end)
 
-        Window.ChatAddMessage = AddMessage
+        return Row
     end
-    --testing38
+
+    local function SendMessage()
+        local Msg = ChatInput.Text
+        if not Msg or Msg:gsub("%s", "") == "" then return end
+
+        if #Msg > 100 then
+            AddMessage("System", "Message too long. Max 100 characters.", true)
+            return
+        end
+
+        if tick() - LastMessageTime < SpamCooldown then
+            AddMessage("System", "Please wait before sending another message.", true)
+            return
+        end
+
+        if ContainsBannedWord(Msg) then
+            AddMessage("System", "Your message contains a banned word.", true)
+            return
+        end
+
+        LastMessageTime = tick()
+        local CurrentMsg = Msg
+        ChatInput.Text = ""
+
+        local UniqueId = GetUniqueMessageId()
+        local currentReply = ReplyTarget
+
+        ReplyTarget = nil
+        WasTyping = false
+
+        UpdateInputLayout()
+        for _, rData in pairs(ActiveMessageRows) do
+            if rData.SetHighlight then rData.SetHighlight(false) end
+        end
+
+        local targetPingUser = nil
+        for match in CurrentMsg:gmatch("@([%w_]+)") do
+            targetPingUser = match
+            break
+        end
+
+        local sig = tostring(LocalPlayer.Name) .. "|" .. tostring(CurrentMsg) .. "|" .. tostring(UniqueId)
+
+        -- 1. Display locally on your screen
+        AddMessage(LocalPlayer.Name, CurrentMsg, false, LocalPlayer.UserId, UniqueId, currentReply, nil, sig)
+
+        -- 2. Send the ACTUAL message to the VPS endpoint (IsTyping set to false)
+        SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
+    end
+
+    -- Initial Fetch & Polling
+    local function FetchMessages()
+        pcall(function()
+            if HttpRequest then
+                local Result = HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox",
+                    Method = "GET",
+                    Headers = { ["Content-Type"] = "application/json" },
+                })
+                if Result and Result.StatusCode == 200 and Result.Body then
+                    local Success, Decoded = pcall(function()
+                        return game:GetService("HttpService"):JSONDecode(Result.Body)
+                    end)
+                    if Success and type(Decoded) == "table" then
+                        -- Handle Typing Users list from backend
+                        local typingList = Decoded.TypingUsers or Decoded.typingUsers or {}
+                        local activeTypingNames = {}
+                        for _, uName in ipairs(typingList) do
+                            if uName and uName ~= LocalPlayer.Name then
+                                table.insert(activeTypingNames, GetDisplayName(uName))
+                            end
+                        end
+
+                        if #activeTypingNames > 0 then
+                            TypingIndicatorFrame.Visible = true
+                            TypingDotsHolder.Visible = true
+                            if #activeTypingNames == 1 then
+                                TypingLabel.Text = activeTypingNames[1] .. " is typing..."
+                            elseif #activeTypingNames == 2 then
+                                TypingLabel.Text = activeTypingNames[1] .. " and " .. activeTypingNames[2] .. " are typing..."
+                            else
+                                TypingLabel.Text = "Several people are typing..."
+                            end
+                        else
+                            TypingIndicatorFrame.Visible = false
+                        end
+
+                        local messageList = Decoded.Messages or Decoded
+
+                        if type(messageList) == "table" then
+                            local activeServerIds = {}
+                            for _, msgData in ipairs(messageList) do
+                                if msgData.MessageId then
+                                    activeServerIds[msgData.MessageId] = true
+                                end
+
+                                if msgData.Username and msgData.Message then
+                                    local sig = tostring(msgData.Username) .. "|" .. tostring(msgData.Message)
+                                    if msgData.MessageId then sig = sig .. "|" .. tostring(msgData.MessageId) end
+
+                                    local replyData = nil
+                                    if msgData.ReplyToId then
+                                        replyData = { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText }
+                                    end
+
+                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, sig)
+                                end
+                            end
+
+                            for idStr, rowData in pairs(ActiveMessageRows) do
+                                if not activeServerIds[idStr] then
+                                    ActiveMessageRows[idStr] = nil
+                                end
+                            end
+                        end
+
+                        local pingsList = Decoded.Pings
+                        if type(pingsList) == "table" then
+                            local unreadPingsCount = 0
+                            local lastSender = ""
+                            local hasNewPings = false
+                            local localNameLower = LocalPlayer.Name:lower()
+
+                            for _, pingObj in ipairs(pingsList) do
+                                if pingObj.TargetUser and pingObj.TargetUser:lower() == localNameLower then
+                                    local isDelivered = false
+                                    if pingObj.deliveredUsers and type(pingObj.deliveredUsers) == "table" then
+                                        for _, user in ipairs(pingObj.deliveredUsers) do
+                                            if user:lower() == localNameLower then
+                                                isDelivered = true
+                                                break
+                                            end
+                                        end
+                                    end
+
+                                    if not isDelivered then
+                                        local pingSig = tostring(pingObj.Sender) .. "|" .. tostring(pingObj.Time or "")
+                                        if not ProcessedPings[pingSig] then
+                                            ProcessedPings[pingSig] = true
+                                            unreadPingsCount = unreadPingsCount + 1
+                                            lastSender = GetDisplayName(pingObj.Sender)
+                                            hasNewPings = true
+                                        end
+                                    end
+                                end
+                            end
+
+                            if unreadPingsCount > 0 then
+                                if unreadPingsCount == 1 then
+                                    Library:Notify({
+                                        Title = "Chat Mention",
+                                        Description = "Ping received off " .. lastSender,
+                                        Time = 4,
+                                        SoundId = 18595195017
+                                    })
+                                else
+                                    Library:Notify({
+                                        Title = "Chat Mentions",
+                                        Description = "You have " .. unreadPingsCount .. " unread pings.",
+                                        Time = 4,
+                                        SoundId = 18595195017
+                                    })
+                                end
+                            end
+
+                            if hasNewPings then
+                                task.spawn(function()
+                                    pcall(function()
+                                        HttpRequest({
+                                            Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
+                                            Method = "POST",
+                                            Headers = { ["Content-Type"] = "application/json" },
+                                            Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
+                                        })
+                                    end)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
+    task.spawn(FetchMessages)
+    task.spawn(function()
+        while true do
+            FetchMessages()
+            task.wait(2)
+        end
+    end)
+
+    SendBtn.MouseButton1Click:Connect(SendMessage)
+    ChatInput.FocusLost:Connect(function(Enter)
+        if Enter then SendMessage() end
+    end)
+
+    ChatCloseBtn.MouseButton1Click:Connect(function()
+        ChatGui.Visible = false
+        ChatOpen = false
+        WasTyping = false
+        SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, false)
+        TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+        if ChatBtnIcon then
+            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+        end
+    end)
+
+    -- Sidebar tab setup
+    local ChatTabButton = New("TextButton", {
+        BackgroundColor3 = "MainColor",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 40),
+        Text = "",
+        Parent = Tabs,
+    })
+    SetupTabDrag(ChatTabButton)
+
+    if SavedTabOrder and SavedTabOrder[ChatTabButton.Name] then
+        ChatTabButton.LayoutOrder = SavedTabOrder[ChatTabButton.Name]
+    end
+
+    local ChatPadding = New("UIPadding", {
+        PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
+        PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
+        PaddingRight = UDim.new(0, IsCompact and 6 or 12),
+        PaddingTop = UDim.new(0, IsCompact and 6 or 11),
+        Parent = ChatTabButton,
+    })
+
+    local ChatBtnLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(30, 0),
+        Size = UDim2.new(1, -30, 1, 0),
+        Text = "Chatbox",
+        TextSize = 16,
+        TextTransparency = 0.5,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Visible = not IsCompact,
+        Parent = ChatTabButton,
+    })
+
+    local ChatLucideIcon = Library:GetIcon("message-circle")
+    local ChatBtnIcon
+    if ChatLucideIcon then
+        ChatBtnIcon = New("ImageLabel", {
+            Image = ChatLucideIcon.Url,
+            ImageColor3 = "AccentColor",
+            ImageRectOffset = ChatLucideIcon.ImageRectOffset,
+            ImageRectSize = ChatLucideIcon.ImageRectSize,
+            ImageTransparency = 0.5,
+            ScaleType = Enum.ScaleType.Fit,
+            Size = UDim2.fromScale(1, 1),
+            SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+            Parent = ChatTabButton,
+        })
+    end
+
+    table.insert(Library.TabButtons, {
+        Label = ChatBtnLabel,
+        Padding = ChatPadding,
+        Icon = ChatBtnIcon,
+    })
+
+    ChatTabButton.MouseEnter:Connect(function()
+        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.25 }):Play()
+        if ChatBtnIcon then
+            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.25 }):Play()
+        end
+    end)
+    ChatTabButton.MouseLeave:Connect(function()
+        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+        if ChatBtnIcon then
+            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+        end
+    end)
+
+    ChatTabButton.MouseButton1Click:Connect(function()
+        ChatOpen = not ChatOpen
+        ChatGui.Visible = ChatOpen
+
+        TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = ChatOpen and 0 or 1 }):Play()
+        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = ChatOpen and 0 or 0.5 }):Play()
+        if ChatBtnIcon then
+            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = ChatOpen and 0 or 0.5 }):Play()
+        end
+    end)
+
+    Window.ChatAddMessage = AddMessage
+end
+    --testing35
     return Window
 end
 
