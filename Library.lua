@@ -9506,6 +9506,24 @@ do
         end
         return false
     end
+    
+    -- Cache of all users seen across the server + local players for @mentions
+    local SeenUsers = {}
+    local function RegisterSeenUser(username)
+        if username and type(username) == "string" and username ~= "" then
+            SeenUsers[username] = true
+        end
+    end
+
+    if game:GetService("Players").LocalPlayer then
+        RegisterSeenUser(game:GetService("Players").LocalPlayer.Name)
+    end
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        RegisterSeenUser(p.Name)
+    end
+    game:GetService("Players").PlayerAdded:Connect(function(p)
+        RegisterSeenUser(p.Name)
+    end)
 
     local ChatGui = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -9761,6 +9779,176 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SendBtn })
 
+    -- Discord-style Mention Auto-complete Menu
+    local MentionMenu = New("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = Color3.fromRGB(43, 45, 49),
+        Position = UDim2.new(0, 8, 1, -50),
+        Size = UDim2.new(1, -16, 0, 150),
+        Visible = false,
+        ZIndex = 550,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = MentionMenu })
+    New("UIStroke", { Color = Color3.fromRGB(30, 31, 34), Thickness = 1, Parent = MentionMenu })
+
+    local MentionMenuHeader = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -10, 0, 24),
+        Text = "MEMBERS",
+        TextColor3 = Color3.fromRGB(150, 150, 150),
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 551,
+        Parent = MentionMenu
+    })
+
+    local MentionScroll = New("ScrollingFrame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 24),
+        Size = UDim2.new(1, 0, 1, -24),
+        CanvasSize = UDim2.fromScale(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
+        ZIndex = 551,
+        Parent = MentionMenu,
+    })
+    local MentionListLayout = New("UIListLayout", {
+        Padding = UDim.new(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = MentionScroll,
+    })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 4),
+        PaddingLeft = UDim.new(0, 4),
+        PaddingRight = UDim.new(0, 4),
+        Parent = MentionScroll,
+    })
+
+    local function PopulateMentionMenu(filterText)
+        for _, child in ipairs(MentionScroll:GetChildren()) do
+            if child:IsA("GuiObject") then child:Destroy() end
+        end
+
+        local matches = {}
+        for user in pairs(SeenUsers) do
+            local dName = GetDisplayName(user)
+            -- Match against both real Username or their custom Nickname
+            if user:lower():sub(1, #filterText) == filterText:lower() or dName:lower():sub(1, #filterText) == filterText:lower() then
+                table.insert(matches, user)
+            end
+        end
+
+        if #matches == 0 then
+            MentionMenu.Visible = false
+            return
+        end
+
+        table.sort(matches)
+
+        -- Limit menu height slightly based on items
+        local maxItems = math.min(#matches, 6)
+        MentionMenu.Size = UDim2.new(1, -16, 0, 24 + (maxItems * 30) + 4)
+
+        for _, user in ipairs(matches) do
+            local btn = New("TextButton", {
+                BackgroundColor3 = Color3.fromRGB(43, 45, 49),
+                BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 28),
+                Text = "",
+                AutoButtonColor = false,
+                ZIndex = 552,
+                Parent = MentionScroll
+            })
+            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
+
+            local displayNameText = GetDisplayName(user)
+
+            New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(0.5, 0, 1, 0),
+                Text = displayNameText,
+                TextColor3 = Color3.fromRGB(220, 220, 220),
+                TextSize = 13,
+                Font = Enum.Font.GothamMedium,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 553,
+                Parent = btn
+            })
+
+            if displayNameText ~= user then
+                New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0.5, 0, 0, 0),
+                    Size = UDim2.new(0.5, -8, 1, 0),
+                    Text = user,
+                    TextColor3 = Color3.fromRGB(130, 130, 130),
+                    TextSize = 12,
+                    TextXAlignment = Enum.TextXAlignment.Right,
+                    ZIndex = 553,
+                    Parent = btn
+                })
+            end
+
+            btn.MouseEnter:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(53, 55, 60)
+            end)
+            btn.MouseLeave:Connect(function()
+                btn.BackgroundColor3 = Color3.fromRGB(43, 45, 49)
+            end)
+
+            btn.MouseButton1Click:Connect(function()
+                local text = ChatInput.Text
+                local replaced = false
+
+                if text:match(".*%s@([%w_]*)$") then
+                    local reversed = text:reverse()
+                    local atIndex = reversed:find("@")
+                    if atIndex then
+                        local actualIndex = #text - atIndex + 1
+                        text = text:sub(1, actualIndex - 1) .. "@" .. user .. " "
+                        replaced = true
+                    end
+                elseif text:match("^@([%w_]*)$") then
+                    text = "@" .. user .. " "
+                    replaced = true
+                end
+
+                if replaced then
+                    ChatInput.Text = text
+                else
+                    ChatInput.Text = ChatInput.Text .. user .. " "
+                end
+
+                MentionMenu.Visible = false
+                ChatInput:CaptureFocus()
+                ChatInput.CursorPosition = #ChatInput.Text + 1
+            end)
+        end
+
+        MentionMenu.Visible = true
+    end
+
+    local function UpdateMentionState()
+        if not ChatInput.TextEditable then
+            MentionMenu.Visible = false
+            return
+        end
+
+        local text = ChatInput.Text
+        local mentionMatch = text:match(".*%s@([%w_]*)$") or text:match("^@([%w_]*)$")
+
+        if mentionMatch then
+            PopulateMentionMenu(mentionMatch)
+        else
+            MentionMenu.Visible = false
+        end
+    end
+
     local function IsLocallyMuted()
         return tick() < LocalMuteExpiration
     end
@@ -9775,6 +9963,7 @@ do
             TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -(47 + extraOffset))
             ChatInput.Position = UDim2.new(0, 8, 0, 8 + extraOffset)
             SendBtn.Position = UDim2.new(1, -30, 0, 8 + extraOffset)
+            MentionMenu.Position = UDim2.new(0, 8, 1, -(50 + extraOffset)) -- Shift up for replies
         else
             ReplyBanner.Visible = false
             InputBar.Size = UDim2.new(1, 0, 0, 46)
@@ -9782,6 +9971,7 @@ do
             TypingIndicatorFrame.Position = UDim2.new(0, 8, 1, -47)
             ChatInput.Position = UDim2.new(0, 8, 0, 8)
             SendBtn.Position = UDim2.new(1, -30, 0, 8)
+            MentionMenu.Position = UDim2.new(0, 8, 1, -50)
         end
 
         if ReplyTarget then
@@ -9801,6 +9991,7 @@ do
             local remTime = math.max(0, LocalMuteExpiration - tick())
             ChatInput.PlaceholderText = "U are muted. Timer: " .. FormatDuration(remTime)
             SendBtn.Text = "Muted"
+            MentionMenu.Visible = false
         else
             ChatInput.BackgroundColor3 = Library.Scheme.BackgroundColor or Color3.fromRGB(30, 31, 34)
             ChatInput.TextColor3 = Library.Scheme.FontColor
@@ -9948,7 +10139,6 @@ do
                         resolvedUserId = success and fetchedId or 0
                     end
 
-                    -- Update local map immediately
                     MutedUsernamesMap[targetUser:lower()] = nil
                     if resolvedUserId then MutedUsernamesMap[tostring(resolvedUserId):lower()] = nil end
                     for _, rowData in pairs(ActiveMessageRows) do
@@ -10083,6 +10273,8 @@ do
     local WasTyping = false
     ChatInput:GetPropertyChangedSignal("Text"):Connect(function()
         if IsLocallyMuted() then return end
+        
+        -- Typing Indicator update
         local hasText = #ChatInput.Text > 0
         if hasText ~= WasTyping then
             WasTyping = hasText
@@ -10092,6 +10284,9 @@ do
             LastTypingSent = tick()
             SendToEndpoint(LocalPlayer.Name, "", nil, nil, nil, nil, nil, true)
         end
+
+        -- Check Mention State
+        UpdateMentionState()
     end)
 
     local LastMessageTime = 0
@@ -10123,6 +10318,9 @@ do
     local MsgIndex = 0
     local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
         local msgIdStr = messageId or tostring(math.random(1000,9999))
+        
+        -- Make sure we register the user so we can @mention them later
+        RegisterSeenUser(sender)
 
         if ActiveMessageRows[msgIdStr] then
             if ActiveMessageRows[msgIdStr].UpdateReactions then
@@ -10634,6 +10832,7 @@ do
         LastMessageTime = tick()
         local CurrentMsg = Msg
         ChatInput.Text = ""
+        MentionMenu.Visible = false
 
         local UniqueId = GetUniqueMessageId()
         local currentReply = ReplyTarget
@@ -10692,6 +10891,7 @@ do
                         if type(messageList) == "table" then
                             for _, msgData in ipairs(messageList) do
                                 if msgData.Username and msgData.Message then
+                                    RegisterSeenUser(msgData.Username)
                                     local replyData = msgData.ReplyToId and { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText } or nil
                                     AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions)
                                 end
@@ -10748,7 +10948,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing38889393
+    --testing3888
     return Window
 end
 
