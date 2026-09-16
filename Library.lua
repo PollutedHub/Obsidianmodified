@@ -10679,17 +10679,17 @@ do
                     local finishEpoch = os.time() + totalSeconds
                     local finishDateFormatted = os.date("!%Y-%m-%dT%H:%M:%SZ", finishEpoch)
                     local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                    local muteData = {
-                        Username = LocalPlayer.Name,
-                        UserId = tostring(LocalPlayer.UserId),
-                        Roles = {"user"},
-                        Message = Msg,
-                        Time = timestamp,
-                        MuteUser = targetUsername,
-                        MuteLength = timeLength,
-                        FinishDate = finishDateFormatted,
-                        MuteUserId = tostring(targetUserId)
-                    }
+                   local muteData = {
+    Username = LocalPlayer.Name,
+    UserId = tostring(LocalPlayer.UserId),
+    Roles = {"user"},
+    Message = Msg,
+    Time = timestamp,
+    MuteUser = targetUsername,
+    MuteDuration = timeLength, -- Updated from MuteLength to match backend
+    FinishDate = finishDateFormatted,
+    MuteUserId = tostring(targetUserId)
+}
 
                     if HttpRequest then
                         task.spawn(function()
@@ -11067,7 +11067,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing35
+    --testing31
     return Window
 end
 
