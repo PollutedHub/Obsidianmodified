@@ -9985,7 +9985,10 @@ do
                 HttpRequest({
                     Url = "http://167.99.144.89:8081/chatbox",
                     Method = "POST",
-                    Headers = { ["Content-Type"] = "application/json" },
+                    Headers = { 
+                        ["Content-Type"] = "application/json",
+                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                    },
                     Body = body,
                 })
             end)
@@ -10779,7 +10782,10 @@ do
                                         HttpRequest({
                                             Url = "http://167.99.144.89:8081/chatbox/pings/acknowledge",
                                             Method = "POST",
-                                            Headers = { ["Content-Type"] = "application/json" },
+                                            Headers = { 
+                                                ["Content-Type"] = "application/json",
+                                                ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                            },
                                             Body = game:GetService("HttpService"):JSONEncode({ Username = LocalPlayer.Name })
                                         })
                                     end)
@@ -10905,7 +10911,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing35
+    --testing50
     return Window
 end
 
