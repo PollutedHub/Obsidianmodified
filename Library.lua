@@ -9492,6 +9492,7 @@ do
 
     local AdminUserIds = {
         [11117216138] = true,
+        [6136594189] = true,
         [2327711124] = true,
     }
 
