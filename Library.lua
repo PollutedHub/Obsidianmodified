@@ -9855,134 +9855,147 @@ do
     end
 
 local function OpenUserContextMenu(targetUser, targetUserId)
-        CloseContextMenu()
+    CloseContextMenu()
 
-        local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
 
-        -- Check if target user is currently muted
-        local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
-        local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
+    -- Check if target user is currently muted
+    local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
+    local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
-        local menuHeight = isAdminUser and 138 or 108
+    local menuHeight = isAdminUser and 138 or 108
 
-        ActiveContextMenu = New("Frame", {
+    ActiveContextMenu = New("Frame", {
+        BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+        Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
+        Size = UDim2.fromOffset(160, menuHeight),
+        ZIndex = 800,
+        Parent = ScreenGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ActiveContextMenu })
+    New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ActiveContextMenu })
+
+    local menuLayout = New("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 2),
+        Parent = ActiveContextMenu,
+    })
+    New("UIPadding", {
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        Parent = ActiveContextMenu,
+    })
+
+    local function CreateMenuOption(text, textColor, callback)
+        local btn = New("TextButton", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
-            Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-            Size = UDim2.fromOffset(160, menuHeight),
-            ZIndex = 800,
-            Parent = ScreenGui,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ActiveContextMenu })
-        New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ActiveContextMenu })
-
-        local menuLayout = New("UIListLayout", {
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 2),
+            BackgroundTransparency = 0,
+            Size = UDim2.new(1, 0, 0, 28),
+            AutoButtonColor = false,
+            Text = text,
+            TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 801,
             Parent = ActiveContextMenu,
         })
+        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
         New("UIPadding", {
-            PaddingTop = UDim.new(0, 6),
-            PaddingBottom = UDim.new(0, 6),
-            PaddingLeft = UDim.new(0, 6),
-            PaddingRight = UDim.new(0, 6),
-            Parent = ActiveContextMenu,
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            Parent = btn,
         })
 
-local function CreateMenuOption(text, textColor, callback)
-            local btn = New("TextButton", {
-                BackgroundColor3 = Color3.fromRGB(18, 19, 22),
-                BackgroundTransparency = 0,
-                Size = UDim2.new(1, 0, 0, 28),
-                AutoButtonColor = false,
-                Text = text,
-                TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
-                TextSize = 12,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 801,
-                Parent = ActiveContextMenu,
-            })
-            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
-            New("UIPadding", {
-                PaddingLeft = UDim.new(0, 8),
-                PaddingRight = UDim.new(0, 8),
-                Parent = btn,
-            })
-
-            btn.MouseEnter:Connect(function()
-                btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            end)
-            btn.MouseLeave:Connect(function()
-                btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
-                btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
-            end)
-
-            btn.MouseButton1Click:Connect(function()
-                CloseContextMenu()
-                callback()
-            end)
-        end
-
-        -- Option 1: Copy Username
-        CreateMenuOption("Copy Username", nil, function()
-            if setclipboard then
-                setclipboard(targetUser)
-                Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
-            end
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end)
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
+            btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
         end)
 
-        -- Option 2: Copy UserID
-        CreateMenuOption("Copy UserID", nil, function()
-            if setclipboard then
-                setclipboard(tostring(targetUserId or 0))
-                Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
-            end
+        btn.MouseButton1Click:Connect(function()
+            CloseContextMenu()
+            callback()
         end)
-
-        -- Option 3: Set Nickname
-        CreateMenuOption("Set Nickname", nil, function()
-            NicknameTarget = targetUser
-            ReplyTarget = nil
-            ChatInput.Text = ""
-            SendBtn.Text = "Set"
-            UpdateInputLayout()
-            ChatInput:CaptureFocus()
-        end)
-
-        -- Option 4: Admin Quick Mute / Unmute Shortcut (Sends command text directly)
-        if isAdminUser then
-            local commandText = isTargetMuted and (",unmute " .. targetUser) or (",mute " .. targetUser .. " 1h")
-
-            CreateMenuOption(isTargetMuted and "Unmute" or "Mute", Color3.fromRGB(255, 60, 60), function()
-                task.spawn(function()
-                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                    local payload = {
-                        Username = LocalPlayer.Name,
-                        UserId = tostring(LocalPlayer.UserId),
-                        Roles = {"user"},
-                        Message = commandText,
-                        MessageId = "cmd_" .. math.random(100000, 999999),
-                        Time = timestamp
-                    }
-
-                    if HttpRequest then
-                        pcall(function()
-                            HttpRequest({
-                                Url = "http://167.99.144.89:8081/chatbox",
-                                Method = "POST",
-                                Headers = {
-                                    ["Content-Type"] = "application/json",
-                                    ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                                },
-                                Body = game:GetService("HttpService"):JSONEncode(payload),
-                            })
-                        end)
-                    end
-                    AddMessage("System", "Executed command: " .. commandText, true)
-                end)
-            end)
-        end
     end
+
+    -- Option 1: Copy Username
+    CreateMenuOption("Copy Username", nil, function()
+        if setclipboard then
+            setclipboard(targetUser)
+            Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
+        end
+    end)
+
+    -- Option 2: Copy UserID
+    CreateMenuOption("Copy UserID", nil, function()
+        if setclipboard then
+            setclipboard(tostring(targetUserId or 0))
+            Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
+        end
+    end)
+
+    -- Option 3: Set Nickname
+    CreateMenuOption("Set Nickname", nil, function()
+        NicknameTarget = targetUser
+        ReplyTarget = nil
+        ChatInput.Text = ""
+        SendBtn.Text = "Set"
+        UpdateInputLayout()
+        ChatInput:CaptureFocus()
+    end)
+
+    -- Option 4: Admin Quick Mute / Unmute Shortcut
+    if isAdminUser then
+        local commandText = isTargetMuted and (",unmute " .. targetUser) or (",mute " .. targetUser .. " 1h")
+
+        CreateMenuOption(isTargetMuted and "Unmute" or "Mute", Color3.fromRGB(255, 60, 60), function()
+            task.spawn(function()
+                local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                
+                -- Resolve target user ID if missing
+                local resolvedUserId = targetUserId
+                if not resolvedUserId then
+                    local success, fetchedId = pcall(function()
+                        return game:GetService("Players"):GetUserIdFromNameAsync(targetUser)
+                    end)
+                    resolvedUserId = success and fetchedId or 0
+                end
+
+                local payload = {
+                    Username = LocalPlayer.Name,
+                    UserId = tostring(LocalPlayer.UserId),
+                    Roles = {"user"},
+                    Message = commandText,
+                    MessageId = "cmd_" .. math.random(100000, 999999),
+                    Time = timestamp,
+                    MuteUser = targetUser,
+                    MuteDuration = isTargetMuted and "unmute" or "1h",
+                    MuteUserId = tostring(resolvedUserId)
+                }
+
+                if HttpRequest then
+                    pcall(function()
+                        HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox",
+                            Method = "POST",
+                            Headers = {
+                                ["Content-Type"] = "application/json",
+                                ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                            },
+                            Body = game:GetService("HttpService"):JSONEncode(payload),
+                        })
+                    end)
+                end
+                AddMessage("System", "Executed command: " .. commandText, true)
+            end)
+        end)
+    end
+end
     -- Close context menu on outside click
     game:GetService("UserInputService").InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -11156,7 +11169,7 @@ local function CreateMenuOption(text, textColor, callback)
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing381
+    --testing380
     return Window
 end
 
