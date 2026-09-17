@@ -11804,10 +11804,40 @@ local function FetchMessages()
                     local Success, Decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(Result.Body) end)
                     if Success and type(Decoded) == "table" then
 
-                        -- Handle incoming Invites payload from VPS
-                        if Decoded.Invites then
-                            RenderInvites(Decoded.Invites)
-                        end
+if Decoded.Invites then
+    if not ChatSettings.EnableInvites then
+        -- On every poll while invites are off, delete any that arrived
+        for _, inv in ipairs(Decoded.Invites) do
+            if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                local invIdStr = tostring(inv.Id)
+                if not DeniedInviteIds[invIdStr] then
+                    DeniedInviteIds[invIdStr] = true
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox/invites/deleteall",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode({
+                                        Username = LocalPlayer.Name
+                                    })
+                                })
+                            end)
+                        end)
+                    end
+                end
+            end
+        end
+        -- Still call RenderInvites so UI stays cleared
+        RenderInvites(Decoded.Invites)
+    else
+        RenderInvites(Decoded.Invites)
+    end
+end
 
                         -- FIX: Rebuild SeenUsers strictly from VPS KnownUsers data. No local server player auto-discovery.
                         local KnownUsersList = Decoded.KnownUsers or {}
