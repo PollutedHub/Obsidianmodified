@@ -11226,16 +11226,15 @@ end)
 
     local LastMessageTime = 0
     local SpamCooldown = 2
-   local BannedWords = {"sex", "dick", "pussy", "nigger", "nigga", "fanny"}
+local BannedWords = {"sex", "dick", "pussy", "nigger", "nigga", "fanny"}
 
-    local function ContainsBannedWord(Msg)
-        local Lower = Msg:lower()
-        if Lower:match("n+i+g+g+e+r") or Lower:match("n+i+g+g+a") then return true end
-        for _, Word in BannedWords do
-            if Lower:match(Word:lower()) then return true end
-        end
-        return false
+local function ContainsBannedWord(Msg)
+    local Lower = Msg:lower()
+    for _, Word in ipairs(BannedWords) do
+        if Lower:find(Word:lower(), 1, true) then return true end
     end
+    return false
+end
 
     local ActiveReactorMenus = {}
 
@@ -11760,7 +11759,8 @@ end)
         end
 
         if #Msg > 100 then AddMessage("System", "Message too long.", true); return end
-        if tick() - LastMessageTime < SpamCooldown then AddMessage("System", "Slow down.", true); return end
+if tick() - LastMessageTime < SpamCooldown then AddMessage("System", "Slow down.", true); return end
+if ContainsBannedWord(Msg) then AddMessage("System", "Your message contains a blocked word.", true); return end
 
         LastMessageTime = tick()
         local CurrentMsg = Msg
