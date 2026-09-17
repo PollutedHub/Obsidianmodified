@@ -10409,7 +10409,7 @@ do
         local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
         local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
-        local optionCount = isAdminUser and 4 or 3
+        local optionCount = isAdminUser and 5 or 4
         local menuHeight = (optionCount * 28) + ((optionCount - 1) * 2) + 12
 
         ActiveContextMenu = New("Frame", {
