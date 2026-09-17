@@ -9634,7 +9634,7 @@ do
         MailBtn.TextSize = 13
     end
 
-   -- Smooth Hover Highlight Effect (Fixed with explicit fallback color)
+   -- Smooth Hover Highlight Effect (Matches Settings button color seamlessly)
     local TweenService = game:GetService("TweenService")
     local hoverTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -9643,8 +9643,8 @@ do
     end)
 
     MailBtn.MouseLeave:Connect(function()
-        -- Revert cleanly back to the explicit theme dark color to prevent it from sticking
-        TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = Color3.fromRGB(35, 36, 40) }):Play()
+        -- Revert back to using "MainColor" just like the settings button uses
+        TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = "MainColor" }):Play()
     end)
   -- Larger MailPanel positioned on the left side of the chat window (increased to 380x480)
     local MailPanel = New("Frame", {
