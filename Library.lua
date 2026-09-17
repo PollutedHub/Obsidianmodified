@@ -11529,19 +11529,30 @@ end
             CancelDeleteHold()
         end)
 
-            -- Mobile: tap row to show action bar, only hide when tapping a different row
+           -- Mobile: tap row to toggle action bar (fires on finger LIFT, not press)
         local actionBarShown = false
+        local rowTouchStart = nil
         Row.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
-                if not actionBarShown then
-                    -- Hide all other action bars first
-                    for _, rowData in pairs(ActiveMessageRows) do
-                        if rowData.HideActionBar then rowData.HideActionBar() end
+                rowTouchStart = tick()
+            end
+        end)
+        Row.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
+                local elapsed = rowTouchStart and (tick() - rowTouchStart) or 999
+                -- Only toggle on short tap (under 0.5s), not long press
+                if elapsed < 0.5 then
+                    if actionBarShown then
+                        actionBarShown = false
+                        ActionBar.Visible = false
+                    else
+                        for _, rowData in pairs(ActiveMessageRows) do
+                            if rowData.HideActionBar then rowData.HideActionBar() end
+                        end
+                        actionBarShown = true
+                        ActionBar.Visible = true
                     end
-                    actionBarShown = true
-                    ActionBar.Visible = true
                 end
-                -- If already shown, do nothing — let buttons inside handle their own taps
             end
         end)
 
@@ -11598,53 +11609,52 @@ NameBtn.MouseButton2Click:Connect(function()
     if not isSystem then OpenUserContextMenu(sender, senderUserId) end
 end)
 
--- Mobile long press (1 second hold) on both name and full row
+-- PC: right click name for context menu
+-- Mobile: long press NAME for context menu, tap ROW to toggle action bar
+
 local holdThread = nil
 local holdStarted = false
 local holdStartPos = nil
 
-local function setupLongPress(target)
-    target.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            holdStarted = true
-            holdStartPos = Vector2.new(input.Position.X, input.Position.Y)
-            holdThread = task.delay(1, function()
-                if holdStarted then
-                    holdStarted = false
-                    holdThread = nil
-                    if not isSystem then
-                        OpenUserContextMenu(sender, senderUserId)
-                    end
-                end
-            end)
-        end
-    end)
-
-    target.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            holdStarted = false
-            holdThread = nil
-        end
-    end)
-
-    target.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch and holdStartPos then
-            local dx = math.abs(input.Position.X - holdStartPos.X)
-            local dy = math.abs(input.Position.Y - holdStartPos.Y)
-            if dx > 10 or dy > 10 then
+NameBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        holdStarted = true
+        holdStartPos = Vector2.new(input.Position.X, input.Position.Y)
+        holdThread = task.delay(1, function()
+            if holdStarted then
                 holdStarted = false
-                if holdThread then
-                    task.cancel(holdThread)
-                    holdThread = nil
+                holdThread = nil
+                if not isSystem then
+                    OpenUserContextMenu(sender, senderUserId)
                 end
             end
+        end)
+    end
+end)
+
+NameBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        holdStarted = false
+        if holdThread then
+            task.cancel(holdThread)
+            holdThread = nil
         end
-    end)
-end
+    end
+end)
 
-setupLongPress(NameBtn)
-setupLongPress(Row)
-
+NameBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch and holdStartPos then
+        local dx = math.abs(input.Position.X - holdStartPos.X)
+        local dy = math.abs(input.Position.Y - holdStartPos.Y)
+        if dx > 10 or dy > 10 then
+            holdStarted = false
+            if holdThread then
+                task.cancel(holdThread)
+                holdThread = nil
+            end
+        end
+    end
+end)
         local MsgBodyLabel = New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
