@@ -1,6 +1,6 @@
 local cloneref = (cloneref or clonereference or function(instance: any)
     return instance
-end)
+end) 
 local CoreGui: CoreGui = cloneref(game:GetService("CoreGui"))
 local Players: Players = cloneref(game:GetService("Players"))
 local RunService: RunService = cloneref(game:GetService("RunService"))
