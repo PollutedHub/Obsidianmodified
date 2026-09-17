@@ -9433,7 +9433,7 @@ end
 
     
 
--- CHATBOX WINDOW_2.lua
+-- CHATBOX WINDOW.lua
 do
     local ChatOpen = false
     local ChatMessages = {}
@@ -9658,12 +9658,12 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
-    
+
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 10),
         PaddingLeft = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 10),
-        PaddingTop = UDim.new(0, 0), 
+        PaddingTop = UDim.new(0, 0),
         Parent = MailPanel,
     })
 
@@ -9677,7 +9677,7 @@ do
         ZIndex = 601,
         Parent = MailPanel,
     })
-    
+
     -- Balanced padding to safely prevent stroke clipping on all sides
     New("UIPadding", {
         PaddingTop = UDim.new(0, 10),
@@ -9685,7 +9685,7 @@ do
         PaddingRight = UDim.new(0, 6),
         Parent = MailScroll,
     })
-    
+
     New("UIListLayout", {
         Padding = UDim.new(0, 10),
         SortOrder = Enum.SortOrder.LayoutOrder,
@@ -9707,22 +9707,59 @@ do
     local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
     local LatestInvitesList = nil -- Keeps a live reference to the latest invites array
 
+    -- Settings panel (Defined early so RenderInvites can access ChatSettings)
+    local CHATSETTINGS_FILE = "chatbox_settings.json"
+    local ChatSettings = {
+        EnablePings = false,
+        ToggleInvites = false,
+        ChatTextSize = 14,
+    }
+    local function SaveChatSettings()
+        if writefile then
+            pcall(function()
+                writefile(CHATSETTINGS_FILE, game:GetService("HttpService"):JSONEncode(ChatSettings))
+            end)
+        end
+    end
+    local function LoadChatSettings()
+        if isfile and readfile and isfile(CHATSETTINGS_FILE) then
+            pcall(function()
+                local loaded = game:GetService("HttpService"):JSONDecode(readfile(CHATSETTINGS_FILE))
+                if type(loaded) == "table" then
+                    if typeof(loaded.EnablePings) == "boolean" then
+                        ChatSettings.EnablePings = loaded.EnablePings
+                    end
+                    if typeof(loaded.ToggleInvites) == "boolean" then
+                        ChatSettings.ToggleInvites = loaded.ToggleInvites
+                    end
+                    if typeof(loaded.ChatTextSize) == "number" then
+                        ChatSettings.ChatTextSize = math.clamp(loaded.ChatTextSize, 10, 22)
+                    end
+                end
+            end)
+        end
+    end
+    LoadChatSettings()
+
     local function RenderInvites(invitesList)
         LatestInvitesList = invitesList -- Store reference globally for the click event
         local currentSignature = ""
         local unreadCount = 0
         local activeSignature = ""
 
-        if invitesList then
-            for _, inv in ipairs(invitesList) do
-                if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
-                    local invIdStr = tostring(inv.Id)
-                    activeSignature = activeSignature .. invIdStr
-                    currentSignature = currentSignature .. invIdStr
+        -- If ToggleInvites is off, do not process or show any incoming invites
+        if ChatSettings.ToggleInvites then
+            if invitesList then
+                for _, inv in ipairs(invitesList) do
+                    if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                        local invIdStr = tostring(inv.Id)
+                        activeSignature = activeSignature .. invIdStr
+                        currentSignature = currentSignature .. invIdStr
 
-                    -- Count as unread only if the mail panel is closed AND it hasn't been seen yet
-                    if not MailOpen and not string.find(LastSeenSignature, invIdStr) then
-                        unreadCount = unreadCount + 1
+                        -- Count as unread only if the mail panel is closed AND it hasn't been seen yet
+                        if not MailOpen and not string.find(LastSeenSignature, invIdStr) then
+                            unreadCount = unreadCount + 1
+                        end
                     end
                 end
             end
@@ -9745,7 +9782,7 @@ do
         if currentSignature == LastRenderedInviteSignature then
             return
         end
-        
+
         -- Check if user was at the bottom before refreshing content
         local wasAtBottom = not UserIsScrolledUp
         LastRenderedInviteSignature = currentSignature
@@ -9754,11 +9791,11 @@ do
             if child:IsA("GuiObject") then child:Destroy() end
         end
 
-        if not invitesList or currentSignature == "" then
+        if not ChatSettings.ToggleInvites or not invitesList or currentSignature == "" then
             New("TextLabel", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 40),
-                Text = "No messages yet.",
+                Text = ChatSettings.ToggleInvites and "No messages yet." :match(".*") or "Invites are turned off.",
                 TextColor3 = "FontColor",
                 TextSize = 14,
                 TextTransparency = 0.5,
@@ -9962,12 +9999,12 @@ do
     MailBtn.MouseButton1Click:Connect(function()
         MailOpen = not MailOpen
         MailPanel.Visible = MailOpen
-        
+
         if MailOpen then
             -- Immediately clear badge and update LastSeenSignature when opened
             MailBadge.Visible = false
             MailBadgeText.Text = "0"
-            
+
             -- Instantly lock in current invites as seen so they don't pop back up as unread
             if LatestInvitesList then
                 local snapshotSig = ""
@@ -10033,41 +10070,11 @@ do
         TweenService:Create(GearBtn, hoverTweenInfo, { BackgroundColor3 = Library.Scheme.MainColor or Color3.fromRGB(30, 31, 34) }):Play()
     end)
 
-    -- Settings panel
-    local CHATSETTINGS_FILE = "chatbox_settings.json"
-    local ChatSettings = {
-        EnablePings = false,
-        ChatTextSize = 14,
-    }
-    local function SaveChatSettings()
-        if writefile then
-            pcall(function()
-                writefile(CHATSETTINGS_FILE, game:GetService("HttpService"):JSONEncode(ChatSettings))
-            end)
-        end
-    end
-    local function LoadChatSettings()
-        if isfile and readfile and isfile(CHATSETTINGS_FILE) then
-            pcall(function()
-                local loaded = game:GetService("HttpService"):JSONDecode(readfile(CHATSETTINGS_FILE))
-                if type(loaded) == "table" then
-                    if typeof(loaded.EnablePings) == "boolean" then
-                        ChatSettings.EnablePings = loaded.EnablePings
-                    end
-                    if typeof(loaded.ChatTextSize) == "number" then
-                        ChatSettings.ChatTextSize = math.clamp(loaded.ChatTextSize, 10, 22)
-                    end
-                end
-            end)
-        end
-    end
-    LoadChatSettings()
-
     local SettingsPanel = New("Frame", {
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromOffset(0, 36),
-        Size = UDim2.fromOffset(220, 110),
+        Size = UDim2.fromOffset(220, 140),
         Visible = false,
         ZIndex = 600,
         Parent = ChatGui,
@@ -10169,10 +10176,95 @@ do
         PingBall.Position = UDim2.fromScale(on and 1 or 0, 0)
     end)
 
+    -- Toggle Invites toggle row
+    local InviteToggleRow = New("Frame", {
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.new(1, 0, 0, 18),
+        ZIndex = 601,
+        Parent = SettingsPanel,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -42, 1, 0),
+        Text = "Toggle Invites",
+        TextColor3 = "FontColor",
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 602,
+        Parent = InviteToggleRow,
+    })
+
+    local InviteSwitch = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(1, 0, 0.5, 0),
+        Size = UDim2.fromOffset(32, 18),
+        ZIndex = 602,
+        Parent = InviteToggleRow,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = InviteSwitch })
+    New("UIStroke", { Color = "OutlineColor", Parent = InviteSwitch })
+    Library:RemoveFromRegistry(InviteSwitch)
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 2),
+        PaddingLeft = UDim.new(0, 2),
+        PaddingRight = UDim.new(0, 2),
+        PaddingTop = UDim.new(0, 2),
+        Parent = InviteSwitch,
+    })
+
+    local InviteBall = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = "FontColor",
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.fromScale(1, 1),
+        SizeConstraint = Enum.SizeConstraint.RelativeYY,
+        ZIndex = 603,
+        Parent = InviteSwitch,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = InviteBall })
+
+    local InviteSwitchBtn = New("TextButton", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 604,
+        Parent = InviteSwitch,
+    })
+
+    local function UpdateInviteSwitch()
+        local on = ChatSettings.ToggleInvites
+        TweenService:Create(InviteSwitch, Library.TweenInfo, {
+            BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor,
+        }):Play()
+        TweenService:Create(InviteBall, Library.TweenInfo, {
+            AnchorPoint = Vector2.new(on and 1 or 0, 0),
+            Position = UDim2.fromScale(on and 1 or 0, 0),
+        }):Play()
+    end
+
+    InviteSwitchBtn.MouseButton1Click:Connect(function()
+        ChatSettings.ToggleInvites = not ChatSettings.ToggleInvites
+        UpdateInviteSwitch()
+        SaveChatSettings()
+        if LatestInvitesList then
+            RenderInvites(LatestInvitesList)
+        end
+    end)
+    task.spawn(function()
+        task.wait()
+        local on = ChatSettings.ToggleInvites
+        InviteSwitch.BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor
+        InviteBall.AnchorPoint = Vector2.new(on and 1 or 0, 0)
+        InviteBall.Position = UDim2.fromScale(on and 1 or 0, 0)
+    end)
+
     -- Chat Text Size slider row
     local SliderRow = New("Frame", {
         BackgroundTransparency = 1,
-        LayoutOrder = 2,
+        LayoutOrder = 3,
         Size = UDim2.new(1, 0, 0, 40),
         ZIndex = 601,
         Parent = SettingsPanel,
@@ -10840,7 +10932,7 @@ do
             if not HttpRequest then return end
 
             local Players = game:GetService("Players")
-            
+
             -- Check server capacity before sending the invite
             local currentPlayers = Players.NumPlayers
             local maxPlayers = Players.MaxPlayers
