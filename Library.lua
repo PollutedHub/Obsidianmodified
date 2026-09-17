@@ -9627,7 +9627,7 @@ do
         Parent = MailPanel,
     })
 
-    local MailScroll = New("ScrollingFrame", {
+local MailScroll = New("ScrollingFrame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         CanvasSize = UDim2.fromScale(0, 0),
@@ -9636,6 +9636,11 @@ do
         ScrollBarThickness = 4,
         ZIndex = 601,
         Parent = MailPanel,
+    })
+    -- Add explicit right padding here so the scrollbar sits nicely outside the card bounds
+    New("UIPadding", {
+        PaddingRight = UDim.new(0, 6),
+        Parent = MailScroll,
     })
     New("UIListLayout", {
         Padding = UDim.new(0, 10),
@@ -9648,7 +9653,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
 
     local function RenderInvites(invitesList)
-        -- Create a unique signature of the current invite IDs to check if anything actually changed
         local currentSignature = ""
         if invitesList then
             for _, inv in ipairs(invitesList) do
@@ -9658,13 +9662,11 @@ local MarketplaceService = game:GetService("MarketplaceService")
             end
         end
 
-        -- If the invites haven't changed, DO NOT wipe and rebuild the UI (prevents flickering)
         if currentSignature == LastRenderedInviteSignature then
             return
         end
         LastRenderedInviteSignature = currentSignature
 
-        -- Clear old rendered invite rows
         for _, child in ipairs(MailScroll:GetChildren()) do
             if child:IsA("GuiObject") then child:Destroy() end
         end
@@ -9686,10 +9688,10 @@ local MarketplaceService = game:GetService("MarketplaceService")
 
         for _, inv in ipairs(invitesList) do
             if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
-                -- Card container for the invite
+                -- Adjusted width to 1, -6 to leave breathing room for the scrollbar and fix border clipping
                 local InviteRow = New("Frame", {
                     BackgroundColor3 = Color3.fromRGB(30, 32, 38),
-                    Size = UDim2.new(1, 0, 0, 115),
+                    Size = UDim2.new(1, -6, 0, 115),
                     ZIndex = 602,
                     Parent = MailScroll,
                 })
@@ -9697,7 +9699,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
                 New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = InviteRow })
                 New("UIPadding", { PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), Parent = InviteRow })
 
-                -- Inviter Header Text
                 New("TextLabel", {
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 0, 20),
@@ -9710,7 +9711,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
                     Parent = InviteRow,
                 })
 
-                -- Game Info Layout Container (Icon + Details)
                 local InfoContainer = New("Frame", {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 0, 0, 24),
@@ -9750,7 +9750,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
                     Parent = DetailsContainer,
                 })
 
-                -- Fixed: pulling directly from inv.Players instead of inv.PlayerCount
                 local playerCountText = inv.Players and tostring(inv.Players) or "Unknown"
                 local PlayersLabel = New("TextLabel", {
                     BackgroundTransparency = 1,
@@ -9765,7 +9764,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
                     Parent = DetailsContainer,
                 })
 
-                -- Asynchronously fetch game icon and name using MarketplaceService
                 task.spawn(function()
                     local placeId = tonumber(inv.PlaceId)
                     if placeId then
@@ -9786,7 +9784,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
                     end
                 end)
 
-                -- Action Buttons Holder
                 local ButtonHolder = New("Frame", {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 0, 0, 78),
@@ -9800,6 +9797,29 @@ local MarketplaceService = game:GetService("MarketplaceService")
                     Padding = UDim.new(0, 8),
                     Parent = ButtonHolder,
                 })
+
+                -- Helper function to send delete request to VPS
+                local function deleteInviteOnVPS()
+                    LastRenderedInviteSignature = ""
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox/invites/delete",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode({
+                                        Id = inv.Id,
+                                        Username = LocalPlayer.Name
+                                    })
+                                })
+                            end)
+                        end)
+                    end
+                end
 
                 -- Accept Button (Green)
                 local AcceptBtn = New("TextButton", {
@@ -9815,6 +9835,8 @@ local MarketplaceService = game:GetService("MarketplaceService")
                 New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = AcceptBtn })
 
                 AcceptBtn.MouseButton1Click:Connect(function()
+                    deleteInviteOnVPS() -- Deletes from VPS when accepted
+                    InviteRow:Destroy()
                     pcall(function()
                         local TeleportService = game:GetService("TeleportService")
                         local placeId = tonumber(inv.PlaceId)
@@ -9840,31 +9862,13 @@ local MarketplaceService = game:GetService("MarketplaceService")
                 New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = DenyBtn })
 
                 DenyBtn.MouseButton1Click:Connect(function()
-                    LastRenderedInviteSignature = "" -- Reset signature so it can re-render remaining items properly
+                    deleteInviteOnVPS()
                     InviteRow:Destroy()
-                    if HttpRequest then
-                        task.spawn(function()
-                            pcall(function()
-                                HttpRequest({
-                                    Url = "http://167.99.144.89:8081/chatbox/invites/delete",
-                                    Method = "POST",
-                                    Headers = {
-                                        ["Content-Type"] = "application/json",
-                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                                    },
-                                    Body = game:GetService("HttpService"):JSONEncode({
-                                        Id = inv.Id,
-                                        Username = LocalPlayer.Name
-                                    })
-                                })
-                            end)
-                        end)
-                    end
                 end)
             end
         end
     end
-
+    
     local MailOpen = false
     MailBtn.MouseButton1Click:Connect(function()
         MailOpen = not MailOpen
