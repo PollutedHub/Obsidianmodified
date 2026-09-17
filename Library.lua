@@ -9703,22 +9703,12 @@ do
         end
     end)
 
-    local MarketplaceService = game:GetService("MarketplaceService")
+   local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
     local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
     local LatestInvitesList = nil -- Keeps a live reference to the latest invites array
 
-local function RenderInvites(invitesList)
-        -- Stop rendering and clear elements if invites are disabled
-        if not ChatSettings.EnableInvites then
-            LastRenderedInviteSignature = ""
-            MailBadge.Visible = false
-            for _, child in ipairs(MailScroll:GetChildren()) do
-                if child:IsA("GuiObject") then child:Destroy() end
-            end
-            return
-        end
-
+    local function RenderInvites(invitesList)
         LatestInvitesList = invitesList -- Store reference globally for the click event
         local currentSignature = ""
         local unreadCount = 0
@@ -9762,11 +9752,14 @@ local function RenderInvites(invitesList)
         LastRenderedInviteSignature = currentSignature
 
         for _, child in ipairs(MailScroll:GetChildren()) do
-            if child:IsA("GuiObject") then child:Destroy() end
+            if child:IsA("GuiObject") and child.Name == "InviteRowTag" then 
+                child:Destroy() 
+            end
         end
 
         if not invitesList or currentSignature == "" then
             New("TextLabel", {
+                Name = "InviteRowTag",
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 40),
                 Text = "No messages yet.",
@@ -9783,6 +9776,7 @@ local function RenderInvites(invitesList)
         for _, inv in ipairs(invitesList) do
             if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
                 local InviteRow = New("Frame", {
+                    Name = "InviteRowTag",
                     BackgroundColor3 = Color3.fromRGB(30, 32, 38),
                     Size = UDim2.new(1, -6, 0, 115),
                     ZIndex = 602,
