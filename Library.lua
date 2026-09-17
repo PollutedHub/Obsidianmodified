@@ -9737,13 +9737,15 @@ do
             end
         end
 
-        -- Check if invites setting is turned OFF
+-- Check if invites setting is turned OFF
         local invitesEnabled = true
-        if _G.Settings and _G.Settings.InvitesEnabled ~= nil then
+        if ChatSettings and ChatSettings.EnableInvites ~= nil then
+            invitesEnabled = ChatSettings.EnableInvites
+        elseif _G.Settings and _G.Settings.InvitesEnabled ~= nil then
             invitesEnabled = _G.Settings.InvitesEnabled
         elseif Toggles and Toggles.InvitesEnabled then
             invitesEnabled = Toggles.InvitesEnabled.Value
-        end -- Fallback: change `_G.Settings.InvitesEnabled` or `Toggles.InvitesEnabled.Value` to match your actual UI library flag/setting variable if needed!
+        end
 
         if not invitesEnabled then
             -- Automatically clear/deny all pending invites if the setting is off
@@ -9757,8 +9759,8 @@ do
 
             -- Clear existing rendered rows
             for _, child in ipairs(MailScroll:GetChildren()) do
-                if child:IsA("GuiObject") and child.Name == "InviteRowTag" then 
-                    child:Destroy() 
+                if child:IsA("GuiObject") and child.Name == "InviteRowTag" then
+                    child:Destroy()
                 end
             end
 
@@ -9806,8 +9808,8 @@ do
         LastRenderedInviteSignature = currentSignature
 
         for _, child in ipairs(MailScroll:GetChildren()) do
-            if child:IsA("GuiObject") and child.Name == "InviteRowTag" then 
-                child:Destroy() 
+            if child:IsA("GuiObject") and child.Name == "InviteRowTag" then
+                child:Destroy()
             end
         end
 
