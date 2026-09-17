@@ -9643,9 +9643,28 @@ do
         Parent = MailScroll,
     })
 
-    local MarketplaceService = game:GetService("MarketplaceService")
+
+local MarketplaceService = game:GetService("MarketplaceService")
+    local LastRenderedInviteSignature = ""
 
     local function RenderInvites(invitesList)
+        -- Create a unique signature of the current invite IDs to check if anything actually changed
+        local currentSignature = ""
+        if invitesList then
+            for _, inv in ipairs(invitesList) do
+                if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                    currentSignature = currentSignature .. tostring(inv.Id)
+                end
+            end
+        end
+
+        -- If the invites haven't changed, DO NOT wipe and rebuild the UI (prevents flickering)
+        if currentSignature == LastRenderedInviteSignature then
+            return
+        end
+        LastRenderedInviteSignature = currentSignature
+
+        -- Clear old rendered invite rows
         for _, child in ipairs(MailScroll:GetChildren()) do
             if child:IsA("GuiObject") then child:Destroy() end
         end
@@ -9731,11 +9750,13 @@ do
                     Parent = DetailsContainer,
                 })
 
+                -- Fixed: pulling directly from inv.Players instead of inv.PlayerCount
+                local playerCountText = inv.Players and tostring(inv.Players) or "Unknown"
                 local PlayersLabel = New("TextLabel", {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 0, 0, 26),
                     Size = UDim2.new(1, 0, 0, 20),
-                    Text = "Players Here: " .. tostring(inv.PlayerCount or "Unknown"),
+                    Text = "Players Here: " .. playerCountText,
                     TextColor3 = Color3.fromRGB(150, 151, 156),
                     TextSize = 12,
                     Font = Enum.Font.Gotham,
@@ -9819,6 +9840,7 @@ do
                 New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = DenyBtn })
 
                 DenyBtn.MouseButton1Click:Connect(function()
+                    LastRenderedInviteSignature = "" -- Reset signature so it can re-render remaining items properly
                     InviteRow:Destroy()
                     if HttpRequest then
                         task.spawn(function()
