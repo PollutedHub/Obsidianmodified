@@ -11301,11 +11301,16 @@ end
         New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
         New("UIPadding", { PaddingBottom = UDim.new(0, 4), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), Parent = Row })
 
+                local isMobile = game:GetService("UserInputService").TouchEnabled
+        local btnWidth = isMobile and 44 or 28
+        local barHeight = isMobile and 36 or 24
+        local barWidth = btnWidth * 3
+
         local ActionBar = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = Color3.fromRGB(45, 47, 52),
             Position = UDim2.new(1, -4, 0, -6),
-            Size = UDim2.fromOffset(84, 24),
+            Size = UDim2.fromOffset(barWidth, barHeight),
             Visible = false,
             ZIndex = 510,
             Parent = Row,
@@ -11315,40 +11320,40 @@ end
 
         local ReplyBtn = New("TextButton", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0, 28, 1, 0),
+            Size = UDim2.new(0, btnWidth, 1, 0),
             Text = "↩",
             TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextSize = 13,
+            TextSize = isMobile and 16 or 13,
             ZIndex = 511,
             Parent = ActionBar,
         })
 
         local HeartBtn = New("TextButton", {
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 28, 0, 0),
-            Size = UDim2.new(0, 28, 1, 0),
+            Position = UDim2.new(0, btnWidth, 0, 0),
+            Size = UDim2.new(0, btnWidth, 1, 0),
             Text = "❤️",
             TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextSize = 11,
+            TextSize = isMobile and 14 or 11,
             ZIndex = 511,
             Parent = ActionBar,
         })
 
         local BinBtn = New("TextButton", {
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 56, 0, 0),
-            Size = UDim2.new(0, 28, 1, 0),
+            Position = UDim2.new(0, btnWidth * 2, 0, 0),
+            Size = UDim2.new(0, btnWidth, 1, 0),
             Text = "🗑️",
             TextColor3 = Color3.fromRGB(200, 200, 200),
-            TextSize = 11,
+            TextSize = isMobile and 14 or 11,
             ZIndex = 511,
             Parent = ActionBar,
         })
 
         local BinProgressGui = New("Frame", {
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 56, 0, 0),
-            Size = UDim2.fromOffset(28, 28),
+            Position = UDim2.new(0, btnWidth * 2, 0, 0),
+            Size = UDim2.fromOffset(btnWidth, barHeight),
             Visible = false,
             ZIndex = 515,
             Parent = ActionBar,
@@ -11541,7 +11546,7 @@ end
             if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
                 local elapsed = rowTouchStart and (tick() - rowTouchStart) or 999
                 -- Only toggle on short tap (under 0.5s), not long press
-                if elapsed < 0.5 then
+                if elapsed < 0.1 then
                     if actionBarShown then
                         actionBarShown = false
                         ActionBar.Visible = false
