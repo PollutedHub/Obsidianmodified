@@ -9664,11 +9664,14 @@ local MailScroll = New("ScrollingFrame", {
         ZIndex = 601,
         Parent = MailPanel,
     })
-    -- Add explicit right padding here so the scrollbar sits nicely outside the card bounds
+    
+    -- Added PaddingTop here so the first card isn't clipped at the top boundary
     New("UIPadding", {
+        PaddingTop = UDim.new(0, 6),
         PaddingRight = UDim.new(0, 6),
         Parent = MailScroll,
     })
+    
     New("UIListLayout", {
         Padding = UDim.new(0, 10),
         SortOrder = Enum.SortOrder.LayoutOrder,
