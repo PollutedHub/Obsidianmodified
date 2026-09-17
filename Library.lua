@@ -9634,7 +9634,7 @@ do
         MailBtn.TextSize = 13
     end
 
-    -- Smooth Hover Highlight Effect (Fixed sticking color issue)
+   -- Smooth Hover Highlight Effect (Fixed with explicit fallback color)
     local TweenService = game:GetService("TweenService")
     local hoverTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -9643,14 +9643,9 @@ do
     end)
 
     MailBtn.MouseLeave:Connect(function()
-        -- Revert seamlessly back to string token theme property if your library supports it, or standard dark color
-        local defaultColor = MailBtn.BackgroundColor3
-        pcall(function()
-            defaultColor = Library.Themes and Library.Themes[Library.CurrentTheme].MainColor or Color3.fromRGB(35, 36, 40)
-        end)
-        TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = defaultColor }):Play()
+        -- Revert cleanly back to the explicit theme dark color to prevent it from sticking
+        TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = Color3.fromRGB(35, 36, 40) }):Play()
     end)
-
   -- Larger MailPanel positioned on the left side of the chat window (increased to 380x480)
     local MailPanel = New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
