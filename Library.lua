@@ -10122,6 +10122,26 @@ local function SaveChatSettings()
     end
     LoadChatSettings()
 
+-- NEW: Nuke any pending invites on load if invites are disabled
+if not ChatSettings.EnableInvites and HttpRequest then
+    task.spawn(function()
+        pcall(function()
+            HttpRequest({
+                Url = "http://167.99.144.89:8081/chatbox/invites/deleteall",
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                },
+                Body = game:GetService("HttpService"):JSONEncode({
+                    Username = game:GetService("Players").LocalPlayer.Name
+                })
+            })
+        end)
+    end)
+end
+
+
     local SettingsPanel = New("Frame", {
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = "BackgroundColor",
@@ -10297,11 +10317,30 @@ local function SaveChatSettings()
         }):Play()
     end
 
-    InviteSwitchBtn.MouseButton1Click:Connect(function()
-        ChatSettings.EnableInvites = not ChatSettings.EnableInvites
-        UpdateInviteSwitch()
-        SaveChatSettings()
-    end)
+InviteSwitchBtn.MouseButton1Click:Connect(function()
+    ChatSettings.EnableInvites = not ChatSettings.EnableInvites
+    UpdateInviteSwitch()
+    SaveChatSettings()
+
+    -- NEW: When turned off, nuke all pending invites server-side immediately
+    if not ChatSettings.EnableInvites and HttpRequest then
+        task.spawn(function()
+            pcall(function()
+                HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox/invites/deleteall",
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                    },
+                    Body = game:GetService("HttpService"):JSONEncode({
+                        Username = game:GetService("Players").LocalPlayer.Name
+                    })
+                })
+            end)
+        end)
+    end
+end)
     task.spawn(function()
         task.wait()
         local on = ChatSettings.EnableInvites
