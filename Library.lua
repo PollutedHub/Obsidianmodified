@@ -11415,8 +11415,8 @@ end
             ChatInput:CaptureFocus()
         end)
 
-        local activePickerMenu = nil
-        HeartBtn.MouseButton1Click:Connect(function()
+   local activePickerMenu = nil
+        local function OnHeartActivated()
             if activePickerMenu then
                 ActiveReactorMenus[activePickerMenu] = nil
                 activePickerMenu:Destroy()
@@ -11441,14 +11441,14 @@ end
             for _, emoji in ipairs(availableEmojis) do
                 local emojiBtn = New("TextButton", {
                     BackgroundTransparency = 1,
-                    Size = UDim2.fromOffset(20, 20),
+                    Size = UDim2.fromOffset(isMobile and 26 or 20, isMobile and 26 or 20),
                     Text = emoji,
-                    TextSize = 13,
+                    TextSize = isMobile and 16 or 13,
                     ZIndex = 601,
                     Parent = activePickerMenu,
                 })
 
-                emojiBtn.MouseButton1Down:Connect(function()
+                local function OnEmojiActivated()
                     local currentRx = {}
                     for e, list in pairs(currentRowReactions) do
                         currentRx[e] = {}
@@ -11463,9 +11463,7 @@ end
 
                     if foundIndex then
                         table.remove(currentRx[emoji], foundIndex)
-                        if #currentRx[emoji] == 0 then
-                            currentRx[emoji] = nil
-                        end
+                        if #currentRx[emoji] == 0 then currentRx[emoji] = nil end
                     else
                         table.insert(currentRx[emoji], LocalPlayer.Name)
                     end
@@ -11477,7 +11475,19 @@ end
                         activePickerMenu = nil
                     end
                     SendToEndpoint(sender, text, msgIdStr, replyData, currentRx, nil)
+                end
+
+                emojiBtn.MouseButton1Down:Connect(OnEmojiActivated)
+                emojiBtn.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.Touch then
+                        OnEmojiActivated()
+                    end
                 end)
+            end
+
+            -- Make picker bigger on mobile
+            if isMobile then
+                activePickerMenu.Size = UDim2.fromOffset(180, 44)
             end
 
             ActiveReactorMenus[activePickerMenu] = function()
@@ -11489,6 +11499,13 @@ end
                 local heartPos = HeartBtn.AbsolutePosition
                 local heartSize = HeartBtn.AbsoluteSize
                 return not ((mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) or (mousePos.X >= heartPos.X and mousePos.X <= heartPos.X + heartSize.X and mousePos.Y >= heartPos.Y and mousePos.Y <= heartPos.Y + heartSize.Y))
+            end
+        end
+
+        HeartBtn.MouseButton1Click:Connect(OnHeartActivated)
+        HeartBtn.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                OnHeartActivated()
             end
         end)
 
