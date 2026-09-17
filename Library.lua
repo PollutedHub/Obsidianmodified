@@ -9608,10 +9608,34 @@ do
     end
 
     -- Settings panel
+    local CHATSETTINGS_FILE = "chatbox_settings.json"
     local ChatSettings = {
-        EnablePings = true,
+        EnablePings = false,
         ChatTextSize = 14,
     }
+    local function SaveChatSettings()
+        if writefile then
+            pcall(function()
+                writefile(CHATSETTINGS_FILE, game:GetService("HttpService"):JSONEncode(ChatSettings))
+            end)
+        end
+    end
+    local function LoadChatSettings()
+        if isfile and readfile and isfile(CHATSETTINGS_FILE) then
+            pcall(function()
+                local loaded = game:GetService("HttpService"):JSONDecode(readfile(CHATSETTINGS_FILE))
+                if type(loaded) == "table" then
+                    if typeof(loaded.EnablePings) == "boolean" then
+                        ChatSettings.EnablePings = loaded.EnablePings
+                    end
+                    if typeof(loaded.ChatTextSize) == "number" then
+                        ChatSettings.ChatTextSize = math.clamp(loaded.ChatTextSize, 10, 22)
+                    end
+                end
+            end)
+        end
+    end
+    LoadChatSettings()
 
     local SettingsPanel = New("Frame", {
         AnchorPoint = Vector2.new(0, 0),
@@ -9708,6 +9732,7 @@ do
     PingSwitchBtn.MouseButton1Click:Connect(function()
         ChatSettings.EnablePings = not ChatSettings.EnablePings
         UpdatePingSwitch()
+        SaveChatSettings()
     end)
     UpdatePingSwitch()
 
@@ -9776,7 +9801,7 @@ do
         for _, child in ipairs(ChatScroll:GetChildren()) do
             if child:IsA("Frame") then
                 for _, desc in ipairs(child:GetDescendants()) do
-                    if desc:IsA("TextLabel") and desc.TextWrapped then
+                    if desc:IsA("TextLabel") and desc.TextWrapped and not desc.TextTruncate then
                         desc.TextSize = ChatSettings.ChatTextSize
                     end
                 end
@@ -9794,6 +9819,7 @@ do
             if newSize ~= ChatSettings.ChatTextSize then
                 ChatSettings.ChatTextSize = newSize
                 UpdateTextSizeSlider()
+                SaveChatSettings()
             end
             RunService.RenderStepped:Wait()
         end
