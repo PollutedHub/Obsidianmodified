@@ -9646,15 +9646,17 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
+    
+    -- Removed Top padding from here so the panel container doesn't trap items too high up
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 10),
         PaddingLeft = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 10),
-        PaddingTop = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 0), 
         Parent = MailPanel,
     })
 
-local MailScroll = New("ScrollingFrame", {
+    local MailScroll = New("ScrollingFrame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         CanvasSize = UDim2.fromScale(0, 0),
@@ -9665,9 +9667,9 @@ local MailScroll = New("ScrollingFrame", {
         Parent = MailPanel,
     })
     
-    -- Added PaddingTop here so the first card isn't clipped at the top boundary
+    -- Handle all internal breathing room safely here inside the scroll frame
     New("UIPadding", {
-        PaddingTop = UDim.new(0, 6),
+        PaddingTop = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 6),
         Parent = MailScroll,
     })
