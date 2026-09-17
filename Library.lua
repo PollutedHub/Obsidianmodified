@@ -11134,10 +11134,10 @@ game:GetService("UserInputService").InputBegan:Connect(function(input)
             end
         end
     end
-    -- Touch: only close if tapping clearly outside, with a small delay so button click registers first
+    -- Touch: only close when tapping outside, delay long enough for button MouseButton1Down to fire first
     if input.UserInputType == Enum.UserInputType.Touch then
         if ActiveContextMenu then
-            task.delay(0.15, function()
+            task.delay(0.3, function()
                 if not ActiveContextMenu then return end
                 local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                 local absPos = ActiveContextMenu.AbsolutePosition
