@@ -11226,7 +11226,7 @@ end)
 
     local LastMessageTime = 0
     local SpamCooldown = 2
-    local BannedWords = {}
+   local BannedWords = {"sex", "dick", "pussy", "nigger", "nigga", "fanny"}
 
     local function ContainsBannedWord(Msg)
         local Lower = Msg:lower()
