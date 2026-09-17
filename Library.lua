@@ -9656,7 +9656,7 @@ do
         Parent = MailPanel,
     })
 
-    local MailScroll = New("ScrollingFrame", {
+local MailScroll = New("ScrollingFrame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         CanvasSize = UDim2.fromScale(0, 0),
@@ -9667,9 +9667,10 @@ do
         Parent = MailPanel,
     })
     
-    -- Handle all internal breathing room safely here inside the scroll frame
+    -- Added PaddingLeft (6px) to match PaddingRight so it floats nicely in the center with breathing room
     New("UIPadding", {
         PaddingTop = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 6),
         PaddingRight = UDim.new(0, 6),
         Parent = MailScroll,
     })
@@ -9679,7 +9680,6 @@ do
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = MailScroll,
     })
-
 
 local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
