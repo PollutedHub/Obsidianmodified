@@ -11491,8 +11491,9 @@ end
             end
 
             ActiveReactorMenus[activePickerMenu] = function()
-                if tick() - menuOpenedTick < 0.15 then return false end
+                if tick() - menuOpenedTick < 0.5 then return false end
                 if not activePickerMenu or not activePickerMenu.Parent then return true end
+                if isMobile then return false end
                 local mousePos = game:GetService("UserInputService"):GetMouseLocation()
                 local absPos = activePickerMenu.AbsolutePosition
                 local absSize = activePickerMenu.AbsoluteSize
