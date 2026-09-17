@@ -9434,6 +9434,7 @@ end
     
 
 -- CHATBOX WINDOW_2.lua
+-- CHATBOX WINDOW_2.lua
 do
     local ChatOpen = false
     local ChatMessages = {}
@@ -9707,17 +9708,7 @@ do
     local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
     local LatestInvitesList = nil -- Keeps a live reference to the latest invites array
 
-local function RenderInvites(invitesList)
-        -- Stop rendering and clear elements if invites are disabled
-        if not ChatSettings.EnableInvites then
-            LastRenderedInviteSignature = ""
-            MailBadge.Visible = false
-            for _, child in ipairs(MailScroll:GetChildren()) do
-                if child:IsA("GuiObject") then child:Destroy() end
-            end
-            return
-        end
-
+    local function RenderInvites(invitesList)
         LatestInvitesList = invitesList -- Store reference globally for the click event
         local currentSignature = ""
         local unreadCount = 0
