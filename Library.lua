@@ -10987,6 +10987,14 @@ end)
                 btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
             end)
 
+            btn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch or
+                   input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    CloseContextMenu()
+                    task.spawn(callback)
+                end
+            end)
+
             btn.MouseButton1Down:Connect(function()
                 CloseContextMenu()
                 task.spawn(callback)
@@ -11134,18 +11142,14 @@ game:GetService("UserInputService").InputBegan:Connect(function(input)
             end
         end
     end
-    -- Touch: only close when tapping outside, delay long enough for button MouseButton1Down to fire first
     if input.UserInputType == Enum.UserInputType.Touch then
         if ActiveContextMenu then
-            task.delay(0.3, function()
-                if not ActiveContextMenu then return end
-                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                local absPos = ActiveContextMenu.AbsolutePosition
-                local absSize = ActiveContextMenu.AbsoluteSize
-                if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
-                    CloseContextMenu()
-                end
-            end)
+            local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+            local absPos = ActiveContextMenu.AbsolutePosition
+            local absSize = ActiveContextMenu.AbsoluteSize
+            if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
+                CloseContextMenu()
+            end
         end
     end
 end)
