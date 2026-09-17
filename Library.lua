@@ -9607,11 +9607,12 @@ do
         MailBtn.TextSize = 13
     end
 
+  -- Larger MailPanel positioned on the left side of the chat window
     local MailPanel = New("Frame", {
-        AnchorPoint = Vector2.new(0, 0),
+        AnchorPoint = Vector2.new(1, 0),
         BackgroundColor3 = "BackgroundColor",
-        Position = UDim2.fromOffset(0, 36),
-        Size = UDim2.fromOffset(240, 140),
+        Position = UDim2.fromOffset(-10, 0),
+        Size = UDim2.fromOffset(320, 420),
         Visible = false,
         ZIndex = 600,
         Parent = ChatGui,
@@ -9619,10 +9620,10 @@ do
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
     New("UIPadding", {
-        PaddingBottom = UDim.new(0, 8),
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        PaddingTop = UDim.new(0, 8),
+        PaddingBottom = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 10),
         Parent = MailPanel,
     })
 
@@ -9632,15 +9633,17 @@ do
         CanvasSize = UDim2.fromScale(0, 0),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollBarImageColor3 = "OutlineColor",
-        ScrollBarThickness = 3,
+        ScrollBarThickness = 4,
         ZIndex = 601,
         Parent = MailPanel,
     })
     New("UIListLayout", {
-        Padding = UDim.new(0, 8),
+        Padding = UDim.new(0, 10),
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = MailScroll,
     })
+
+    local MarketplaceService = game:GetService("MarketplaceService")
 
     local function RenderInvites(invitesList)
         for _, child in ipairs(MailScroll:GetChildren()) do
@@ -9650,10 +9653,10 @@ do
         if not invitesList or #invitesList == 0 then
             New("TextLabel", {
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 20),
+                Size = UDim2.new(1, 0, 0, 40),
                 Text = "No messages yet.",
                 TextColor3 = "FontColor",
-                TextSize = 13,
+                TextSize = 14,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Center,
                 ZIndex = 602,
@@ -9664,31 +9667,109 @@ do
 
         for _, inv in ipairs(invitesList) do
             if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                -- Card container for the invite
                 local InviteRow = New("Frame", {
-                    BackgroundColor3 = Color3.fromRGB(35, 37, 42),
-                    Size = UDim2.new(1, 0, 0, 55),
+                    BackgroundColor3 = Color3.fromRGB(30, 32, 38),
+                    Size = UDim2.new(1, 0, 0, 115),
                     ZIndex = 602,
                     Parent = MailScroll,
                 })
-                New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = InviteRow })
-                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = InviteRow })
-                New("UIPadding", { PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 6), Parent = InviteRow })
+                New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = InviteRow })
+                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Thickness = 1, Parent = InviteRow })
+                New("UIPadding", { PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), Parent = InviteRow })
 
+                -- Inviter Header Text
                 New("TextLabel", {
                     BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 18),
-                    Text = "Invite from: " .. tostring(inv.SenderUsername),
-                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Text = tostring(inv.SenderUsername) .. " invited you to game",
+                    TextColor3 = Color3.fromRGB(220, 221, 222),
                     TextSize = 13,
+                    Font = Enum.Font.GothamBold,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     ZIndex = 603,
                     Parent = InviteRow,
                 })
 
+                -- Game Info Layout Container (Icon + Details)
+                local InfoContainer = New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 0, 0, 24),
+                    Size = UDim2.new(1, 0, 0, 50),
+                    ZIndex = 603,
+                    Parent = InviteRow,
+                })
+
+                local IconLabel = New("ImageLabel", {
+                    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+                    Size = UDim2.fromOffset(50, 50),
+                    Position = UDim2.new(0, 0, 0, 0),
+                    Image = "",
+                    ZIndex = 604,
+                    Parent = InfoContainer,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = IconLabel })
+
+                local DetailsContainer = New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 58, 0, 0),
+                    Size = UDim2.new(1, -58, 1, 0),
+                    ZIndex = 604,
+                    Parent = InfoContainer,
+                })
+
+                local NameLabel = New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 26),
+                    Text = "Loading Game...",
+                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    TextSize = 13,
+                    Font = Enum.Font.GothamSemibold,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 605,
+                    Parent = DetailsContainer,
+                })
+
+                local PlayersLabel = New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 0, 0, 26),
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Text = "Players Here: " .. tostring(inv.PlayerCount or "Unknown"),
+                    TextColor3 = Color3.fromRGB(150, 151, 156),
+                    TextSize = 12,
+                    Font = Enum.Font.Gotham,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    ZIndex = 605,
+                    Parent = DetailsContainer,
+                })
+
+                -- Asynchronously fetch game icon and name using MarketplaceService
+                task.spawn(function()
+                    local placeId = tonumber(inv.PlaceId)
+                    if placeId then
+                        local success, productInfo = pcall(function()
+                            return MarketplaceService:GetProductInfo(placeId)
+                        end)
+                        if success and productInfo then
+                            NameLabel.Text = productInfo.Name or "Unknown Game"
+                            if productInfo.IconImageAssetId and productInfo.IconImageAssetId > 0 then
+                                IconLabel.Image = "rbxassetid://" .. tostring(productInfo.IconImageAssetId)
+                            else
+                                IconLabel.Image = string.format("rbxthumb://type=GameIcon&id=%d&w=150&h=150", placeId)
+                            end
+                        else
+                            NameLabel.Text = "Game ID: " .. tostring(placeId)
+                            IconLabel.Image = string.format("rbxthumb://type=GameIcon&id=%d&w=150&h=150", placeId)
+                        end
+                    end
+                end)
+
+                -- Action Buttons Holder
                 local ButtonHolder = New("Frame", {
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 0, 0, 22),
-                    Size = UDim2.new(1, 0, 0, 22),
+                    Position = UDim2.new(0, 0, 0, 78),
+                    Size = UDim2.new(1, 0, 0, 24),
                     ZIndex = 603,
                     Parent = InviteRow,
                 })
@@ -9706,6 +9787,7 @@ do
                     Text = "Accept",
                     TextColor3 = Color3.fromRGB(255, 255, 255),
                     TextSize = 12,
+                    Font = Enum.Font.GothamBold,
                     ZIndex = 604,
                     Parent = ButtonHolder,
                 })
@@ -9730,6 +9812,7 @@ do
                     Text = "Deny",
                     TextColor3 = Color3.fromRGB(255, 255, 255),
                     TextSize = 12,
+                    Font = Enum.Font.GothamBold,
                     ZIndex = 604,
                     Parent = ButtonHolder,
                 })
