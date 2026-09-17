@@ -9578,6 +9578,246 @@ do
         Parent = ChatTitleBar,
     })
 
+    local GearBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(0, 8, 0.5, 0),
+        Size = UDim2.fromOffset(24, 24),
+        Text = "",
+        ZIndex = 510,
+        Parent = ChatTitleBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = GearBtn })
+    New("UIStroke", { Color = "OutlineColor", Parent = GearBtn })
+    local GearIcon = Library:GetIcon("settings")
+    if GearIcon then
+        New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Image = GearIcon.Url,
+            ImageColor3 = "FontColor",
+            ImageRectOffset = GearIcon.ImageRectOffset,
+            ImageRectSize = GearIcon.ImageRectSize,
+            Size = UDim2.new(1, -6, 1, -6),
+            Position = UDim2.fromOffset(3, 3),
+            ZIndex = 511,
+            Parent = GearBtn,
+        })
+    else
+        GearBtn.Text = "⚙"
+        GearBtn.TextSize = 13
+    end
+
+    -- Settings panel
+    local ChatSettings = {
+        EnablePings = true,
+        ChatTextSize = 14,
+    }
+
+    local SettingsPanel = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = "BackgroundColor",
+        Position = UDim2.fromOffset(0, 36),
+        Size = UDim2.fromOffset(220, 110),
+        Visible = false,
+        ZIndex = 600,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = SettingsPanel })
+    New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = SettingsPanel })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 10),
+        Parent = SettingsPanel,
+    })
+    New("UIListLayout", {
+        Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = SettingsPanel,
+    })
+
+    -- Enable Pings toggle row
+    local PingToggleRow = New("Frame", {
+        BackgroundTransparency = 1,
+        LayoutOrder = 1,
+        Size = UDim2.new(1, 0, 0, 18),
+        ZIndex = 601,
+        Parent = SettingsPanel,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -42, 1, 0),
+        Text = "Enable Pings",
+        TextColor3 = "FontColor",
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 602,
+        Parent = PingToggleRow,
+    })
+
+    local PingSwitch = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = "AccentColor",
+        Position = UDim2.new(1, 0, 0.5, 0),
+        Size = UDim2.fromOffset(32, 18),
+        ZIndex = 602,
+        Parent = PingToggleRow,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = PingSwitch })
+    New("UIStroke", { Color = "OutlineColor", Parent = PingSwitch })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 2),
+        PaddingLeft = UDim.new(0, 2),
+        PaddingRight = UDim.new(0, 2),
+        PaddingTop = UDim.new(0, 2),
+        Parent = PingSwitch,
+    })
+
+    local PingBall = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = "FontColor",
+        Position = UDim2.fromScale(1, 0),
+        Size = UDim2.fromScale(1, 1),
+        SizeConstraint = Enum.SizeConstraint.RelativeYY,
+        ZIndex = 603,
+        Parent = PingSwitch,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = PingBall })
+
+    local PingSwitchBtn = New("TextButton", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 604,
+        Parent = PingSwitch,
+    })
+
+    local function UpdatePingSwitch()
+        local on = ChatSettings.EnablePings
+        TweenService:Create(PingSwitch, Library.TweenInfo, {
+            BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor,
+        }):Play()
+        TweenService:Create(PingBall, Library.TweenInfo, {
+            AnchorPoint = Vector2.new(on and 1 or 0, 0),
+            Position = UDim2.fromScale(on and 1 or 0, 0),
+        }):Play()
+    end
+
+    PingSwitchBtn.MouseButton1Click:Connect(function()
+        ChatSettings.EnablePings = not ChatSettings.EnablePings
+        UpdatePingSwitch()
+    end)
+    UpdatePingSwitch()
+
+    -- Chat Text Size slider row
+    local SliderRow = New("Frame", {
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.new(1, 0, 0, 40),
+        ZIndex = 601,
+        Parent = SettingsPanel,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 14),
+        Text = "Chat Text Size",
+        TextColor3 = "FontColor",
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 602,
+        Parent = SliderRow,
+    })
+
+    local TextSizeBar = New("TextButton", {
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, 15),
+        Text = "",
+        ZIndex = 602,
+        Parent = SliderRow,
+    })
+    New("UIStroke", { Color = "OutlineColor", Parent = TextSizeBar })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = TextSizeBar })
+
+    local TextSizeFill = New("Frame", {
+        BackgroundColor3 = "AccentColor",
+        Size = UDim2.fromScale(0.5, 1),
+        ZIndex = 603,
+        Parent = TextSizeBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = TextSizeFill })
+
+    local TextSizeDisplay = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "14",
+        TextSize = 12,
+        ZIndex = 604,
+        Parent = TextSizeBar,
+    })
+    New("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+        Color = "DarkColor",
+        LineJoinMode = Enum.LineJoinMode.Miter,
+        Parent = TextSizeDisplay,
+    })
+
+    local SliderMin, SliderMax = 10, 22
+
+    local function UpdateTextSizeSlider()
+        local scale = (ChatSettings.ChatTextSize - SliderMin) / (SliderMax - SliderMin)
+        TextSizeFill.Size = UDim2.fromScale(scale, 1)
+        TextSizeDisplay.Text = tostring(ChatSettings.ChatTextSize)
+        -- Update all existing message text labels
+        for _, child in ipairs(ChatScroll:GetChildren()) do
+            if child:IsA("Frame") then
+                for _, desc in ipairs(child:GetDescendants()) do
+                    if desc:IsA("TextLabel") and desc.TextSize >= 12 and desc.TextSize <= 22 and desc.TextWrapped then
+                        desc.TextSize = ChatSettings.ChatTextSize
+                    end
+                end
+            end
+        end
+    end
+
+    local SliderMouse = LocalPlayer:GetMouse()
+    TextSizeBar.InputBegan:Connect(function(Input)
+        if not IsClickInput(Input) then return end
+        while IsDragInput(Input) do
+            local loc = math.clamp(SliderMouse.X, TextSizeBar.AbsolutePosition.X, TextSizeBar.AbsolutePosition.X + TextSizeBar.AbsoluteSize.X)
+            local scale = (loc - TextSizeBar.AbsolutePosition.X) / TextSizeBar.AbsoluteSize.X
+            local newSize = math.floor(SliderMin + (SliderMax - SliderMin) * scale + 0.5)
+            if newSize ~= ChatSettings.ChatTextSize then
+                ChatSettings.ChatTextSize = newSize
+                UpdateTextSizeSlider()
+            end
+            RunService.RenderStepped:Wait()
+        end
+    end)
+
+    UpdateTextSizeSlider()
+
+    -- Gear toggle
+    local SettingsOpen = false
+    GearBtn.MouseButton1Click:Connect(function()
+        SettingsOpen = not SettingsOpen
+        SettingsPanel.Visible = SettingsOpen
+    end)
+
+    -- Close settings if clicking outside
+    Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input)
+        if not IsClickInput(Input) or not SettingsOpen then return end
+        local mousePos = Input.Position
+        if not Library:MouseIsOverFrame(SettingsPanel, mousePos) and not Library:MouseIsOverFrame(GearBtn, mousePos) then
+            SettingsOpen = false
+            SettingsPanel.Visible = false
+        end
+    end))
+
     local ChatCloseBtn = New("TextButton", {
         AnchorPoint = Vector2.new(1, 0.5),
         BackgroundColor3 = "MainColor",
@@ -10644,7 +10884,7 @@ do
             Size = UDim2.new(1, 0, 0, 0),
             Text = text,
             TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
-            TextSize = 14,
+            TextSize = ChatSettings.ChatTextSize,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 504,
@@ -10929,14 +11169,16 @@ do
                                     table.insert(acknowledgedPingIds, pingObj.Id)
 
                                     -- Fire notification with the requested sound ID
-                                    pcall(function()
-                                        Library:Notify({
-                                            Title = "Mentioned!",
-                                            Description = (pingObj.Sender or "Someone") .. " mentioned you in chat.",
-                                            Time = 5,
-                                            SoundId = "rbxassetid://18595195017"
-                                        })
-                                    end)
+                                    if ChatSettings.EnablePings then
+                                        pcall(function()
+                                            Library:Notify({
+                                                Title = "Mentioned!",
+                                                Description = (pingObj.Sender or "Someone") .. " mentioned you in chat.",
+                                                Time = 5,
+                                                SoundId = "rbxassetid://18595195017"
+                                            })
+                                        end)
+                                    end
                                 end
                             end
                         end
@@ -11080,7 +11322,7 @@ ChatTabButton.MouseButton1Click:Connect(function()
 end)
     Window.ChatAddMessage = AddMessage
 end
-    --testing3888111119
+    --testing388811111
     return Window
 end
 
