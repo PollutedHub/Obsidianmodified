@@ -11503,13 +11503,7 @@ end
             end
         end
 
-                HeartBtn.MouseButton1Click:Connect(OnHeartActivated)
-        HeartBtn.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                task.spawn(OnHeartActivated)
-            end
-        end)
-
+        HeartBtn.MouseButton1Click:Connect(OnHeartActivated)
         local isHoldingDelete = false
         BinBtn.MouseButton1Down:Connect(function()
             isHoldingDelete = true
@@ -11552,11 +11546,15 @@ end
         HeartBtn.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch then
                 touchStartedOnButton = true
-            end
-        end)
-        HeartBtn.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                touchStartedOnButton = true
+                task.delay(0.05, function()
+                    if ActionBar.Visible then
+                        OnHeartActivated()
+                    else
+                        ActionBar.Visible = true
+                        actionBarShown = true
+                        task.delay(0.05, OnHeartActivated)
+                    end
+                end)
             end
         end)
         BinBtn.InputBegan:Connect(function(input)
