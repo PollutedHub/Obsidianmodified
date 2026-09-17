@@ -11122,18 +11122,20 @@ end)
         end
     end
 
-    game:GetService("UserInputService").InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 then
-            if ActiveContextMenu then
-                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-                local absPos = ActiveContextMenu.AbsolutePosition
-                local absSize = ActiveContextMenu.AbsoluteSize
-                if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
-                    CloseContextMenu()
-                end
+game:GetService("UserInputService").InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.MouseButton2
+        or input.UserInputType == Enum.UserInputType.Touch then
+        if ActiveContextMenu then
+            local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+            local absPos = ActiveContextMenu.AbsolutePosition
+            local absSize = ActiveContextMenu.AbsoluteSize
+            if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
+                CloseContextMenu()
             end
         end
-    end)
+    end
+end)
 
     local ChatResizeBtn = New("TextButton", {
         AnchorPoint = Vector2.new(1, 1),
@@ -11566,13 +11568,16 @@ end)
 -- Mobile long press (1 second hold)
 local holdThread = nil
 local holdStarted = false
+local holdStartPos = nil
 
 NameBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         holdStarted = true
+        holdStartPos = Vector2.new(input.Position.X, input.Position.Y)
         holdThread = task.delay(1, function()
             if holdStarted then
                 holdStarted = false
+                holdThread = nil
                 OpenUserContextMenu(sender, senderUserId)
             end
         end)
@@ -11582,20 +11587,21 @@ end)
 NameBtn.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         holdStarted = false
-        if holdThread then
-            task.cancel(holdThread)
-            holdThread = nil
-        end
+        holdThread = nil
     end
 end)
 
 NameBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        -- Cancel if finger moves too much (scrolling)
-        holdStarted = false
-        if holdThread then
-            task.cancel(holdThread)
-            holdThread = nil
+    if input.UserInputType == Enum.UserInputType.Touch and holdStartPos then
+        local dx = math.abs(input.Position.X - holdStartPos.X)
+        local dy = math.abs(input.Position.Y - holdStartPos.Y)
+        -- Only cancel if finger moved more than 10 pixels (real scroll, not tiny wobble)
+        if dx > 10 or dy > 10 then
+            holdStarted = false
+            if holdThread then
+                task.cancel(holdThread)
+                holdThread = nil
+            end
         end
     end
 end)
