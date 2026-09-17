@@ -9734,7 +9734,12 @@ do
         UpdatePingSwitch()
         SaveChatSettings()
     end)
-    UpdatePingSwitch()
+    task.defer(function()
+        local on = ChatSettings.EnablePings
+        PingSwitch.BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor
+        PingBall.AnchorPoint = Vector2.new(on and 1 or 0, 0)
+        PingBall.Position = UDim2.fromScale(on and 1 or 0, 0)
+    end)
 
     -- Chat Text Size slider row
     local SliderRow = New("Frame", {
@@ -9793,18 +9798,18 @@ do
 
     local SliderMin, SliderMax = 10, 22
 
+    local MessageBodyLabels = {}
+
     local function UpdateTextSizeSlider()
         local scale = (ChatSettings.ChatTextSize - SliderMin) / (SliderMax - SliderMin)
         TextSizeFill.Size = UDim2.fromScale(scale, 1)
         TextSizeDisplay.Text = tostring(ChatSettings.ChatTextSize)
-        if not ChatScroll then return end
-        for _, child in ipairs(ChatScroll:GetChildren()) do
-            if child:IsA("Frame") then
-                for _, desc in ipairs(child:GetDescendants()) do
-                    if desc:IsA("TextLabel") and desc.TextWrapped and not desc.TextTruncate then
-                        desc.TextSize = ChatSettings.ChatTextSize
-                    end
-                end
+        for i = #MessageBodyLabels, 1, -1 do
+            local lbl = MessageBodyLabels[i]
+            if not lbl or not lbl.Parent then
+                table.remove(MessageBodyLabels, i)
+            else
+                lbl.TextSize = ChatSettings.ChatTextSize
             end
         end
     end
@@ -10904,7 +10909,7 @@ do
             if not isSystem then OpenUserContextMenu(sender, senderUserId) end
         end)
 
-        New("TextLabel", {
+        local MsgBodyLabel = New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 0),
@@ -10916,6 +10921,7 @@ do
             ZIndex = 504,
             Parent = ContentLayout,
         })
+        table.insert(MessageBodyLabels, MsgBodyLabel)
 
         local reactionContainer = New("Frame", {
             AutomaticSize = Enum.AutomaticSize.XY,
