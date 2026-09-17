@@ -9591,6 +9591,31 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = MailBtn })
     New("UIStroke", { Color = "OutlineColor", Parent = MailBtn })
+
+    -- Discord-style notification badge elements
+    local MailBadge = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        BackgroundColor3 = Color3.fromRGB(237, 66, 69),
+        Position = UDim2.new(1, 4, 0, -4),
+        Size = UDim2.fromOffset(18, 18),
+        Visible = false,
+        ZIndex = 515,
+        Parent = MailBtn,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = MailBadge })
+    New("UIStroke", { Color = Color3.fromRGB(54, 57, 63), Thickness = 1.5, Parent = MailBadge })
+
+    local MailBadgeText = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "0",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        ZIndex = 516,
+        Parent = MailBadge,
+    })
+
     local MailIcon = Library:GetIcon("mail")
     if MailIcon then
         New("ImageLabel", {
@@ -9656,12 +9681,23 @@ local MarketplaceService = game:GetService("MarketplaceService")
 
     local function RenderInvites(invitesList)
         local currentSignature = ""
+        local unreadCount = 0
+
         if invitesList then
             for _, inv in ipairs(invitesList) do
                 if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
                     currentSignature = currentSignature .. tostring(inv.Id)
+                    unreadCount = unreadCount + 1
                 end
             end
+        end
+
+        -- Update badge state dynamically
+        if unreadCount > 0 then
+            MailBadgeText.Text = tostring(unreadCount)
+            MailBadge.Visible = true
+        else
+            MailBadge.Visible = false
         end
 
         if currentSignature == LastRenderedInviteSignature then
@@ -9673,7 +9709,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
             if child:IsA("GuiObject") then child:Destroy() end
         end
 
-        if not invitesList or #invitesList == 0 then
+        if not invitesList or unreadCount == 0 then
             New("TextLabel", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 40),
