@@ -9691,6 +9691,7 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = PingSwitch })
     New("UIStroke", { Color = "OutlineColor", Parent = PingSwitch })
+    Library:RemoveFromRegistry(PingSwitch)
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 2),
         PaddingLeft = UDim.new(0, 2),
@@ -9734,7 +9735,8 @@ do
         UpdatePingSwitch()
         SaveChatSettings()
     end)
-    task.defer(function()
+    task.spawn(function()
+        task.wait()
         local on = ChatSettings.EnablePings
         PingSwitch.BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor
         PingBall.AnchorPoint = Vector2.new(on and 1 or 0, 0)
