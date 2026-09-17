@@ -9436,7 +9436,7 @@ end
 -- CHATBOX WINDOW_2.lua
 -- CHATBOX WINDOW_2.lua
 do
-    local ChatOpen = false
+        local ChatOpen = false
     local ChatMessages = {}
     local ReplyTarget = nil
     local NicknameTarget = nil
@@ -9541,15 +9541,19 @@ local DeniedInviteIds = {}
         RegisterUserToVPS(game:GetService("Players").LocalPlayer.Name)
     end
 
-    local ChatGui = New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = "BackgroundColor",
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(380, 480),
-        Visible = false,
-        ZIndex = 500,
-        Parent = ScreenGui,
-    })
+-- Add this line right above local ChatGui:
+local isMobile = game:GetService("UserInputService").TouchEnabled
+
+local ChatGui = New("Frame", {
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = "BackgroundColor",
+    Position = UDim2.fromScale(0.5, 0.5),
+    -- Change the size line to this:
+    Size = isMobile and UDim2.fromOffset(280, 360) or UDim2.fromOffset(380, 480),
+    Visible = false,
+    ZIndex = 500,
+    Parent = ScreenGui,
+})
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ChatGui })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
     table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
@@ -9648,15 +9652,16 @@ local DeniedInviteIds = {}
         TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = Library.Scheme.MainColor or Color3.fromRGB(30, 31, 34) }):Play()
     end)
   -- Larger MailPanel positioned on the left side of the chat window (increased to 380x480)
-    local MailPanel = New("Frame", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundColor3 = "BackgroundColor",
-        Position = UDim2.fromOffset(-10, 0),
-        Size = UDim2.fromOffset(380, 480),
-        Visible = false,
-        ZIndex = 600,
-        Parent = ChatGui,
-    })
+local MailPanel = New("Frame", {
+    AnchorPoint = Vector2.new(1, 0),
+    BackgroundColor3 = "BackgroundColor",
+    Position = UDim2.fromOffset(-10, 0),
+    -- Change the size line to this:
+    Size = isMobile and UDim2.fromOffset(280, 360) or UDim2.fromOffset(380, 480),
+    Visible = false,
+    ZIndex = 600,
+    Parent = ChatGui,
+})
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
 
@@ -11131,7 +11136,7 @@ end)
     end
 
 game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 
+    if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.MouseButton2 then
         if ActiveContextMenu then
             local mousePos = game:GetService("UserInputService"):GetMouseLocation()
@@ -11301,7 +11306,6 @@ end
         New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = Row })
         New("UIPadding", { PaddingBottom = UDim.new(0, 4), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), Parent = Row })
 
-                local isMobile = game:GetService("UserInputService").TouchEnabled
         local btnWidth = isMobile and 44 or 28
         local barHeight = isMobile and 36 or 24
         local barWidth = btnWidth * 3
@@ -12180,6 +12184,8 @@ ChatTabButton.MouseButton1Click:Connect(function()
 end)
     Window.ChatAddMessage = AddMessage
 end
+
+
 
 ------ end of chatbox
 
