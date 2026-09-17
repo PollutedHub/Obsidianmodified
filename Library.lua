@@ -9747,28 +9747,34 @@ do
             invitesEnabled = Toggles.InvitesEnabled.Value
         end
 
-        if not invitesEnabled then
-            -- Automatically clear/deny all pending invites if the setting is off
-            if invitesList then
-                for _, inv in ipairs(invitesList) do
-                    if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
-                        deleteInviteOnVPS(inv.Id)
-                    end
-                end
-            end
-
-            -- Clear existing rendered rows
-            for _, child in ipairs(MailScroll:GetChildren()) do
-                if child:IsA("GuiObject") and child.Name == "InviteRowTag" then
-                    child:Destroy()
-                end
-            end
-
-            MailBadge.Visible = false
-            MailBadgeText.Text = "0"
-            LastRenderedInviteSignature = "OFF"
-            return
+if not invitesEnabled then
+    -- Clear UI rows
+    for _, child in ipairs(MailScroll:GetChildren()) do
+        if child:IsA("GuiObject") and child.Name == "InviteRowTag" then
+            child:Destroy()
         end
+    end
+
+    -- Auto-deny ALL incoming invites for this user, every poll cycle
+    if invitesList then
+        for _, inv in ipairs(invitesList) do
+            if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                local invIdStr = tostring(inv.Id)
+                -- Only delete ones we haven't already deleted
+                if not ProcessedSignatures["invite_denied_" .. invIdStr] then
+                    ProcessedSignatures["invite_denied_" .. invIdStr] = true
+                    deleteInviteOnVPS(inv.Id)
+                end
+            end
+        end
+    end
+
+    MailBadge.Visible = false
+    MailBadgeText.Text = "0"
+    -- Do NOT set LastRenderedInviteSignature = "OFF" here
+    -- so new invites that arrive are still processed and deleted
+    return
+end
 
         if invitesList then
             for _, inv in ipairs(invitesList) do
