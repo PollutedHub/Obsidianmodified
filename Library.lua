@@ -9678,18 +9678,32 @@ local MailScroll = New("ScrollingFrame", {
 
 local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
+    local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
 
     local function RenderInvites(invitesList)
         local currentSignature = ""
         local unreadCount = 0
+        local activeSignature = ""
 
         if invitesList then
             for _, inv in ipairs(invitesList) do
                 if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
-                    currentSignature = currentSignature .. tostring(inv.Id)
-                    unreadCount = unreadCount + 1
+                    local invIdStr = tostring(inv.Id)
+                    activeSignature = activeSignature .. invIdStr
+                    currentSignature = currentSignature .. invIdStr
+
+                    -- Count as unread only if the mail panel is closed AND it hasn't been seen yet
+                    if not MailOpen and not string.find(LastSeenSignature, invIdStr) then
+                        unreadCount = unreadCount + 1
+                    end
                 end
             end
+        end
+
+        -- If mail panel is open, automatically mark everything currently present as seen
+        if MailOpen then
+            LastSeenSignature = activeSignature
+            unreadCount = 0
         end
 
         -- Update badge state dynamically
@@ -9709,7 +9723,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
             if child:IsA("GuiObject") then child:Destroy() end
         end
 
-        if not invitesList or unreadCount == 0 then
+        if not invitesList or currentSignature == "" then
             New("TextLabel", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 40),
@@ -9911,6 +9925,19 @@ local MarketplaceService = game:GetService("MarketplaceService")
     MailBtn.MouseButton1Click:Connect(function()
         MailOpen = not MailOpen
         MailPanel.Visible = MailOpen
+        
+        if MailOpen then
+            -- Instantly clear badge and update LastSeenSignature when opened
+            MailBadge.Visible = false
+            MailBadgeText.Text = "0"
+            
+            -- Accumulate existing IDs into LastSeenSignature so they are marked read
+            local currentActive = ""
+            if _G.CurrentInvitesCache then -- Fallback if you store invites globally, or it will refresh on next poll
+                -- Handled naturally on the next RenderInvites loop
+            end
+        end
+
         if MailOpen and SettingsOpen then
             SettingsOpen = false
             SettingsPanel.Visible = false
