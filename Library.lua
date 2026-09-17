@@ -9702,13 +9702,23 @@ do
         end
     end)
 
-    local MarketplaceService = game:GetService("MarketplaceService")
+local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
     local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
     local LatestInvitesList = nil -- Keeps a live reference to the latest invites array
 
     local function RenderInvites(invitesList)
         LatestInvitesList = invitesList -- Store reference globally for the click event
+        
+        -- If user disabled invites in settings, clear everything and hide the badge
+        if not ChatSettings.EnableInvites then
+            MailBadge.Visible = false
+            for _, child in ipairs(MailScroll:GetChildren()) do
+                if child:IsA("GuiObject") then child:Destroy() end
+            end
+            return
+        end
+
         local currentSignature = ""
         local unreadCount = 0
         local activeSignature = ""
@@ -10024,10 +10034,20 @@ do
         GearBtn.TextSize = 13
     end
 
+    -- Smooth Hover Effect for Gear Button (Matches the Mail button)
+    GearBtn.MouseEnter:Connect(function()
+        TweenService:Create(GearBtn, hoverTweenInfo, { BackgroundColor3 = Color3.fromRGB(88, 101, 242) }):Play()
+    end)
+
+    GearBtn.MouseLeave:Connect(function()
+        TweenService:Create(GearBtn, hoverTweenInfo, { BackgroundColor3 = Library.Scheme.MainColor or Color3.fromRGB(30, 31, 34) }):Play()
+    end)
+
     -- Settings panel
     local CHATSETTINGS_FILE = "chatbox_settings.json"
     local ChatSettings = {
         EnablePings = false,
+        EnableInvites = true,
         ChatTextSize = 14,
     }
     local function SaveChatSettings()
@@ -10045,6 +10065,9 @@ do
                     if typeof(loaded.EnablePings) == "boolean" then
                         ChatSettings.EnablePings = loaded.EnablePings
                     end
+                    if typeof(loaded.EnableInvites) == "boolean" then
+                        ChatSettings.EnableInvites = loaded.EnableInvites
+                    end
                     if typeof(loaded.ChatTextSize) == "number" then
                         ChatSettings.ChatTextSize = math.clamp(loaded.ChatTextSize, 10, 22)
                     end
@@ -10058,7 +10081,7 @@ do
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromOffset(0, 36),
-        Size = UDim2.fromOffset(220, 110),
+        Size = UDim2.fromOffset(220, 138), -- Expanded height to fit the new toggle
         Visible = false,
         ZIndex = 600,
         Parent = ChatGui,
@@ -10160,10 +10183,92 @@ do
         PingBall.Position = UDim2.fromScale(on and 1 or 0, 0)
     end)
 
+    -- Enable Invites toggle row
+    local InviteToggleRow = New("Frame", {
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Size = UDim2.new(1, 0, 0, 18),
+        ZIndex = 601,
+        Parent = SettingsPanel,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -42, 1, 0),
+        Text = "Enable Invites",
+        TextColor3 = "FontColor",
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 602,
+        Parent = InviteToggleRow,
+    })
+
+    local InviteSwitch = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(1, 0, 0.5, 0),
+        Size = UDim2.fromOffset(32, 18),
+        ZIndex = 602,
+        Parent = InviteToggleRow,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = InviteSwitch })
+    New("UIStroke", { Color = "OutlineColor", Parent = InviteSwitch })
+    Library:RemoveFromRegistry(InviteSwitch)
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 2),
+        PaddingLeft = UDim.new(0, 2),
+        PaddingRight = UDim.new(0, 2),
+        PaddingTop = UDim.new(0, 2),
+        Parent = InviteSwitch,
+    })
+
+    local InviteBall = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = "FontColor",
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.fromScale(1, 1),
+        SizeConstraint = Enum.SizeConstraint.RelativeYY,
+        ZIndex = 603,
+        Parent = InviteSwitch,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = InviteBall })
+
+    local InviteSwitchBtn = New("TextButton", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Text = "",
+        ZIndex = 604,
+        Parent = InviteSwitch,
+    })
+
+    local function UpdateInviteSwitch()
+        local on = ChatSettings.EnableInvites
+        TweenService:Create(InviteSwitch, Library.TweenInfo, {
+            BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor,
+        }):Play()
+        TweenService:Create(InviteBall, Library.TweenInfo, {
+            AnchorPoint = Vector2.new(on and 1 or 0, 0),
+            Position = UDim2.fromScale(on and 1 or 0, 0),
+        }):Play()
+    end
+
+    InviteSwitchBtn.MouseButton1Click:Connect(function()
+        ChatSettings.EnableInvites = not ChatSettings.EnableInvites
+        UpdateInviteSwitch()
+        SaveChatSettings()
+    end)
+    task.spawn(function()
+        task.wait()
+        local on = ChatSettings.EnableInvites
+        InviteSwitch.BackgroundColor3 = on and Library.Scheme.AccentColor or Library.Scheme.MainColor
+        InviteBall.AnchorPoint = Vector2.new(on and 1 or 0, 0)
+        InviteBall.Position = UDim2.fromScale(on and 1 or 0, 0)
+    end)
+
     -- Chat Text Size slider row
     local SliderRow = New("Frame", {
         BackgroundTransparency = 1,
-        LayoutOrder = 2,
+        LayoutOrder = 3, -- Shifted to 3 so it sits below the new toggle
         Size = UDim2.new(1, 0, 0, 40),
         ZIndex = 601,
         Parent = SettingsPanel,
