@@ -11503,9 +11503,9 @@ end
         end
 
         HeartBtn.MouseButton1Click:Connect(OnHeartActivated)
-        HeartBtn.InputEnded:Connect(function(input)
+        HeartBtn.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch then
-                OnHeartActivated()
+                task.spawn(OnHeartActivated)
             end
         end)
 
@@ -11543,6 +11543,22 @@ end
         BinBtn.MouseButton1Up:Connect(CancelDeleteHold)
         BinBtn.MouseLeave:Connect(CancelDeleteHold)
 
+        ReplyBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touchStartedOnButton = true
+            end
+        end)
+        HeartBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touchStartedOnButton = true
+            end
+        end)
+        BinBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touchStartedOnButton = true
+            end
+        end)
+
         Row.MouseEnter:Connect(function()
             if not isSystem then ActionBar.Visible = true end
         end)
@@ -11559,10 +11575,14 @@ end
                 rowTouchStart = tick()
             end
         end)
+        local touchStartedOnButton = false
         Row.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
+                if touchStartedOnButton then
+                    touchStartedOnButton = false
+                    return
+                end
                 local elapsed = rowTouchStart and (tick() - rowTouchStart) or 999
-                -- Only toggle on short tap (under 0.5s), not long press
                 if elapsed < 0.1 then
                     if actionBarShown then
                         actionBarShown = false
