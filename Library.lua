@@ -11543,20 +11543,12 @@ end
                 touchStartedOnButton = true
             end
         end)
-        HeartBtn.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                touchStartedOnButton = true
-                task.delay(0.05, function()
-                    if ActionBar.Visible then
-                        OnHeartActivated()
-                    else
-                        ActionBar.Visible = true
-                        actionBarShown = true
-                        task.delay(0.05, OnHeartActivated)
-                    end
-                end)
-            end
-        end)
+HeartBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        touchStartedOnButton = true
+        OnHeartActivated()
+    end
+end)
         BinBtn.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch then
                 touchStartedOnButton = true
@@ -11580,27 +11572,29 @@ end
             end
         end)
         local touchStartedOnButton = false
-        Row.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
-                if touchStartedOnButton then
-                    touchStartedOnButton = false
-                    return
+Row.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
+        if touchStartedOnButton then
+            touchStartedOnButton = false
+            return
+        end
+        -- Don't toggle the action bar if the emoji picker is currently open
+        if activePickerMenu then return end
+        local elapsed = rowTouchStart and (tick() - rowTouchStart) or 999
+        if elapsed < 0.1 then
+            if actionBarShown then
+                actionBarShown = false
+                ActionBar.Visible = false
+            else
+                for _, rowData in pairs(ActiveMessageRows) do
+                    if rowData.HideActionBar then rowData.HideActionBar() end
                 end
-                local elapsed = rowTouchStart and (tick() - rowTouchStart) or 999
-                if elapsed < 0.1 then
-                    if actionBarShown then
-                        actionBarShown = false
-                        ActionBar.Visible = false
-                    else
-                        for _, rowData in pairs(ActiveMessageRows) do
-                            if rowData.HideActionBar then rowData.HideActionBar() end
-                        end
-                        actionBarShown = true
-                        ActionBar.Visible = true
-                    end
-                end
+                actionBarShown = true
+                ActionBar.Visible = true
             end
-        end)
+        end
+    end
+end)
 
         local ContentLayout = New("Frame", {
             BackgroundTransparency = 1,
