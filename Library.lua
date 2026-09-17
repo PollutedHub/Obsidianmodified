@@ -10489,6 +10489,36 @@ do
             ChatInput:CaptureFocus()
         end)
 
+        CreateMenuOption("InviteUser", nil, function()
+            if not HttpRequest then return end
+
+            local Players = game:GetService("Players")
+            local HttpService = game:GetService("HttpService")
+            local localPlayer = Players.LocalPlayer
+
+            local payload = {
+    invitedUsername = targetUser,       -- person you clicked InviteUser on
+    username = LocalPlayer.Name,        -- your username
+    placeid = tostring(game.PlaceId),   -- current PlaceId
+    jobid = game.JobId,                 -- current JobId
+    players = #game:GetService("Players"):GetPlayers() -- player count
+}
+
+            task.spawn(function()
+                pcall(function()
+                    HttpRequest({
+                        Url = "http://167.99.144.89:8081/chatbox",
+                        Method = "POST",
+                        Headers = {
+                            ["Content-Type"] = "application/json",
+                            ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                        },
+                        Body = HttpService:JSONEncode(payload)
+                    })
+                end)
+            end)
+        end)
+
         if isAdminUser then
             if isTargetMuted then
                 CreateMenuOption("Unmute User", Color3.fromRGB(255, 60, 60), function()
@@ -11435,9 +11465,29 @@ ChatTabButton.MouseButton1Click:Connect(function()
 end)
     Window.ChatAddMessage = AddMessage
 end
+
+
+
     --testing388811111
     return Window
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Library:CreateLoading(LoadingInfo)
     if Library.ActiveLoading then
