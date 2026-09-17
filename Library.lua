@@ -11559,9 +11559,46 @@ end
             Parent = ContentLayout,
         })
 
-        NameBtn.MouseButton2Click:Connect(function()
-            if not isSystem then OpenUserContextMenu(sender, senderUserId) end
+NameBtn.MouseButton2Click:Connect(function()
+    if not isSystem then OpenUserContextMenu(sender, senderUserId) end
+end)
+
+-- Mobile long press (1 second hold)
+local holdThread = nil
+local holdStarted = false
+
+NameBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        holdStarted = true
+        holdThread = task.delay(1, function()
+            if holdStarted then
+                holdStarted = false
+                OpenUserContextMenu(sender, senderUserId)
+            end
         end)
+    end
+end)
+
+NameBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        holdStarted = false
+        if holdThread then
+            task.cancel(holdThread)
+            holdThread = nil
+        end
+    end
+end)
+
+NameBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        -- Cancel if finger moves too much (scrolling)
+        holdStarted = false
+        if holdThread then
+            task.cancel(holdThread)
+            holdThread = nil
+        end
+    end
+end)
 
         local MsgBodyLabel = New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.Y,
