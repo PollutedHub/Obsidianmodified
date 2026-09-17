@@ -9431,6 +9431,8 @@ end
     end))
 
 
+    
+
 -- CHATBOX WINDOW_2.lua
 do
     local ChatOpen = false
@@ -9868,7 +9870,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
             end
         end
     end
-    
+
     local MailOpen = false
     MailBtn.MouseButton1Click:Connect(function()
         MailOpen = not MailOpen
@@ -10724,16 +10726,33 @@ local MarketplaceService = game:GetService("MarketplaceService")
             if not HttpRequest then return end
 
             local Players = game:GetService("Players")
+            
+            -- Check server capacity before sending the invite
+            local currentPlayers = Players.NumPlayers
+            local maxPlayers = Players.MaxPlayers
+
+            if currentPlayers >= maxPlayers then
+                -- Server is full, show a notification and stop execution
+                pcall(function()
+                    Library:Notify({
+                        Title = "Invite Failed",
+                        Description = "Reason: Server Full try again.",
+                        Time = 3
+                    })
+                end)
+                return
+            end
+
             local HttpService = game:GetService("HttpService")
             local localPlayer = Players.LocalPlayer
 
             local payload = {
-    invitedUsername = targetUser,       -- person you clicked InviteUser on
-    username = LocalPlayer.Name,        -- your username
-    placeid = tostring(game.PlaceId),   -- current PlaceId
-    jobid = game.JobId,                 -- current JobId
-    players = #game:GetService("Players"):GetPlayers() -- player count
-}
+                invitedUsername = targetUser,       -- person you clicked InviteUser on
+                username = LocalPlayer.Name,        -- your username
+                placeid = tostring(game.PlaceId),   -- current PlaceId
+                jobid = game.JobId,                 -- current JobId
+                players = #Players:GetPlayers()     -- player count
+            }
 
             task.spawn(function()
                 pcall(function()
