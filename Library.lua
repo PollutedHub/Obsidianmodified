@@ -11529,6 +11529,24 @@ end
             CancelDeleteHold()
         end)
 
+        -- Mobile: tap row to toggle action bar
+        local actionBarShown = false
+        Row.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch and not isSystem then
+                if actionBarShown then
+                    actionBarShown = false
+                    ActionBar.Visible = false
+                else
+                    -- Hide all other action bars first
+                    for _, rowData in pairs(ActiveMessageRows) do
+                        if rowData.HideActionBar then rowData.HideActionBar() end
+                    end
+                    actionBarShown = true
+                    ActionBar.Visible = true
+                end
+            end
+        end)
+
         local ContentLayout = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 0),
@@ -11710,6 +11728,10 @@ setupLongPress(Row)
 
         ActiveMessageRows[msgIdStr] = {
             SetHighlight = SetRowHighlight,
+            HideActionBar = function()
+                actionBarShown = false
+                ActionBar.Visible = false
+            end,
             UpdateReactions = function(newRx)
                 currentRowReactions = newRx or {}
                 RenderReactions(currentRowReactions)
