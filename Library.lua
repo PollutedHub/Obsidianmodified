@@ -9442,7 +9442,7 @@ do
     local NicknameTarget = nil
     local MuteDurationTarget = nil
     local ActiveMessageRows = {}
-
+local DeniedInviteIds = {}
     local MutedUsernamesMap = {}
     local LocalMuteExpiration = 0
 
@@ -9748,22 +9748,36 @@ do
         end
 
 if not invitesEnabled then
-    -- Clear UI rows
     for _, child in ipairs(MailScroll:GetChildren()) do
         if child:IsA("GuiObject") and child.Name == "InviteRowTag" then
             child:Destroy()
         end
     end
 
-    -- Auto-deny ALL incoming invites for this user, every poll cycle
     if invitesList then
         for _, inv in ipairs(invitesList) do
             if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
                 local invIdStr = tostring(inv.Id)
-                -- Only delete ones we haven't already deleted
-                if not ProcessedSignatures["invite_denied_" .. invIdStr] then
-                    ProcessedSignatures["invite_denied_" .. invIdStr] = true
-                    deleteInviteOnVPS(inv.Id)
+                if not DeniedInviteIds[invIdStr] then
+                    DeniedInviteIds[invIdStr] = true
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox/invites/delete",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode({
+                                        Id = inv.Id,
+                                        Username = LocalPlayer.Name
+                                    })
+                                })
+                            end)
+                        end)
+                    end
                 end
             end
         end
@@ -9771,11 +9785,8 @@ if not invitesEnabled then
 
     MailBadge.Visible = false
     MailBadgeText.Text = "0"
-    -- Do NOT set LastRenderedInviteSignature = "OFF" here
-    -- so new invites that arrive are still processed and deleted
     return
 end
-
         if invitesList then
             for _, inv in ipairs(invitesList) do
                 if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
