@@ -9611,7 +9611,7 @@ do
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromOffset(0, 36),
-        Size = UDim2.fromOffset(220, 80),
+        Size = UDim2.fromOffset(240, 140),
         Visible = false,
         ZIndex = 600,
         Parent = ChatGui,
@@ -9619,24 +9619,146 @@ do
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
     New("UIPadding", {
-        PaddingBottom = UDim.new(0, 10),
-        PaddingLeft = UDim.new(0, 10),
-        PaddingRight = UDim.new(0, 10),
-        PaddingTop = UDim.new(0, 10),
+        PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        PaddingTop = UDim.new(0, 8),
         Parent = MailPanel,
     })
 
-    New("TextLabel", {
+    local MailScroll = New("ScrollingFrame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 14),
-        Text = "No messages yet.",
-        TextColor3 = "FontColor",
-        TextSize = 13,
-        TextTransparency = 0.5,
-        TextXAlignment = Enum.TextXAlignment.Center,
+        Size = UDim2.fromScale(1, 1),
+        CanvasSize = UDim2.fromScale(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarImageColor3 = "OutlineColor",
+        ScrollBarThickness = 3,
         ZIndex = 601,
         Parent = MailPanel,
     })
+    New("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = MailScroll,
+    })
+
+    local function RenderInvites(invitesList)
+        for _, child in ipairs(MailScroll:GetChildren()) do
+            if child:IsA("GuiObject") then child:Destroy() end
+        end
+
+        if not invitesList or #invitesList == 0 then
+            New("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 20),
+                Text = "No messages yet.",
+                TextColor3 = "FontColor",
+                TextSize = 13,
+                TextTransparency = 0.5,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                ZIndex = 602,
+                Parent = MailScroll,
+            })
+            return
+        end
+
+        for _, inv in ipairs(invitesList) do
+            if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                local InviteRow = New("Frame", {
+                    BackgroundColor3 = Color3.fromRGB(35, 37, 42),
+                    Size = UDim2.new(1, 0, 0, 55),
+                    ZIndex = 602,
+                    Parent = MailScroll,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = InviteRow })
+                New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = InviteRow })
+                New("UIPadding", { PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 6), Parent = InviteRow })
+
+                New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 18),
+                    Text = "Invite from: " .. tostring(inv.SenderUsername),
+                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    TextSize = 13,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    ZIndex = 603,
+                    Parent = InviteRow,
+                })
+
+                local ButtonHolder = New("Frame", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 0, 0, 22),
+                    Size = UDim2.new(1, 0, 0, 22),
+                    ZIndex = 603,
+                    Parent = InviteRow,
+                })
+                New("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 8),
+                    Parent = ButtonHolder,
+                })
+
+                -- Accept Button (Green)
+                local AcceptBtn = New("TextButton", {
+                    BackgroundColor3 = Color3.fromRGB(46, 204, 113),
+                    Size = UDim2.new(0.5, -4, 1, 0),
+                    Text = "Accept",
+                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    TextSize = 12,
+                    ZIndex = 604,
+                    Parent = ButtonHolder,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = AcceptBtn })
+
+                AcceptBtn.MouseButton1Click:Connect(function()
+                    pcall(function()
+                        local TeleportService = game:GetService("TeleportService")
+                        local placeId = tonumber(inv.PlaceId)
+                        local jobId = inv.JobId
+
+                        if placeId and jobId then
+                            TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
+                        end
+                    end)
+                end)
+
+                -- Deny Button (Red)
+                local DenyBtn = New("TextButton", {
+                    BackgroundColor3 = Color3.fromRGB(231, 76, 60),
+                    Size = UDim2.new(0.5, -4, 1, 0),
+                    Text = "Deny",
+                    TextColor3 = Color3.fromRGB(255, 255, 255),
+                    TextSize = 12,
+                    ZIndex = 604,
+                    Parent = ButtonHolder,
+                })
+                New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = DenyBtn })
+
+                DenyBtn.MouseButton1Click:Connect(function()
+                    InviteRow:Destroy()
+                    if HttpRequest then
+                        task.spawn(function()
+                            pcall(function()
+                                HttpRequest({
+                                    Url = "http://167.99.144.89:8081/chatbox/invites/delete",
+                                    Method = "POST",
+                                    Headers = {
+                                        ["Content-Type"] = "application/json",
+                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                                    },
+                                    Body = game:GetService("HttpService"):JSONEncode({
+                                        Id = inv.Id,
+                                        Username = LocalPlayer.Name
+                                    })
+                                })
+                            end)
+                        end)
+                    end
+                end)
+            end
+        end
+    end
 
     local MailOpen = false
     MailBtn.MouseButton1Click:Connect(function()
@@ -11248,7 +11370,7 @@ do
         SendToEndpoint(LocalPlayer.Name, CurrentMsg, UniqueId, currentReply, nil, targetPingUser, nil, false)
     end
 
-    local function FetchMessages()
+local function FetchMessages()
         pcall(function()
             if HttpRequest then
                 local Result = HttpRequest({
@@ -11259,6 +11381,11 @@ do
                 if Result and Result.StatusCode == 200 and Result.Body then
                     local Success, Decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(Result.Body) end)
                     if Success and type(Decoded) == "table" then
+
+                        -- Handle incoming Invites payload from VPS
+                        if Decoded.Invites then
+                            RenderInvites(Decoded.Invites)
+                        end
 
                         -- FIX: Rebuild SeenUsers strictly from VPS KnownUsers data. No local server player auto-discovery.
                         local KnownUsersList = Decoded.KnownUsers or {}
