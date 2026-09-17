@@ -11503,8 +11503,8 @@ end
             end
         end
 
-        HeartBtn.MouseButton1Click:Connect(OnHeartActivated)
-        HeartBtn.InputBegan:Connect(function(input)
+                HeartBtn.MouseButton1Click:Connect(OnHeartActivated)
+        HeartBtn.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch then
                 task.spawn(OnHeartActivated)
             end
@@ -11550,6 +11550,11 @@ end
             end
         end)
         HeartBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touchStartedOnButton = true
+            end
+        end)
+        HeartBtn.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.Touch then
                 touchStartedOnButton = true
             end
