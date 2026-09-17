@@ -9772,11 +9772,11 @@ do
         local scale = (ChatSettings.ChatTextSize - SliderMin) / (SliderMax - SliderMin)
         TextSizeFill.Size = UDim2.fromScale(scale, 1)
         TextSizeDisplay.Text = tostring(ChatSettings.ChatTextSize)
-        -- Update all existing message text labels
+        if not ChatScroll then return end
         for _, child in ipairs(ChatScroll:GetChildren()) do
             if child:IsA("Frame") then
                 for _, desc in ipairs(child:GetDescendants()) do
-                    if desc:IsA("TextLabel") and desc.TextSize >= 12 and desc.TextSize <= 22 and desc.TextWrapped then
+                    if desc:IsA("TextLabel") and desc.TextWrapped then
                         desc.TextSize = ChatSettings.ChatTextSize
                     end
                 end
