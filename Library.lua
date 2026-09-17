@@ -9443,8 +9443,6 @@ do
 
     local MutedUsernamesMap = {}
     local LocalMuteExpiration = 0
-    
-    local CurrentTheme = "Legacy" -- "Legacy" or "LiquidGlass"
 
     -- Move HttpRequest declaration to the top so all functions can access it
     local HttpRequest = request or http_request or (syn and syn.request) or nil
@@ -9545,16 +9543,16 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(520, 480),
+        Size = UDim2.fromOffset(520, 480), -- Expanded width to accommodate left navigation panel nicely
         Visible = false,
         ZIndex = 500,
         Parent = ScreenGui,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ChatGui })
-    local ChatGuiStroke = New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
+    New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = ChatGui })
     table.insert(Library.Scales, New("UIScale", { Parent = ChatGui }))
 
-    -- Left Navigation Panel
+    -- Left Navigation Panel for selecting menus
     local LeftNavPanel = New("Frame", {
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
@@ -9565,8 +9563,8 @@ do
     LeftNavPanel.Parent = ChatGui
 
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = LeftNavPanel })
-    
-    local NavCurveOverlap = New("Frame", {
+    -- Cover curved corner overlap on the right side of the nav panel
+    New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
@@ -9576,7 +9574,7 @@ do
         Parent = LeftNavPanel,
     })
 
-    local NavDivider = New("Frame", {
+    New("Frame", {
         BackgroundColor3 = "OutlineColor",
         BorderSizePixel = 0,
         Position = UDim2.new(1, 0, 0, 0),
@@ -9585,6 +9583,7 @@ do
         Parent = LeftNavPanel,
     })
 
+    -- Container specifically for navigation buttons to avoid list layout displacing them
     local NavButtonContainer = New("Frame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -9604,6 +9603,7 @@ do
         Parent = NavButtonContainer,
     })
 
+    -- Main Content Container (Right side area)
     local MainContentContainer = New("Frame", {
         BackgroundTransparency = 1,
         Position = UDim2.new(0, 111, 0, 0),
@@ -9612,6 +9612,7 @@ do
         Parent = ChatGui,
     })
 
+    -- Views definition
     local GlobalChatView = New("Frame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -9636,6 +9637,7 @@ do
         Parent = MainContentContainer,
     })
 
+    -- Admin Panel Content
     New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(16, 50),
@@ -9648,7 +9650,7 @@ do
         ZIndex = 502,
         Parent = AdminPanelView,
     })
-    local AdminDesc = New("TextLabel", {
+    New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(16, 85),
         Size = UDim2.new(1, -32, 0, 60),
@@ -9661,6 +9663,7 @@ do
         Parent = AdminPanelView,
     })
 
+    -- Settings View Content
     New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(16, 50),
@@ -9673,7 +9676,7 @@ do
         ZIndex = 502,
         Parent = SettingsView,
     })
-    local SettingsDesc = New("TextLabel", {
+    New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(16, 85),
         Size = UDim2.new(1, -32, 0, 60),
@@ -9686,46 +9689,7 @@ do
         Parent = SettingsView,
     })
 
-    -- THEME SETTINGS UI
-    New("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(16, 150),
-        Size = UDim2.new(1, -32, 0, 30),
-        Text = "Theme",
-        TextColor3 = "FontColor",
-        TextSize = 14,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 502,
-        Parent = SettingsView,
-    })
-
-    local ThemeLegacyBtn = New("TextButton", {
-        BackgroundColor3 = "MainColor",
-        Position = UDim2.fromOffset(16, 185),
-        Size = UDim2.fromOffset(120, 32),
-        Text = "Legacy",
-        TextColor3 = "FontColor",
-        TextSize = 13,
-        ZIndex = 502,
-        Parent = SettingsView,
-    })
-    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ThemeLegacyBtn })
-    local LegacyBtnStroke = New("UIStroke", { Color = "OutlineColor", Parent = ThemeLegacyBtn })
-
-    local ThemeLiquidBtn = New("TextButton", {
-        BackgroundColor3 = "MainColor",
-        Position = UDim2.fromOffset(146, 185),
-        Size = UDim2.fromOffset(120, 32),
-        Text = "Liquid Glass",
-        TextColor3 = "FontColor",
-        TextSize = 13,
-        ZIndex = 502,
-        Parent = SettingsView,
-    })
-    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ThemeLiquidBtn })
-    local LiquidBtnStroke = New("UIStroke", { Color = "OutlineColor", Parent = ThemeLiquidBtn })
-
+    -- Chat Title Bar (Restored inside GlobalChatView)
     local ChatTitleBar = New("Frame", {
         BackgroundColor3 = "MainColor",
         Size = UDim2.new(1, 0, 0, 36),
@@ -9733,7 +9697,7 @@ do
         Parent = GlobalChatView,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ChatTitleBar })
-    local ChatTitleOverlap = New("Frame", {
+    New("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
@@ -9743,7 +9707,7 @@ do
         Parent = ChatTitleBar,
     })
 
-    local ChatTitleText = New("TextLabel", {
+    New("TextLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         Text = "Global Chat",
@@ -9765,9 +9729,9 @@ do
         Parent = ChatTitleBar,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = ChatCloseBtn })
-    local ChatCloseStroke = New("UIStroke", { Color = "OutlineColor", Parent = ChatCloseBtn })
+    New("UIStroke", { Color = "OutlineColor", Parent = ChatCloseBtn })
 
-    local ChatDivider = New("Frame", {
+    New("Frame", {
         BackgroundColor3 = "OutlineColor",
         BorderSizePixel = 0,
         Position = UDim2.fromOffset(0, 36),
@@ -9872,7 +9836,7 @@ do
         end
     end)
 
-    local InputDivider = New("Frame", {
+    New("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = "OutlineColor",
         BorderSizePixel = 0,
@@ -9891,7 +9855,7 @@ do
         Parent = GlobalChatView,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = InputBar })
-    local InputOverlap = New("Frame", {
+    New("Frame", {
         BackgroundColor3 = "MainColor",
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, Library.CornerRadius),
@@ -9951,7 +9915,7 @@ do
         Parent = InputBar,
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = ChatInput })
-    local ChatInputStroke = New("UIStroke", { Color = "OutlineColor", Parent = ChatInput })
+    New("UIStroke", { Color = "OutlineColor", Parent = ChatInput })
     New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), Parent = ChatInput })
 
     local SendBtn = New("TextButton", {
@@ -9967,111 +9931,6 @@ do
     })
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SendBtn })
 
-    -- THEME APPLICATION LOGIC
-    local function GetColor(name)
-        if type(name) == "string" and Library and Library.Scheme and Library.Scheme[name] then
-            return Library.Scheme[name]
-        end
-        return Color3.fromRGB(30, 31, 34) -- Safe fallback
-    end
-
-    local function ApplyTheme()
-        local isLG = (CurrentTheme == "LiquidGlass")
-
-        local lgBg = Color3.fromRGB(255, 255, 255)
-        local lgStroke = Color3.fromRGB(255, 255, 255)
-        local lgText = Color3.fromRGB(240, 240, 240)
-        local lgAccent = Color3.fromRGB(255, 255, 255)
-
-        local legBg = GetColor("BackgroundColor")
-        local legMain = GetColor("MainColor")
-        local legOutline = GetColor("OutlineColor")
-        local legFont = GetColor("FontColor")
-        local legAccent = GetColor("AccentColor")
-
-        ChatGui.BackgroundColor3 = isLG and lgBg or legBg
-        ChatGui.BackgroundTransparency = isLG and 0.85 or 0
-        ChatGuiStroke.Color = isLG and lgStroke or legOutline
-        ChatGuiStroke.Transparency = isLG and 0.4 or 0
-
-        LeftNavPanel.BackgroundColor3 = isLG and lgBg or legMain
-        LeftNavPanel.BackgroundTransparency = isLG and 0.9 or 0
-        NavCurveOverlap.BackgroundColor3 = isLG and lgBg or legMain
-        NavCurveOverlap.BackgroundTransparency = isLG and 0.9 or 0
-        NavDivider.BackgroundColor3 = isLG and lgStroke or legOutline
-        NavDivider.BackgroundTransparency = isLG and 0.6 or 0
-
-        ChatTitleBar.BackgroundColor3 = isLG and lgBg or legMain
-        ChatTitleBar.BackgroundTransparency = isLG and 0.85 or 0
-        ChatTitleOverlap.BackgroundColor3 = isLG and lgBg or legMain
-        ChatTitleOverlap.BackgroundTransparency = isLG and 0.85 or 0
-        ChatTitleText.TextColor3 = isLG and lgText or legFont
-        
-        ChatCloseBtn.BackgroundColor3 = isLG and Color3.fromRGB(255,255,255) or legMain
-        ChatCloseBtn.BackgroundTransparency = isLG and 0.8 or 0
-        ChatCloseStroke.Color = isLG and lgStroke or legOutline
-        ChatCloseStroke.Transparency = isLG and 0.5 or 0
-
-        ChatDivider.BackgroundColor3 = isLG and lgStroke or legOutline
-        ChatDivider.BackgroundTransparency = isLG and 0.6 or 0
-        InputDivider.BackgroundColor3 = isLG and lgStroke or legOutline
-        InputDivider.BackgroundTransparency = isLG and 0.6 or 0
-
-        InputBar.BackgroundColor3 = isLG and lgBg or legMain
-        InputBar.BackgroundTransparency = isLG and 0.85 or 0
-        InputOverlap.BackgroundColor3 = isLG and lgBg or legMain
-        InputOverlap.BackgroundTransparency = isLG and 0.85 or 0
-
-        ChatInput.BackgroundColor3 = isLG and lgBg or legBg
-        ChatInput.BackgroundTransparency = isLG and 0.8 or 0
-        ChatInput.TextColor3 = isLG and lgText or legFont
-        ChatInputStroke.Color = isLG and lgStroke or legOutline
-        ChatInputStroke.Transparency = isLG and 0.5 or 0
-        ChatInput.PlaceholderColor3 = isLG and Color3.fromRGB(200, 200, 200) or legFont
-
-        SendBtn.BackgroundColor3 = isLG and lgAccent or legAccent
-        SendBtn.BackgroundTransparency = isLG and 0.7 or 0
-        SendBtn.TextColor3 = isLG and lgText or legFont
-
-        ThemeLegacyBtn.BackgroundColor3 = (CurrentTheme == "Legacy") and legAccent or legMain
-        ThemeLegacyBtn.TextColor3 = (CurrentTheme == "Legacy") and Color3.new(1,1,1) or legFont
-        ThemeLegacyBtn.BackgroundTransparency = isLG and 0.8 or 0
-        LegacyBtnStroke.Color = isLG and lgStroke or legOutline
-        LegacyBtnStroke.Transparency = isLG and 0.5 or 0
-
-        ThemeLiquidBtn.BackgroundColor3 = (CurrentTheme == "LiquidGlass") and (isLG and lgAccent or legAccent) or (isLG and lgBg or legMain)
-        ThemeLiquidBtn.TextColor3 = (CurrentTheme == "LiquidGlass") and Color3.new(1,1,1) or (isLG and lgText or legFont)
-        ThemeLiquidBtn.BackgroundTransparency = isLG and 0.7 or 0
-        LiquidBtnStroke.Color = isLG and lgStroke or legOutline
-        LiquidBtnStroke.Transparency = isLG and 0.5 or 0
-        
-        -- Update Nav Buttons dynamically
-        for _, child in ipairs(NavButtonContainer:GetChildren()) do
-            if child:IsA("TextButton") then
-                local isActive = (child.Name == currentActiveTab .. "NavBtn")
-                
-                if isLG then
-                    child.BackgroundColor3 = isActive and lgAccent or lgBg
-                    child.BackgroundTransparency = isActive and 0.7 or 0.95
-                    child.TextColor3 = lgText
-                else
-                    child.BackgroundColor3 = isActive and legAccent or Color3.fromRGB(35, 37, 42)
-                    child.BackgroundTransparency = 0
-                    child.TextColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(185, 187, 190)
-                end
-            end
-        end
-    end
-
-    ThemeLegacyBtn.MouseButton1Click:Connect(function()
-        CurrentTheme = "Legacy"
-        ApplyTheme()
-    end)
-    ThemeLiquidBtn.MouseButton1Click:Connect(function()
-        CurrentTheme = "LiquidGlass"
-        ApplyTheme()
-    end)
-
     -- Discord-style Mention Auto-complete Menu
     local MentionMenu = New("Frame", {
         AnchorPoint = Vector2.new(0, 1),
@@ -10083,7 +9942,7 @@ do
         Parent = GlobalChatView,
     })
     New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = MentionMenu })
-    local MentionMenuStroke = New("UIStroke", { Color = Color3.fromRGB(30, 31, 34), Thickness = 1, Parent = MentionMenu })
+    New("UIStroke", { Color = Color3.fromRGB(30, 31, 34), Thickness = 1, Parent = MentionMenu })
 
     local MentionMenuHeader = New("TextLabel", {
         BackgroundTransparency = 1,
@@ -10122,7 +9981,7 @@ do
     })
 
     -- Navigation Menu Selection Logic
-    currentActiveTab = "Global"
+    local currentActiveTab = "Global"
     local function SwitchNavTab(tabName)
         if tabName == "Panel" and not IsAdmin(LocalPlayer.UserId, LocalPlayer.Name) then
             Library:Notify({ Title = "Access Denied", Description = "This panel is restricted to Admins only.", Time = 2 })
@@ -10134,7 +9993,18 @@ do
         AdminPanelView.Visible = (tabName == "Panel")
         SettingsView.Visible = (tabName == "Settings")
 
-        ApplyTheme() -- Refresh active state styling
+        -- Update buttons styling (Changed to reference NavButtonContainer)
+        for _, child in ipairs(NavButtonContainer:GetChildren()) do
+            if child:IsA("TextButton") then
+                if child.Name == tabName .. "NavBtn" then
+                    child.BackgroundColor3 = Library.Scheme.AccentColor or Color3.fromRGB(88, 101, 242)
+                    child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                else
+                    child.BackgroundColor3 = Color3.fromRGB(35, 37, 42)
+                    child.TextColor3 = Color3.fromRGB(185, 187, 190)
+                end
+            end
+        end
     end
 
     local function CreateNavButton(name, text)
@@ -10149,7 +10019,7 @@ do
             TextSize = 13,
             Font = Enum.Font.GothamMedium,
             ZIndex = 503,
-            Parent = NavButtonContainer, 
+            Parent = NavButtonContainer, -- Added button to the new container
         })
         New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = btn })
 
@@ -10184,17 +10054,10 @@ do
 
         local maxItems = math.min(#matches, 6)
         MentionMenu.Size = UDim2.new(1, -16, 0, 24 + (maxItems * 30) + 4)
-        
-        local isLG = (CurrentTheme == "LiquidGlass")
-        MentionMenu.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(43, 45, 49)
-        MentionMenu.BackgroundTransparency = isLG and 0.85 or 0
-        MentionMenuStroke.Color = isLG and Color3.fromRGB(255,255,255) or Color3.fromRGB(30, 31, 34)
-        MentionMenuStroke.Transparency = isLG and 0.5 or 0
 
         for _, user in ipairs(matches) do
             local btn = New("TextButton", {
-                BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(43, 45, 49),
-                BackgroundTransparency = isLG and 0.9 or 0,
+                BackgroundColor3 = Color3.fromRGB(43, 45, 49),
                 BorderSizePixel = 0,
                 Size = UDim2.new(1, 0, 0, 28),
                 Text = "",
@@ -10211,7 +10074,7 @@ do
                 Position = UDim2.new(0, 8, 0, 0),
                 Size = UDim2.new(0.5, 0, 1, 0),
                 Text = displayNameText,
-                TextColor3 = isLG and Color3.new(1,1,1) or Color3.fromRGB(220, 220, 220),
+                TextColor3 = Color3.fromRGB(220, 220, 220),
                 TextSize = 13,
                 Font = Enum.Font.GothamMedium,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -10225,7 +10088,7 @@ do
                     Position = UDim2.new(0.5, 0, 0, 0),
                     Size = UDim2.new(0.5, -8, 1, 0),
                     Text = user,
-                    TextColor3 = isLG and Color3.fromRGB(200, 200, 200) or Color3.fromRGB(130, 130, 130),
+                    TextColor3 = Color3.fromRGB(130, 130, 130),
                     TextSize = 12,
                     TextXAlignment = Enum.TextXAlignment.Right,
                     ZIndex = 553,
@@ -10234,12 +10097,10 @@ do
             end
 
             btn.MouseEnter:Connect(function()
-                btn.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(53, 55, 60)
-                btn.BackgroundTransparency = isLG and 0.7 or 0
+                btn.BackgroundColor3 = Color3.fromRGB(53, 55, 60)
             end)
             btn.MouseLeave:Connect(function()
-                btn.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(43, 45, 49)
-                btn.BackgroundTransparency = isLG and 0.9 or 0
+                btn.BackgroundColor3 = Color3.fromRGB(43, 45, 49)
             end)
 
             btn.MouseButton1Click:Connect(function()
@@ -10326,19 +10187,19 @@ do
         if IsLocallyMuted() then
             ChatInput.BackgroundColor3 = Color3.fromRGB(40, 42, 46)
             ChatInput.TextColor3 = Color3.fromRGB(120, 122, 128)
-            ChatInput.BackgroundTransparency = 0
             ChatInput.TextEditable = false
             SendBtn.Active = false
             SendBtn.BackgroundColor3 = Color3.fromRGB(60, 62, 68)
-            SendBtn.BackgroundTransparency = 0
             local remTime = math.max(0, LocalMuteExpiration - tick())
             ChatInput.PlaceholderText = "U are muted. Timer: " .. FormatDuration(remTime)
             SendBtn.Text = "Muted"
             MentionMenu.Visible = false
         else
-            ApplyTheme() -- Re-applies theme colors to Input/SendBtn
+            ChatInput.BackgroundColor3 = Library.Scheme.BackgroundColor or Color3.fromRGB(30, 31, 34)
+            ChatInput.TextColor3 = Library.Scheme.FontColor
             ChatInput.TextEditable = true
             SendBtn.Active = true
+            SendBtn.BackgroundColor3 = Library.Scheme.AccentColor
 
             if NicknameTarget then
                 ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
@@ -10390,18 +10251,15 @@ do
         local optionCount = isAdminUser and 4 or 3
         local menuHeight = (optionCount * 28) + ((optionCount - 1) * 2) + 12
 
-        local isLG = (CurrentTheme == "LiquidGlass")
-
         ActiveContextMenu = New("Frame", {
-            BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(18, 19, 22),
-            BackgroundTransparency = isLG and 0.85 or 0,
+            BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
             Size = UDim2.fromOffset(160, menuHeight),
             ZIndex = 800,
             Parent = ScreenGui,
         })
         New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ActiveContextMenu })
-        New("UIStroke", { Color = isLG and Color3.fromRGB(255,255,255) or Color3.fromRGB(45, 47, 52), Transparency = isLG and 0.5 or 0, Thickness = 1, Parent = ActiveContextMenu })
+        New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ActiveContextMenu })
 
         New("UIListLayout", {
             SortOrder = Enum.SortOrder.LayoutOrder,
@@ -10417,14 +10275,13 @@ do
         })
 
         local function CreateMenuOption(text, textColor, callback)
-            local defaultColor = isLG and Color3.new(1,1,1) or Color3.fromRGB(185, 187, 190)
             local btn = New("TextButton", {
-                BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(18, 19, 22),
-                BackgroundTransparency = isLG and 1 or 0,
+                BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+                BackgroundTransparency = 0,
                 Size = UDim2.new(1, 0, 0, 28),
                 AutoButtonColor = false,
                 Text = text,
-                TextColor3 = textColor or defaultColor,
+                TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
                 TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 ZIndex = 801,
@@ -10434,14 +10291,12 @@ do
             New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), Parent = btn })
 
             btn.MouseEnter:Connect(function()
-                btn.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(88, 101, 242)
-                btn.BackgroundTransparency = isLG and 0.7 or 0
-                btn.TextColor3 = isLG and Color3.new(1,1,1) or Color3.fromRGB(255, 255, 255)
+                btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             end)
             btn.MouseLeave:Connect(function()
-                btn.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(18, 19, 22)
-                btn.BackgroundTransparency = isLG and 1 or 0
-                btn.TextColor3 = textColor or defaultColor
+                btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
+                btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
             end)
 
             btn.MouseButton1Down:Connect(function()
@@ -10679,12 +10534,10 @@ do
         ProcessedSignatures[signature] = true
 
         MsgIndex = MsgIndex + 1
-        
-        local isLG = (CurrentTheme == "LiquidGlass")
 
         local Row = New("Frame", {
-            BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(47, 49, 54),
-            BackgroundTransparency = isLG and 0.9 or 1,
+            BackgroundColor3 = Color3.fromRGB(47, 49, 54),
+            BackgroundTransparency = 1,
             BorderSizePixel = 0,
             LayoutOrder = MsgIndex,
             Size = UDim2.new(1, 0, 0, 0),
@@ -10697,8 +10550,7 @@ do
 
         local ActionBar = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
-            BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(45, 47, 52),
-            BackgroundTransparency = isLG and 0.85 or 0,
+            BackgroundColor3 = Color3.fromRGB(45, 47, 52),
             Position = UDim2.new(1, -4, 0, -6),
             Size = UDim2.fromOffset(84, 24),
             Visible = false,
@@ -10706,13 +10558,13 @@ do
             Parent = Row,
         })
         New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ActionBar })
-        New("UIStroke", { Color = isLG and Color3.fromRGB(255, 255, 255) or GetColor("OutlineColor"), Transparency = isLG and 0.5 or 0, Parent = ActionBar })
+        New("UIStroke", { Color = "OutlineColor", Parent = ActionBar })
 
         local ReplyBtn = New("TextButton", {
             BackgroundTransparency = 1,
             Size = UDim2.new(0, 28, 1, 0),
             Text = "↩",
-            TextColor3 = isLG and Color3.new(1,1,1) or Color3.fromRGB(200, 200, 200),
+            TextColor3 = Color3.fromRGB(200, 200, 200),
             TextSize = 13,
             ZIndex = 511,
             Parent = ActionBar,
@@ -10723,7 +10575,7 @@ do
             Position = UDim2.new(0, 28, 0, 0),
             Size = UDim2.new(0, 28, 1, 0),
             Text = "❤️",
-            TextColor3 = isLG and Color3.new(1,1,1) or Color3.fromRGB(200, 200, 200),
+            TextColor3 = Color3.fromRGB(200, 200, 200),
             TextSize = 11,
             ZIndex = 511,
             Parent = ActionBar,
@@ -10734,7 +10586,7 @@ do
             Position = UDim2.new(0, 56, 0, 0),
             Size = UDim2.new(0, 28, 1, 0),
             Text = "🗑️",
-            TextColor3 = isLG and Color3.new(1,1,1) or Color3.fromRGB(200, 200, 200),
+            TextColor3 = Color3.fromRGB(200, 200, 200),
             TextSize = 11,
             ZIndex = 511,
             Parent = ActionBar,
@@ -10773,7 +10625,7 @@ do
         })
 
         local ReplyHighlightBar = New("Frame", {
-            BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(88, 101, 242),
+            BackgroundColor3 = Color3.fromRGB(88, 101, 242),
             BorderSizePixel = 0,
             Position = UDim2.new(0, -6, 0, 0),
             Size = UDim2.new(0, 3, 1, 0),
@@ -10786,11 +10638,11 @@ do
         local function SetRowHighlight(state)
             ReplyHighlightBar.Visible = state
             if state then
-                Row.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(53, 56, 63)
-                Row.BackgroundTransparency = isLG and 0.7 or 0.5
+                Row.BackgroundColor3 = Color3.fromRGB(53, 56, 63)
+                Row.BackgroundTransparency = 0.5
             else
-                Row.BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(47, 49, 54)
-                Row.BackgroundTransparency = isLG and 0.9 or 1
+                Row.BackgroundColor3 = Color3.fromRGB(47, 49, 54)
+                Row.BackgroundTransparency = 1
             end
         end
 
@@ -10816,15 +10668,14 @@ do
 
             local menuOpenedTick = tick()
             activePickerMenu = New("Frame", {
-                BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(35, 37, 42),
-                BackgroundTransparency = isLG and 0.85 or 0,
+                BackgroundColor3 = Color3.fromRGB(35, 37, 42),
                 Position = UDim2.new(1, -140, 0, 28),
                 Size = UDim2.fromOffset(140, 34),
                 ZIndex = 600,
                 Parent = ActionBar,
             })
             New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = activePickerMenu })
-            New("UIStroke", { Color = isLG and Color3.new(1,1,1) or Color3.fromRGB(88, 101, 242), Transparency = isLG and 0.5 or 0, Parent = activePickerMenu })
+            New("UIStroke", { Color = Color3.fromRGB(88, 101, 242), Parent = activePickerMenu })
             New("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4), Parent = activePickerMenu })
             New("UIPadding", { PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), Parent = activePickerMenu })
 
@@ -10941,7 +10792,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0),
                 Text = "┌ ↩ " .. GetDisplayName(replyData.Username) .. ": " .. replyData.Text,
-                TextColor3 = isLG and Color3.fromRGB(220, 220, 220) or Color3.fromRGB(150, 150, 150),
+                TextColor3 = Color3.fromRGB(150, 150, 150),
                 TextSize = 12,
                 TextTruncate = Enum.TextTruncate.AtEnd,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -10953,8 +10804,8 @@ do
         local function GetNameColor()
             if isSystem then return Color3.fromRGB(255, 100, 100)
             elseif MutedUsernamesMap[sender:lower()] then return Color3.fromRGB(139, 0, 0)
-            elseif sender == LocalPlayer.Name then return isLG and Color3.fromRGB(255, 255, 255) or GetColor("AccentColor")
-            else return isLG and Color3.fromRGB(230, 230, 230) or Color3.fromRGB(255, 90, 90) end
+            elseif sender == LocalPlayer.Name then return Library.Scheme.AccentColor
+            else return Color3.fromRGB(255, 90, 90) end
         end
 
         local function FormatDisplayName()
@@ -10983,7 +10834,7 @@ do
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 0),
             Text = text,
-            TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or (isLG and Color3.new(1,1,1) or GetColor("FontColor")),
+            TextColor3 = isSystem and Color3.fromRGB(255, 150, 150) or Library.Scheme.FontColor,
             TextSize = 14,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -11014,18 +10865,17 @@ do
             for emojiStr, userList in pairs(rxData) do
                 if type(userList) == "table" and #userList > 0 then
                     local pill = New("TextButton", {
-                        BackgroundColor3 = isLG and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(50, 52, 58),
-                        BackgroundTransparency = isLG and 0.85 or 0,
+                        BackgroundColor3 = Color3.fromRGB(50, 52, 58),
                         AutoButtonColor = false,
                         Size = UDim2.fromOffset(36, 20),
                         Text = emojiStr .. " " .. #userList,
-                        TextColor3 = isLG and Color3.new(1,1,1) or Color3.fromRGB(200, 200, 200),
+                        TextColor3 = Color3.fromRGB(200, 200, 200),
                         TextSize = 11,
                         ZIndex = 505,
                         Parent = reactionContainer,
                     })
                     New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = pill })
-                    New("UIStroke", { Color = isLG and Color3.new(1,1,1) or Color3.fromRGB(70, 72, 78), Transparency = isLG and 0.5 or 0, Parent = pill })
+                    New("UIStroke", { Color = Color3.fromRGB(70, 72, 78), Parent = pill })
 
                     pill.MouseButton1Down:Connect(function()
                         local currentRx = {}
@@ -11362,7 +11212,7 @@ do
 
     Window.ChatAddMessage = AddMessage
 end
-    --testing388811111123456
+    --testing388811111
     return Window
 end
 
