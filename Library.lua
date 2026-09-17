@@ -9635,17 +9635,31 @@ do
     end
 
   -- Larger MailPanel positioned on the left side of the chat window (increased to 380x480)
-    local MailPanel = New("Frame", {
-        AnchorPoint = Vector2.new(1, 0),
-        BackgroundColor3 = "BackgroundColor",
-        Position = UDim2.fromOffset(-10, 0),
-        Size = UDim2.fromOffset(380, 480),
-        Visible = false,
-        ZIndex = 600,
-        Parent = ChatGui,
+local MailBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(0, 36, 0.5, 0),
+        Size = UDim2.fromOffset(24, 24),
+        Text = "",
+        ZIndex = 510,
+        Parent = ChatTitleBar,
     })
-    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
-    New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = MailBtn })
+    New("UIStroke", { Color = "OutlineColor", Parent = MailBtn })
+
+    -- Hover highlight effect
+    local TweenService = game:GetService("TweenService")
+    local hoverTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    MailBtn.MouseEnter:Connect(function()
+        TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = Color3.fromRGB(88, 101, 242) }):Play() -- Discord blurple highlight (or customize color)
+    end)
+
+    MailBtn.MouseLeave:Connect(function()
+        -- Revert back to the theme's MainColor (or its original state)
+        -- Depending on your library setup, you can set it back or use a color tween
+        TweenService:Create(MailBtn, hoverTweenInfo, { BackgroundColor3 = Library.Themes and Library.Themes[Library.CurrentTheme].MainColor or Color3.fromRGB(45, 45, 45) }):Play()
+    end)
     
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 10),
