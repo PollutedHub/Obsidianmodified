@@ -10994,34 +10994,93 @@ do
         ChatOpen = false
     end)
 
-    local ChatTabButton = New("TextButton", {
-        BackgroundColor3 = "MainColor",
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 40),
-        Text = "",
-        Parent = Tabs,
-    })
-    SetupTabDrag(ChatTabButton)
+local ChatIcon = Library:GetIcon("message-circle")
 
-    local ChatBtnLabel = New("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(30, 0),
-        Size = UDim2.new(1, -30, 1, 0),
-        Text = "Chatbox",
-        TextSize = 16,
-        TextTransparency = 0.5,
-        TextXAlignment = Enum.TextXAlignment.Left,
+local ChatTabButton = New("TextButton", {
+    BackgroundColor3 = "MainColor",
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 0, 40),
+    Text = "",
+    Parent = Tabs,
+})
+SetupTabDrag(ChatTabButton)
+
+local ChatButtonPadding = New("UIPadding", {
+    PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
+    PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
+    PaddingRight = UDim.new(0, IsCompact and 6 or 12),
+    PaddingTop = UDim.new(0, IsCompact and 6 or 11),
+    Parent = ChatTabButton,
+})
+
+local ChatBtnLabel = New("TextLabel", {
+    BackgroundTransparency = 1,
+    Position = UDim2.fromOffset(30, 0),
+    Size = UDim2.new(1, -30, 1, 0),
+    Text = "Chatbox",
+    TextSize = 16,
+    TextTransparency = 0.5,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Visible = not IsCompact,
+    Parent = ChatTabButton,
+})
+
+local ChatBtnIcon
+if ChatIcon then
+    ChatBtnIcon = New("ImageLabel", {
+        Image = ChatIcon.Url,
+        ImageColor3 = ChatIcon.Custom and "WhiteColor" or "AccentColor",
+        ImageRectOffset = ChatIcon.ImageRectOffset,
+        ImageRectSize = ChatIcon.ImageRectSize,
+        ImageTransparency = 0.5,
+        Size = UDim2.fromScale(1, 1),
+        SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
         Parent = ChatTabButton,
     })
+end
 
-    ChatTabButton.MouseButton1Click:Connect(function()
-        ChatOpen = not ChatOpen
-        ChatGui.Visible = ChatOpen
-    end)
+table.insert(Library.TabButtons, {
+    Label = ChatBtnLabel,
+    Padding = ChatButtonPadding,
+    Icon = ChatBtnIcon,
+})
 
+ChatTabButton.MouseEnter:Connect(function()
+    if ChatOpen then return end
+    TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.25 }):Play()
+    if ChatBtnIcon then
+        TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.25 }):Play()
+    end
+end)
+ChatTabButton.MouseLeave:Connect(function()
+    if ChatOpen then return end
+    TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+    if ChatBtnIcon then
+        TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+    end
+end)
+
+ChatTabButton.MouseButton1Click:Connect(function()
+    ChatOpen = not ChatOpen
+    ChatGui.Visible = ChatOpen
+
+    if ChatOpen then
+        TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 0 }):Play()
+        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0 }):Play()
+        if ChatBtnIcon then
+            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0 }):Play()
+        end
+    else
+        TweenService:Create(ChatTabButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(ChatBtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+        if ChatBtnIcon then
+            TweenService:Create(ChatBtnIcon, Library.TweenInfo, { ImageTransparency = 0.5 }):Play()
+        end
+    end
+end)
     Window.ChatAddMessage = AddMessage
 end
-    --testing388811111
+    --testing3888111119
     return Window
 end
 
