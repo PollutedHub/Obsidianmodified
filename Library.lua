@@ -9578,6 +9578,85 @@ do
         Parent = ChatTitleBar,
     })
 
+    local MailBtn = New("TextButton", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundColor3 = "MainColor",
+        Position = UDim2.new(0, 36, 0.5, 0),
+        Size = UDim2.fromOffset(24, 24),
+        Text = "",
+        ZIndex = 510,
+        Parent = ChatTitleBar,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = MailBtn })
+    New("UIStroke", { Color = "OutlineColor", Parent = MailBtn })
+    local MailIcon = Library:GetIcon("mail")
+    if MailIcon then
+        New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Image = MailIcon.Url,
+            ImageColor3 = "FontColor",
+            ImageRectOffset = MailIcon.ImageRectOffset,
+            ImageRectSize = MailIcon.ImageRectSize,
+            Size = UDim2.new(1, -6, 1, -6),
+            Position = UDim2.fromOffset(3, 3),
+            ZIndex = 511,
+            Parent = MailBtn,
+        })
+    else
+        MailBtn.Text = "✉"
+        MailBtn.TextSize = 13
+    end
+
+    local MailPanel = New("Frame", {
+        AnchorPoint = Vector2.new(0, 0),
+        BackgroundColor3 = "BackgroundColor",
+        Position = UDim2.fromOffset(0, 36),
+        Size = UDim2.fromOffset(220, 80),
+        Visible = false,
+        ZIndex = 600,
+        Parent = ChatGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
+    New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 10),
+        Parent = MailPanel,
+    })
+
+    New("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 14),
+        Text = "No messages yet.",
+        TextColor3 = "FontColor",
+        TextSize = 13,
+        TextTransparency = 0.5,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 601,
+        Parent = MailPanel,
+    })
+
+    local MailOpen = false
+    MailBtn.MouseButton1Click:Connect(function()
+        MailOpen = not MailOpen
+        MailPanel.Visible = MailOpen
+        if MailOpen and SettingsOpen then
+            SettingsOpen = false
+            SettingsPanel.Visible = false
+        end
+    end)
+
+    Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input)
+        if not IsClickInput(Input) or not MailOpen then return end
+        local mousePos = Input.Position
+        if not Library:MouseIsOverFrame(MailPanel, mousePos) and not Library:MouseIsOverFrame(MailBtn, mousePos) then
+            MailOpen = false
+            MailPanel.Visible = false
+        end
+    end))
+
     local GearBtn = New("TextButton", {
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundColor3 = "MainColor",
