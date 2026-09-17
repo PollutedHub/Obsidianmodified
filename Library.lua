@@ -9714,6 +9714,60 @@ do
         local unreadCount = 0
         local activeSignature = ""
 
+        -- Helper function to send delete request to VPS
+        local function deleteInviteOnVPS(inviteId)
+            LastRenderedInviteSignature = ""
+            if HttpRequest then
+                task.spawn(function()
+                    pcall(function()
+                        HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox/invites/delete",
+                            Method = "POST",
+                            Headers = {
+                                ["Content-Type"] = "application/json",
+                                ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                            },
+                            Body = game:GetService("HttpService"):JSONEncode({
+                                Id = inviteId,
+                                Username = LocalPlayer.Name
+                            })
+                        })
+                    end)
+                end)
+            end
+        end
+
+        -- Check if invites setting is turned OFF
+        local invitesEnabled = true
+        if _G.Settings and _G.Settings.InvitesEnabled ~= nil then
+            invitesEnabled = _G.Settings.InvitesEnabled
+        elseif Toggles and Toggles.InvitesEnabled then
+            invitesEnabled = Toggles.InvitesEnabled.Value
+        end -- Fallback: change `_G.Settings.InvitesEnabled` or `Toggles.InvitesEnabled.Value` to match your actual UI library flag/setting variable if needed!
+
+        if not invitesEnabled then
+            -- Automatically clear/deny all pending invites if the setting is off
+            if invitesList then
+                for _, inv in ipairs(invitesList) do
+                    if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                        deleteInviteOnVPS(inv.Id)
+                    end
+                end
+            end
+
+            -- Clear existing rendered rows
+            for _, child in ipairs(MailScroll:GetChildren()) do
+                if child:IsA("GuiObject") and child.Name == "InviteRowTag" then 
+                    child:Destroy() 
+                end
+            end
+
+            MailBadge.Visible = false
+            MailBadgeText.Text = "0"
+            LastRenderedInviteSignature = "OFF"
+            return
+        end
+
         if invitesList then
             for _, inv in ipairs(invitesList) do
                 if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
@@ -9885,29 +9939,6 @@ do
                     Parent = ButtonHolder,
                 })
 
-                -- Helper function to send delete request to VPS
-                local function deleteInviteOnVPS()
-                    LastRenderedInviteSignature = ""
-                    if HttpRequest then
-                        task.spawn(function()
-                            pcall(function()
-                                HttpRequest({
-                                    Url = "http://167.99.144.89:8081/chatbox/invites/delete",
-                                    Method = "POST",
-                                    Headers = {
-                                        ["Content-Type"] = "application/json",
-                                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                                    },
-                                    Body = game:GetService("HttpService"):JSONEncode({
-                                        Id = inv.Id,
-                                        Username = LocalPlayer.Name
-                                    })
-                                })
-                            end)
-                        end)
-                    end
-                end
-
                 -- Accept Button (Green)
                 local AcceptBtn = New("TextButton", {
                     BackgroundColor3 = Color3.fromRGB(46, 204, 113),
@@ -9922,7 +9953,7 @@ do
                 New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = AcceptBtn })
 
                 AcceptBtn.MouseButton1Click:Connect(function()
-                    deleteInviteOnVPS() -- Deletes from VPS when accepted
+                    deleteInviteOnVPS(inv.Id) -- Deletes from VPS when accepted
                     InviteRow:Destroy()
                     pcall(function()
                         local TeleportService = game:GetService("TeleportService")
@@ -9949,7 +9980,7 @@ do
                 New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = DenyBtn })
 
                 DenyBtn.MouseButton1Click:Connect(function()
-                    deleteInviteOnVPS()
+                    deleteInviteOnVPS(inv.Id)
                     InviteRow:Destroy()
                 end)
             end
