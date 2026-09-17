@@ -9634,12 +9634,12 @@ do
         MailBtn.TextSize = 13
     end
 
-  -- Larger MailPanel positioned on the left side of the chat window
+  -- Larger MailPanel positioned on the left side of the chat window (increased to 380x480)
     local MailPanel = New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromOffset(-10, 0),
-        Size = UDim2.fromOffset(320, 420),
+        Size = UDim2.fromOffset(380, 480),
         Visible = false,
         ZIndex = 600,
         Parent = ChatGui,
@@ -9647,7 +9647,6 @@ do
     New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MailPanel })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = MailPanel })
     
-    -- Removed Top padding from here so the panel container doesn't trap items too high up
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 10),
         PaddingLeft = UDim.new(0, 10),
@@ -9656,7 +9655,7 @@ do
         Parent = MailPanel,
     })
 
-local MailScroll = New("ScrollingFrame", {
+    local MailScroll = New("ScrollingFrame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
         CanvasSize = UDim2.fromScale(0, 0),
@@ -9667,7 +9666,7 @@ local MailScroll = New("ScrollingFrame", {
         Parent = MailPanel,
     })
     
-    -- Added PaddingLeft (6px) to match PaddingRight so it floats nicely in the center with breathing room
+    -- Balanced padding to safely prevent stroke clipping on all sides
     New("UIPadding", {
         PaddingTop = UDim.new(0, 10),
         PaddingLeft = UDim.new(0, 6),
@@ -9681,7 +9680,17 @@ local MailScroll = New("ScrollingFrame", {
         Parent = MailScroll,
     })
 
-local MarketplaceService = game:GetService("MarketplaceService")
+    -- Discord-style smart auto-scroll tracker
+    local UserIsScrolledUp = false
+    MailScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+        local scrollPos = MailScroll.CanvasPosition.Y
+        local maxScroll = MailScroll.AbsoluteCanvasSize.Y - MailScroll.AbsoluteWindowSize.Y
+        if maxScroll > 0 then
+            UserIsScrolledUp = (scrollPos < (maxScroll - 30))
+        end
+    end)
+
+    local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
     local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
     local LatestInvitesList = nil -- Keeps a live reference to the latest invites array
@@ -9724,6 +9733,9 @@ local MarketplaceService = game:GetService("MarketplaceService")
         if currentSignature == LastRenderedInviteSignature then
             return
         end
+        
+        -- Check if user was at the bottom before refreshing content
+        local wasAtBottom = not UserIsScrolledUp
         LastRenderedInviteSignature = currentSignature
 
         for _, child in ipairs(MailScroll:GetChildren()) do
@@ -9747,7 +9759,6 @@ local MarketplaceService = game:GetService("MarketplaceService")
 
         for _, inv in ipairs(invitesList) do
             if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
-                -- Adjusted width to 1, -6 to leave breathing room for the scrollbar and fix border clipping
                 local InviteRow = New("Frame", {
                     BackgroundColor3 = Color3.fromRGB(30, 32, 38),
                     Size = UDim2.new(1, -6, 0, 115),
@@ -9925,6 +9936,13 @@ local MarketplaceService = game:GetService("MarketplaceService")
                     InviteRow:Destroy()
                 end)
             end
+        end
+
+        -- Auto-scroll down only if user was already at the bottom
+        if wasAtBottom then
+            task.defer(function()
+                MailScroll.CanvasPosition = Vector2.new(0, MailScroll.AbsoluteCanvasSize.Y)
+            end)
         end
     end
 
