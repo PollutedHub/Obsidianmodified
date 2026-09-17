@@ -9683,7 +9683,7 @@ do
 
     local PingSwitch = New("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        BackgroundColor3 = "AccentColor",
+        BackgroundColor3 = "MainColor",
         Position = UDim2.new(1, 0, 0.5, 0),
         Size = UDim2.fromOffset(32, 18),
         ZIndex = 602,
@@ -9700,9 +9700,9 @@ do
     })
 
     local PingBall = New("Frame", {
-        AnchorPoint = Vector2.new(1, 0),
+        AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = "FontColor",
-        Position = UDim2.fromScale(1, 0),
+        Position = UDim2.fromScale(0, 0),
         Size = UDim2.fromScale(1, 1),
         SizeConstraint = Enum.SizeConstraint.RelativeYY,
         ZIndex = 603,
