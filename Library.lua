@@ -11124,8 +11124,7 @@ end)
 
 game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 
-        or input.UserInputType == Enum.UserInputType.MouseButton2
-        or input.UserInputType == Enum.UserInputType.Touch then
+        or input.UserInputType == Enum.UserInputType.MouseButton2 then
         if ActiveContextMenu then
             local mousePos = game:GetService("UserInputService"):GetMouseLocation()
             local absPos = ActiveContextMenu.AbsolutePosition
@@ -11133,6 +11132,20 @@ game:GetService("UserInputService").InputBegan:Connect(function(input)
             if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
                 CloseContextMenu()
             end
+        end
+    end
+    -- Touch: only close if tapping clearly outside, with a small delay so button click registers first
+    if input.UserInputType == Enum.UserInputType.Touch then
+        if ActiveContextMenu then
+            task.delay(0.15, function()
+                if not ActiveContextMenu then return end
+                local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                local absPos = ActiveContextMenu.AbsolutePosition
+                local absSize = ActiveContextMenu.AbsoluteSize
+                if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
+                    CloseContextMenu()
+                end
+            end)
         end
     end
 end)
@@ -11550,61 +11563,67 @@ end
             return nick
         end
 
-        local NameBtn = New("TextButton", {
-            AutomaticSize = Enum.AutomaticSize.XY,
-            BackgroundTransparency = 1,
-            Text = FormatDisplayName(),
-            TextColor3 = GetNameColor(),
-            TextSize = 13,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 504,
-            Parent = ContentLayout,
-        })
+local NameBtn = New("TextButton", {
+    AutomaticSize = Enum.AutomaticSize.XY,
+    BackgroundTransparency = 1,
+    Text = FormatDisplayName(),
+    TextColor3 = GetNameColor(),
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 504,
+    Parent = ContentLayout,
+})
 
 NameBtn.MouseButton2Click:Connect(function()
     if not isSystem then OpenUserContextMenu(sender, senderUserId) end
 end)
 
--- Mobile long press (1 second hold)
+-- Mobile long press (1 second hold) on both name and full row
 local holdThread = nil
 local holdStarted = false
 local holdStartPos = nil
 
-NameBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        holdStarted = true
-        holdStartPos = Vector2.new(input.Position.X, input.Position.Y)
-        holdThread = task.delay(1, function()
-            if holdStarted then
-                holdStarted = false
-                holdThread = nil
-                OpenUserContextMenu(sender, senderUserId)
-            end
-        end)
-    end
-end)
+local function setupLongPress(target)
+    target.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            holdStarted = true
+            holdStartPos = Vector2.new(input.Position.X, input.Position.Y)
+            holdThread = task.delay(1, function()
+                if holdStarted then
+                    holdStarted = false
+                    holdThread = nil
+                    if not isSystem then
+                        OpenUserContextMenu(sender, senderUserId)
+                    end
+                end
+            end)
+        end
+    end)
 
-NameBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        holdStarted = false
-        holdThread = nil
-    end
-end)
-
-NameBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch and holdStartPos then
-        local dx = math.abs(input.Position.X - holdStartPos.X)
-        local dy = math.abs(input.Position.Y - holdStartPos.Y)
-        -- Only cancel if finger moved more than 10 pixels (real scroll, not tiny wobble)
-        if dx > 10 or dy > 10 then
+    target.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
             holdStarted = false
-            if holdThread then
-                task.cancel(holdThread)
-                holdThread = nil
+            holdThread = nil
+        end
+    end)
+
+    target.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch and holdStartPos then
+            local dx = math.abs(input.Position.X - holdStartPos.X)
+            local dy = math.abs(input.Position.Y - holdStartPos.Y)
+            if dx > 10 or dy > 10 then
+                holdStarted = false
+                if holdThread then
+                    task.cancel(holdThread)
+                    holdThread = nil
+                end
             end
         end
-    end
-end)
+    end)
+end
+
+setupLongPress(NameBtn)
+setupLongPress(Row)
 
         local MsgBodyLabel = New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.Y,
