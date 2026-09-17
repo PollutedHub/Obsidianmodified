@@ -9679,8 +9679,10 @@ local MailScroll = New("ScrollingFrame", {
 local MarketplaceService = game:GetService("MarketplaceService")
     local LastRenderedInviteSignature = ""
     local LastSeenSignature = "" -- Tracks IDs of invites that have been viewed/acknowledged
+    local LatestInvitesList = nil -- Keeps a live reference to the latest invites array
 
     local function RenderInvites(invitesList)
+        LatestInvitesList = invitesList -- Store reference globally for the click event
         local currentSignature = ""
         local unreadCount = 0
         local activeSignature = ""
@@ -9927,14 +9929,19 @@ local MarketplaceService = game:GetService("MarketplaceService")
         MailPanel.Visible = MailOpen
         
         if MailOpen then
-            -- Instantly clear badge and update LastSeenSignature when opened
+            -- Immediately clear badge and update LastSeenSignature when opened
             MailBadge.Visible = false
             MailBadgeText.Text = "0"
             
-            -- Accumulate existing IDs into LastSeenSignature so they are marked read
-            local currentActive = ""
-            if _G.CurrentInvitesCache then -- Fallback if you store invites globally, or it will refresh on next poll
-                -- Handled naturally on the next RenderInvites loop
+            -- Instantly lock in current invites as seen so they don't pop back up as unread
+            if LatestInvitesList then
+                local snapshotSig = ""
+                for _, inv in ipairs(LatestInvitesList) do
+                    if inv.InvitedUsername and inv.InvitedUsername:lower() == LocalPlayer.Name:lower() then
+                        snapshotSig = snapshotSig .. tostring(inv.Id)
+                    end
+                end
+                LastSeenSignature = snapshotSig
             end
         end
 
