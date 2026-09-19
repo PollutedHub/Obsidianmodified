@@ -10941,11 +10941,14 @@ end)
     local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
     local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
+    -- Convert targetUserId to number if passed as a string from VPS
+    local numericUserId = tonumber(targetUserId)
+
     -- Primary Menu Frame
     ActiveContextMenu = New("Frame", {
         BackgroundColor3 = Color3.fromRGB(18, 19, 22),
         Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-        Size = UDim2.fromOffset(160, 0), -- Dynamic Y size via AutomaticSize
+        Size = UDim2.fromOffset(160, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         ZIndex = 800,
         Parent = ScreenGui,
@@ -10984,12 +10987,16 @@ end)
         Position = UDim2.fromOffset(4, 4),
         Size = UDim2.new(1, -8, 1, -8),
         LightColor = Color3.fromRGB(255, 255, 255),
-        Ambient = Color3.fromRGB(150, 150, 150),
+        Ambient = Color3.fromRGB(180, 180, 180),
         ZIndex = 801,
         Parent = SidePreviewMenu,
     })
 
-    -- Interactive Camera Controls Setup
+    -- WorldModel wrapper ensures proper rendering inside ViewportFrames
+    local WorldModel = Instance.new("WorldModel")
+    WorldModel.Parent = Viewport
+
+    -- Interactive Camera Setup
     local cameraAngle = 0
     local cameraZoom = 4.5
     local isDragging = false
@@ -11005,40 +11012,52 @@ end)
         vpCam.CFrame = CFrame.new(focusPosition + offset, focusPosition)
     end
 
-    -- Populate Viewport Character Model
+    -- Async Avatar Loading Process
     task.spawn(function()
         local Players = game:GetService("Players")
         local charModel = nil
-        local resolvedId = targetUserId
+        local resolvedId = numericUserId
 
-        -- Attempt 1: Fetch from workspace if in the same game
+        -- Method 1: Check if player exists in current workspace server
         local inGamePlayer = Players:FindFirstChild(targetUser)
         if inGamePlayer and inGamePlayer.Character then
             inGamePlayer.Character.Archivable = true
             charModel = inGamePlayer.Character:Clone()
         end
 
-        -- Fetch UserID asynchronously if missing
-        if not resolvedId or resolvedId == 0 then
+        -- Method 2: If no resolved UserID from VPS payload, resolve from Roblox API
+        if not resolvedId or resolvedId <= 0 then
             pcall(function()
                 resolvedId = Players:GetUserIdFromNameAsync(targetUser)
             end)
         end
 
-        -- Attempt 2: Load model via resolved UserID
+        -- Method 3: Generate avatar model using resolved UserID
         if not charModel and resolvedId and resolvedId > 0 then
             pcall(function()
-                charModel = Players:CreateHumanoidModelFromUserId(resolvedId)
+                -- Enforce numeric type conversion for API call
+                charModel = Players:CreateHumanoidModelFromUserId(tonumber(resolvedId))
             end)
         end
 
+        -- Ensure model exists and menu is still open
         if charModel and SidePreviewMenu.Parent then
-            charModel.Parent = Viewport
-            local root = charModel:FindFirstChild("HumanoidRootPart") or charModel:FindFirstChild("Torso") or charModel.PrimaryPart
+            charModel.Parent = WorldModel
+
+            -- Ensure PrimaryPart exists for positioning
+            local root = charModel:FindFirstChild("HumanoidRootPart") 
+                or charModel:FindFirstChild("Torso") 
+                or charModel:FindFirstChild("UpperTorso") 
+                or charModel.PrimaryPart
+
+            if not root then
+                root = charModel:FindFirstChildWhichIsA("BasePart")
+            end
+
             if root then
                 UpdateCameraPosition(root)
 
-                -- Mouse Rotation Controls
+                -- Mouse Drag & Scroll Zoom Event Listeners
                 Viewport.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         isDragging = true
@@ -11046,13 +11065,13 @@ end)
                     end
                 end)
 
-                UserInputService.InputEnded:Connect(function(input)
+                game:GetService("UserInputService").InputEnded:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         isDragging = false
                     end
                 end)
 
-                UserInputService.InputChanged:Connect(function(input)
+                game:GetService("UserInputService").InputChanged:Connect(function(input)
                     if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                         local delta = input.Position.X - lastMouseX
                         lastMouseX = input.Position.X
@@ -11068,7 +11087,7 @@ end)
     end)
 
     ------------------------------------------------------------------
-    -- Options
+    -- Options List
     ------------------------------------------------------------------
     local function CreateMenuOption(text, textColor, callback)
         local btn = New("TextButton", {
@@ -11110,8 +11129,9 @@ end)
 
     CreateMenuOption("Copy UserID", nil, function()
         if setclipboard then
-            setclipboard(tostring(targetUserId or 0))
-            Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
+            local idToCopy = tostring(numericUserId or 0)
+            setclipboard(idToCopy)
+            Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. idToCopy, Time = 2 })
         end
     end)
 
@@ -11168,7 +11188,8 @@ end)
             CreateMenuOption("Unmute User", Color3.fromRGB(255, 60, 60), function()
                 local commandText = ",unmute " .. targetUser
                 local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                local resolvedUserId = targetUserId
+                local resolvedUserId = numericUserId
+
                 if not resolvedUserId then
                     pcall(function()
                         resolvedUserId = game:GetService("Players"):GetUserIdFromNameAsync(targetUser)
