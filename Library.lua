@@ -11274,10 +11274,17 @@ end
     end)
 
 local function FormatDiscordTime(isoTimeStr)
-    if type(isoTimeStr) ~= "string" or isoTimeStr == "" then return "" end
-
-    local dt = DateTime.fromIsoDate(isoTimeStr)
-    if not dt then return "" end
+    local dt
+    
+    -- Parse ISO string if it exists
+    if type(isoTimeStr) == "string" and isoTimeStr ~= "" then
+        dt = DateTime.fromIsoDate(isoTimeStr)
+    end
+    
+    -- If missing (local message), default to right now
+    if not dt then 
+        dt = DateTime.now() 
+    end
 
     local msgDate = os.date("*t", dt.UnixTimestamp)
     local nowDate = os.date("*t", os.time())
