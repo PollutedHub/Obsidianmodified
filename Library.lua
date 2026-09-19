@@ -11188,6 +11188,19 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         end
     end)
 
+New("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 4), -- Gives breathing room between buttons
+        Parent = ActiveContextMenu,
+    })
+    New("UIPadding", {
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        Parent = ActiveContextMenu,
+    })
+
     ------------------------------------------------------------------
     -- Context Options List
     ------------------------------------------------------------------
@@ -11195,7 +11208,7 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         local btn = New("TextButton", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             BackgroundTransparency = 0,
-            Size = UDim2.new(1, 0, 0, 28),
+            Size = UDim2.new(1, 0, 0, 24), -- Reduced height from 28 to 24 to prevent bottom-edge bleeding
             AutoButtonColor = false,
             Text = text,
             TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
