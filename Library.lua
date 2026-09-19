@@ -11273,8 +11273,32 @@ end
         end
     end)
 
+local function FormatDiscordTime(isoTimeStr)
+    if type(isoTimeStr) ~= "string" or isoTimeStr == "" then return "" end
+
+    local dt = DateTime.fromIsoDate(isoTimeStr)
+    if not dt then return "" end
+
+    local msgDate = os.date("*t", dt.UnixTimestamp)
+    local nowDate = os.date("*t", os.time())
+
+    local msgStart = os.time({year = msgDate.year, month = msgDate.month, day = msgDate.day})
+    local nowStart = os.time({year = nowDate.year, month = nowDate.month, day = nowDate.day})
+    local diffDays = math.floor(os.difftime(nowStart, msgStart) / 86400)
+
+    local timeStr = string.format("%02d:%02d", msgDate.hour, msgDate.min)
+
+    if diffDays == 0 then
+        return "Today at " .. timeStr
+    elseif diffDays == 1 then
+        return "Yesterday at " .. timeStr
+    else
+        return string.format("%02d/%02d/%04d at %s", msgDate.day, msgDate.month, msgDate.year, timeStr)
+    end
+end
+
     local MsgIndex = 0
-    local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature)
+    local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature, msgTime)
         local msgIdStr = messageId or tostring(math.random(1000,9999))
 
         if ActiveMessageRows[msgIdStr] then
@@ -11638,6 +11662,21 @@ end)
             return nick
         end
 
+local HeaderContainer = New("Frame", {
+    BackgroundTransparency = 1,
+    AutomaticSize = Enum.AutomaticSize.XY,
+    Size = UDim2.new(1, 0, 0, 0),
+    ZIndex = 504,
+    Parent = ContentLayout,
+})
+New("UIListLayout", {
+    FillDirection = Enum.FillDirection.Horizontal,
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    Padding = UDim.new(0, 6),
+    VerticalAlignment = Enum.VerticalAlignment.Bottom,
+    Parent = HeaderContainer,
+})
+
 local NameBtn = New("TextButton", {
     AutomaticSize = Enum.AutomaticSize.XY,
     BackgroundTransparency = 1,
@@ -11645,9 +11684,25 @@ local NameBtn = New("TextButton", {
     TextColor3 = GetNameColor(),
     TextSize = 13,
     TextXAlignment = Enum.TextXAlignment.Left,
+    LayoutOrder = 1,
     ZIndex = 504,
-    Parent = ContentLayout,
+    Parent = HeaderContainer,
 })
+
+local TimeText = FormatDiscordTime(msgTime)
+if TimeText ~= "" then
+    New("TextLabel", {
+        AutomaticSize = Enum.AutomaticSize.XY,
+        BackgroundTransparency = 1,
+        Text = TimeText,
+        TextColor3 = Color3.fromRGB(150, 150, 150),
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = 2,
+        ZIndex = 504,
+        Parent = HeaderContainer,
+    })
+end
 
 NameBtn.MouseButton2Click:Connect(function()
     if not isSystem then OpenUserContextMenu(sender, senderUserId) end
@@ -12070,7 +12125,7 @@ end
                             for _, msgData in ipairs(messageList) do
                                 if msgData.Username and msgData.Message then
                                     local replyData = msgData.ReplyToId and { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText } or nil
-                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions)
+                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, nil, msgData.Time)
                                 end
                             end
                         end
