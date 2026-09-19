@@ -10934,7 +10934,7 @@ end)
         end
     end
 
-    local function OpenUserContextMenu(targetUser, targetUserId)
+   local function OpenUserContextMenu(targetUser, targetUserId)
         CloseContextMenu()
 
         local mousePos = game:GetService("UserInputService"):GetMouseLocation()
@@ -10944,6 +10944,7 @@ end)
         local optionCount = isAdminUser and 5 or 4
         local menuHeight = (optionCount * 28) + ((optionCount - 1) * 2) + 12
 
+        -- Primary Menu Frame
         ActiveContextMenu = New("Frame", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
@@ -10966,6 +10967,62 @@ end)
             PaddingRight = UDim.new(0, 6),
             Parent = ActiveContextMenu,
         })
+
+        ------------------------------------------------------------------
+        -- Viewport Frame Side Menu
+        ------------------------------------------------------------------
+        local SidePreviewMenu = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+            Position = UDim2.new(1, 6, 0, 0), -- Anchored to the right of the Context Menu
+            Size = UDim2.fromOffset(140, menuHeight),
+            ZIndex = 800,
+            Parent = ActiveContextMenu,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = SidePreviewMenu })
+        New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = SidePreviewMenu })
+
+        local Viewport = New("ViewportFrame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(4, 4),
+            Size = UDim2.new(1, -8, 1, -8),
+            LightColor = Color3.fromRGB(255, 255, 255),
+            Ambient = Color3.fromRGB(150, 150, 150),
+            ZIndex = 801,
+            Parent = SidePreviewMenu,
+        })
+
+        -- Populate Viewport Character Model
+        task.spawn(function()
+            local Players = game:GetService("Players")
+            local charModel = nil
+
+            -- Attempt 1: Clone workspace character if in current game
+            local inGamePlayer = Players:FindFirstChild(targetUser)
+            if inGamePlayer and inGamePlayer.Character then
+                inGamePlayer.Character.Archivable = true
+                charModel = inGamePlayer.Character:Clone()
+            end
+
+            -- Attempt 2: Fetch character model asynchronously via UserId
+            if not charModel and targetUserId and targetUserId > 0 then
+                pcall(function()
+                    charModel = Players:CreateHumanoidModelFromUserId(targetUserId)
+                end)
+            end
+
+            if charModel and SidePreviewMenu.Parent then
+                charModel.Parent = Viewport
+
+                local root = charModel:FindFirstChild("HumanoidRootPart") or charModel:FindFirstChild("Torso") or charModel.PrimaryPart
+                if root then
+                    local vpCam = Instance.new("Camera")
+                    vpCam.CFrame = CFrame.new(root.Position + Vector3.new(0, 1.2, 4.5), root.Position + Vector3.new(0, 0.5, 0))
+                    Viewport.CurrentCamera = vpCam
+                    vpCam.Parent = Viewport
+                end
+            end
+        end)
+        ------------------------------------------------------------------
 
         local function CreateMenuOption(text, textColor, callback)
             local btn = New("TextButton", {
@@ -11034,12 +11091,10 @@ end)
 
             local Players = game:GetService("Players")
 
-            -- Check server capacity before sending the invite
             local currentPlayers = Players.NumPlayers
             local maxPlayers = Players.MaxPlayers
 
             if currentPlayers >= maxPlayers then
-                -- Server is full, show a notification and stop execution
                 pcall(function()
                     Library:Notify({
                         Title = "Invite Failed",
@@ -11051,14 +11106,13 @@ end)
             end
 
             local HttpService = game:GetService("HttpService")
-            local localPlayer = Players.LocalPlayer
 
             local payload = {
-                invitedUsername = targetUser,       -- person you clicked InviteUser on
-                username = LocalPlayer.Name,        -- your username
-                placeid = tostring(game.PlaceId),   -- current PlaceId
-                jobid = game.JobId,                 -- current JobId
-                players = #Players:GetPlayers()     -- player count
+                invitedUsername = targetUser,
+                username = LocalPlayer.Name,
+                placeid = tostring(game.PlaceId),
+                jobid = game.JobId,
+                players = #Players:GetPlayers()
             }
 
             task.spawn(function()
@@ -11275,15 +11329,15 @@ end
 
 local function FormatDiscordTime(isoTimeStr)
     local dt
-    
+
     -- Parse ISO string if it exists
     if type(isoTimeStr) == "string" and isoTimeStr ~= "" then
         dt = DateTime.fromIsoDate(isoTimeStr)
     end
-    
+
     -- If missing (local message), default to right now
-    if not dt then 
-        dt = DateTime.now() 
+    if not dt then
+        dt = DateTime.now()
     end
 
     local msgDate = os.date("*t", dt.UnixTimestamp)
