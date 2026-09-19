@@ -10975,76 +10975,121 @@ end)
     local SidePreviewMenu = New("Frame", {
         BackgroundColor3 = Color3.fromRGB(18, 19, 22),
         Position = UDim2.new(1, 6, 0, 0),
-        Size = UDim2.fromOffset(140, 180),
+        Size = UDim2.fromOffset(140, 210), -- Adjusted height to accommodate toggle button
         ZIndex = 800,
         Parent = ActiveContextMenu,
     })
     New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = SidePreviewMenu })
     New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = SidePreviewMenu })
 
-    local Viewport = New("ViewportFrame", {
+    local ViewportContainer = New("Frame", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(4, 4),
-        Size = UDim2.new(1, -8, 1, -8),
-        LightColor = Color3.fromRGB(255, 255, 255),
-        Ambient = Color3.fromRGB(180, 180, 180),
+        Size = UDim2.new(1, -8, 1, -32),
         ZIndex = 801,
         Parent = SidePreviewMenu,
     })
 
-    -- WorldModel wrapper ensures proper rendering inside ViewportFrames
+    local Viewport = New("ViewportFrame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        LightColor = Color3.fromRGB(255, 255, 255),
+        Ambient = Color3.fromRGB(180, 180, 180),
+        ZIndex = 801,
+        Parent = ViewportContainer,
+    })
+
+    -- Hide / Show Avatar Toggle Button
+    local isAvatarVisible = true
+    local ToggleAvatarBtn = New("TextButton", {
+        BackgroundColor3 = Color3.fromRGB(28, 29, 34),
+        Position = UDim2.new(0, 4, 1, -26),
+        Size = UDim2.new(1, -8, 0, 22),
+        AutoButtonColor = false,
+        Text = "Hide Avatar",
+        TextColor3 = Color3.fromRGB(185, 187, 190),
+        TextSize = 11,
+        ZIndex = 802,
+        Parent = SidePreviewMenu,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = ToggleAvatarBtn })
+    New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ToggleAvatarBtn })
+
+    ToggleAvatarBtn.MouseEnter:Connect(function()
+        ToggleAvatarBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+        ToggleAvatarBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+    ToggleAvatarBtn.MouseLeave:Connect(function()
+        ToggleAvatarBtn.BackgroundColor3 = Color3.fromRGB(28, 29, 34)
+        ToggleAvatarBtn.TextColor3 = Color3.fromRGB(185, 187, 190)
+    end)
+
+    ToggleAvatarBtn.MouseButton1Down:Connect(function()
+        isAvatarVisible = not isAvatarVisible
+        ViewportContainer.Visible = isAvatarVisible
+        ToggleAvatarBtn.Text = isAvatarVisible and "Hide Avatar" or "Show Avatar"
+    end)
+
+    -- WorldModel wrapper for rendering
     local WorldModel = Instance.new("WorldModel")
     WorldModel.Parent = Viewport
 
     -- Interactive Camera Setup
-    local cameraAngle = 0
-    local cameraZoom = 4.5
+    local cameraAngle = 0 -- Relative angle setup
+    local cameraPitch = 0.5 -- Vertical angle offset
+    local cameraZoom = 5.5 -- Slightly zoomed out default distance
     local isDragging = false
-    local lastMouseX = 0
+    local lastMousePos = Vector2.zero
+
     local vpCam = Instance.new("Camera")
     Viewport.CurrentCamera = vpCam
     vpCam.Parent = Viewport
 
     local function UpdateCameraPosition(targetRoot)
         if not targetRoot then return end
+        
+        -- Target character's local front-facing direction
+        local rootCFrame = targetRoot.CFrame
         local focusPosition = targetRoot.Position + Vector3.new(0, 0.5, 0)
-        local offset = Vector3.new(math.sin(cameraAngle) * cameraZoom, 0.7, math.cos(cameraAngle) * cameraZoom)
-        vpCam.CFrame = CFrame.new(focusPosition + offset, focusPosition)
+
+        -- Calculate position offset relative to the RootPart orientation
+        local horizontalOffset = Vector3.new(math.sin(cameraAngle) * math.cos(cameraPitch) * cameraZoom, math.sin(cameraPitch) * cameraZoom, math.cos(cameraAngle) * math.cos(cameraPitch) * cameraZoom)
+        
+        -- Apply orientation vector facing the character's front
+        local cameraPos = focusPosition + (rootCFrame:VectorToWorldSpace(horizontalOffset))
+        vpCam.CFrame = CFrame.new(cameraPos, focusPosition)
     end
 
-    -- Async Avatar Loading Process
+    -- Async Avatar Loading
     task.spawn(function()
         local Players = game:GetService("Players")
         local charModel = nil
         local resolvedId = numericUserId
 
-        -- Method 1: Check if player exists in current workspace server
+        -- Method 1: Workspace lookup
         local inGamePlayer = Players:FindFirstChild(targetUser)
         if inGamePlayer and inGamePlayer.Character then
             inGamePlayer.Character.Archivable = true
             charModel = inGamePlayer.Character:Clone()
         end
 
-        -- Method 2: If no resolved UserID from VPS payload, resolve from Roblox API
+        -- Method 2: Fetch UserID if missing
         if not resolvedId or resolvedId <= 0 then
             pcall(function()
                 resolvedId = Players:GetUserIdFromNameAsync(targetUser)
             end)
         end
 
-        -- Method 3: Generate avatar model using resolved UserID
+        -- Method 3: Load avatar from UserID
         if not charModel and resolvedId and resolvedId > 0 then
             pcall(function()
-                -- Enforce numeric type conversion for API call
                 charModel = Players:CreateHumanoidModelFromUserId(tonumber(resolvedId))
             end)
         end
 
-        -- Ensure model exists and menu is still open
         if charModel and SidePreviewMenu.Parent then
             charModel.Parent = WorldModel
 
-            -- Ensure PrimaryPart exists for positioning
             local root = charModel:FindFirstChild("HumanoidRootPart") 
                 or charModel:FindFirstChild("Torso") 
                 or charModel:FindFirstChild("UpperTorso") 
@@ -11057,11 +11102,11 @@ end)
             if root then
                 UpdateCameraPosition(root)
 
-                -- Mouse Drag & Scroll Zoom Event Listeners
+                -- Dynamic Drag (Horizontal + Vertical) & Zoom Handling
                 Viewport.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         isDragging = true
-                        lastMouseX = input.Position.X
+                        lastMousePos = Vector2.new(input.Position.X, input.Position.Y)
                     end
                 end)
 
@@ -11073,12 +11118,15 @@ end)
 
                 game:GetService("UserInputService").InputChanged:Connect(function(input)
                     if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        local delta = input.Position.X - lastMouseX
-                        lastMouseX = input.Position.X
-                        cameraAngle = cameraAngle - (delta * 0.02)
+                        local deltaX = input.Position.X - lastMousePos.X
+                        local deltaY = input.Position.Y - lastMousePos.Y
+                        lastMousePos = Vector2.new(input.Position.X, input.Position.Y)
+
+                        cameraAngle = cameraAngle - (deltaX * 0.02)
+                        cameraPitch = math.clamp(cameraPitch + (deltaY * 0.01), -1.2, 1.2) -- Vertical rotation bounds
                         UpdateCameraPosition(root)
                     elseif input.UserInputType == Enum.UserInputType.MouseWheel then
-                        cameraZoom = math.clamp(cameraZoom - (input.Position.Z * 0.5), 2.5, 8.0)
+                        cameraZoom = math.clamp(cameraZoom - (input.Position.Z * 0.5), 3.0, 10.0)
                         UpdateCameraPosition(root)
                     end
                 end)
@@ -11087,7 +11135,7 @@ end)
     end)
 
     ------------------------------------------------------------------
-    -- Options List
+    -- Context Options List
     ------------------------------------------------------------------
     local function CreateMenuOption(text, textColor, callback)
         local btn = New("TextButton", {
