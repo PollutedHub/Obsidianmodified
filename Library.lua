@@ -10935,22 +10935,24 @@ end)
     end
 
 
--- Send Game Invite Request to VPS (With Debugging & JobId check)
+-- Send Game Invite Request to VPS (Auto-waits for JobId)
 local function SendGameInviteToVPS(invitedUser)
-    if not HttpRequest or not invitedUser then 
-        warn("Invite failed: HttpRequest or invitedUser is missing.")
-        return 
-    end
-
-    -- Ensure JobId is actually loaded before sending
-    local currentJobId = game.JobId
-    if not currentJobId or currentJobId == "" then
-        warn("Invite failed: Server JobId is not loaded yet. Try again in a moment.")
-        Library:Notify({ Title = "Invite Pending", Description = "Server loading, try again in 2 seconds.", Time = 2 })
-        return
-    end
+    if not HttpRequest or not invitedUser then return end
 
     task.spawn(function()
+        -- Wait up to 3 seconds for the JobId to load if it's currently empty
+        local startTime = tick()
+        while (not game.JobId or game.JobId == "") and (tick() - startTime < 3) do
+            task.wait(0.5)
+        end
+
+        local currentJobId = game.JobId
+        if not currentJobId or currentJobId == "" then
+            warn("Invite failed: JobId is still empty after waiting.")
+            Library:Notify({ Title = "Invite Failed", Description = "Server still loading. Try again.", Time = 2 })
+            return
+        end
+
         local success, response = pcall(function()
             return HttpRequest({
                 Url = "http://167.99.144.89:8081/chatbox",
@@ -10970,9 +10972,9 @@ local function SendGameInviteToVPS(invitedUser)
         end)
 
         if success then
-            print("Invite HTTP Response Success:", response and response.Body or "No body returned")
+            print("Invite sent successfully on first click!")
         else
-            warn("Invite HTTP Request Error:", response)
+            warn("Invite HTTP Error:", response)
         end
     end)
 end
