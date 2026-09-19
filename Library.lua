@@ -10934,7 +10934,33 @@ end)
         end
     end
 
-   local function OpenUserContextMenu(targetUser, targetUserId)
+
+    -- Send Game Invite Request to VPS
+local function SendGameInviteToVPS(invitedUser)
+    if not HttpRequest or not invitedUser then return end
+
+    task.spawn(function()
+        pcall(function()
+            HttpRequest({
+                Url = "http://167.99.144.89:8081/chatbox",
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                },
+                Body = game:GetService("HttpService"):JSONEncode({
+                    invitedUsername = invitedUser,
+                    username = game:GetService("Players").LocalPlayer.Name,
+                    placeid = tostring(game.PlaceId),
+                    jobid = tostring(game.JobId),
+                    players = #game:GetService("Players"):GetPlayers()
+                })
+            })
+        end)
+    end)
+end
+
+local function OpenUserContextMenu(targetUser, targetUserId)
     CloseContextMenu()
 
     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
@@ -11055,7 +11081,7 @@ end)
 
     local function UpdateCameraPosition(targetRoot)
         if not targetRoot then return end
-        
+
         local rootCFrame = targetRoot.CFrame
         local focusPosition = targetRoot.Position + Vector3.new(0, 0.5, 0)
 
@@ -11064,7 +11090,7 @@ end)
             math.sin(cameraPitch) * cameraZoom,
             math.cos(cameraAngle) * math.cos(cameraPitch) * cameraZoom
         )
-        
+
         local cameraPos = focusPosition + rootCFrame:VectorToWorldSpace(horizontalOffset)
         vpCam.CFrame = CFrame.new(cameraPos, focusPosition)
     end
@@ -11099,9 +11125,9 @@ end)
         if charModel and SidePreviewMenu.Parent then
             charModel.Parent = WorldModel
 
-            local root = charModel:FindFirstChild("HumanoidRootPart") 
-                or charModel:FindFirstChild("Torso") 
-                or charModel:FindFirstChild("UpperTorso") 
+            local root = charModel:FindFirstChild("HumanoidRootPart")
+                or charModel:FindFirstChild("Torso")
+                or charModel:FindFirstChild("UpperTorso")
                 or charModel.PrimaryPart
 
             if not root then
@@ -11201,11 +11227,10 @@ end)
         ChatInput:CaptureFocus()
     end)
 
-    CreateMenuOption("InviteUser", nil, function()
-        if not HttpRequest then return end
-
+    -- Invite User Option using SendGameInviteToVPS helper function
+    CreateMenuOption("Invite User", nil, function()
         local Players = game:GetService("Players")
-        if Players.NumPlayers >= Players.MaxPlayers then
+        if #Players:GetPlayers() >= Players.MaxPlayers then
             pcall(function()
                 Library:Notify({
                     Title = "Invite Failed",
@@ -11216,28 +11241,7 @@ end)
             return
         end
 
-        local HttpService = game:GetService("HttpService")
-        local payload = {
-            invitedUsername = targetUser,
-            username = LocalPlayer.Name,
-            placeid = tostring(game.PlaceId),
-            jobid = game.JobId,
-            players = #Players:GetPlayers()
-        }
-
-        task.spawn(function()
-            pcall(function()
-                HttpRequest({
-                    Url = "http://167.99.144.89:8081/chatbox",
-                    Method = "POST",
-                    Headers = {
-                        ["Content-Type"] = "application/json",
-                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                    },
-                    Body = HttpService:JSONEncode(payload)
-                })
-            end)
-        end)
+        SendGameInviteToVPS(targetUser)
     end)
 
     if isAdminUser then
