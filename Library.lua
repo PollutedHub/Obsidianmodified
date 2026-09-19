@@ -10975,7 +10975,7 @@ end)
     local SidePreviewMenu = New("Frame", {
         BackgroundColor3 = Color3.fromRGB(18, 19, 22),
         Position = UDim2.new(1, 6, 0, 0),
-        Size = UDim2.fromOffset(140, 210), -- Expanded height
+        Size = UDim2.fromOffset(140, 210),
         ZIndex = 800,
         Parent = ActiveContextMenu,
     })
@@ -11024,7 +11024,8 @@ end)
         ToggleAvatarBtn.TextColor3 = Color3.fromRGB(185, 187, 190)
     end)
 
-    ToggleAvatarBtn.MouseButton1Down:Connect(function()
+    -- Using Activated avoids triggering the global "click outside menu to close" listener
+    ToggleAvatarBtn.Activated:Connect(function()
         isAvatarVisible = not isAvatarVisible
         ViewportContainer.Visible = isAvatarVisible
 
@@ -11042,9 +11043,9 @@ end)
     WorldModel.Parent = Viewport
 
     -- Interactive Camera Setup
-    local cameraAngle = math.pi -- Set to math.pi (180 deg) so camera faces avatar FRONT
-    local cameraPitch = 0.3 -- Subtle upward camera angle offset
-    local cameraZoom = 5.5 -- Zoomed out distance
+    local cameraAngle = math.pi -- Face front
+    local cameraPitch = 0.3
+    local cameraZoom = 5.5
     local isDragging = false
     local lastMousePos = Vector2.zero
 
@@ -11058,7 +11059,6 @@ end)
         local rootCFrame = targetRoot.CFrame
         local focusPosition = targetRoot.Position + Vector3.new(0, 0.5, 0)
 
-        -- Calculate position offset relative to RootPart orientation
         local horizontalOffset = Vector3.new(
             math.sin(cameraAngle) * math.cos(cameraPitch) * cameraZoom,
             math.sin(cameraPitch) * cameraZoom,
@@ -11171,7 +11171,7 @@ end)
             btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
         end)
 
-        btn.MouseButton1Down:Connect(function()
+        btn.Activated:Connect(function()
             CloseContextMenu()
             task.spawn(callback)
         end)
