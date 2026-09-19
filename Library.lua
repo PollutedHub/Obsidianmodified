@@ -10935,259 +10935,291 @@ end)
     end
 
    local function OpenUserContextMenu(targetUser, targetUserId)
-        CloseContextMenu()
+    CloseContextMenu()
 
-        local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-        local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
-        local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
+    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+    local isTargetMuted = MutedUsernamesMap[targetUser:lower()] or (targetUserId and MutedUsernamesMap[tostring(targetUserId):lower()])
+    local isAdminUser = IsAdmin(LocalPlayer.UserId, LocalPlayer.Name)
 
-        local optionCount = isAdminUser and 5 or 4
-        local menuHeight = (optionCount * 28) + ((optionCount - 1) * 2) + 12
+    -- Primary Menu Frame
+    ActiveContextMenu = New("Frame", {
+        BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+        Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
+        Size = UDim2.fromOffset(160, 0), -- Dynamic Y size via AutomaticSize
+        AutomaticSize = Enum.AutomaticSize.Y,
+        ZIndex = 800,
+        Parent = ScreenGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ActiveContextMenu })
+    New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ActiveContextMenu })
 
-        -- Primary Menu Frame
-        ActiveContextMenu = New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(18, 19, 22),
-            Position = UDim2.fromOffset(mousePos.X, mousePos.Y - 36),
-            Size = UDim2.fromOffset(160, menuHeight),
-            ZIndex = 800,
-            Parent = ScreenGui,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = ActiveContextMenu })
-        New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = ActiveContextMenu })
+    New("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 2),
+        Parent = ActiveContextMenu,
+    })
+    New("UIPadding", {
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        Parent = ActiveContextMenu,
+    })
 
-        New("UIListLayout", {
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 2),
-            Parent = ActiveContextMenu,
-        })
-        New("UIPadding", {
-            PaddingTop = UDim.new(0, 6),
-            PaddingBottom = UDim.new(0, 6),
-            PaddingLeft = UDim.new(0, 6),
-            PaddingRight = UDim.new(0, 6),
-            Parent = ActiveContextMenu,
-        })
+    ------------------------------------------------------------------
+    -- Viewport Frame Side Menu
+    ------------------------------------------------------------------
+    local SidePreviewMenu = New("Frame", {
+        BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+        Position = UDim2.new(1, 6, 0, 0),
+        Size = UDim2.fromOffset(140, 180),
+        ZIndex = 800,
+        Parent = ActiveContextMenu,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = SidePreviewMenu })
+    New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = SidePreviewMenu })
 
-        ------------------------------------------------------------------
-        -- Viewport Frame Side Menu
-        ------------------------------------------------------------------
-        local SidePreviewMenu = New("Frame", {
-            BackgroundColor3 = Color3.fromRGB(18, 19, 22),
-            Position = UDim2.new(1, 6, 0, 0), -- Anchored to the right of the Context Menu
-            Size = UDim2.fromOffset(140, menuHeight),
-            ZIndex = 800,
-            Parent = ActiveContextMenu,
-        })
-        New("UICorner", { CornerRadius = UDim.new(0, 6), Parent = SidePreviewMenu })
-        New("UIStroke", { Color = Color3.fromRGB(45, 47, 52), Thickness = 1, Parent = SidePreviewMenu })
+    local Viewport = New("ViewportFrame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(4, 4),
+        Size = UDim2.new(1, -8, 1, -8),
+        LightColor = Color3.fromRGB(255, 255, 255),
+        Ambient = Color3.fromRGB(150, 150, 150),
+        ZIndex = 801,
+        Parent = SidePreviewMenu,
+    })
 
-        local Viewport = New("ViewportFrame", {
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(4, 4),
-            Size = UDim2.new(1, -8, 1, -8),
-            LightColor = Color3.fromRGB(255, 255, 255),
-            Ambient = Color3.fromRGB(150, 150, 150),
-            ZIndex = 801,
-            Parent = SidePreviewMenu,
-        })
+    -- Interactive Camera Controls Setup
+    local cameraAngle = 0
+    local cameraZoom = 4.5
+    local isDragging = false
+    local lastMouseX = 0
+    local vpCam = Instance.new("Camera")
+    Viewport.CurrentCamera = vpCam
+    vpCam.Parent = Viewport
 
-        -- Populate Viewport Character Model
-        task.spawn(function()
-            local Players = game:GetService("Players")
-            local charModel = nil
+    local function UpdateCameraPosition(targetRoot)
+        if not targetRoot then return end
+        local focusPosition = targetRoot.Position + Vector3.new(0, 0.5, 0)
+        local offset = Vector3.new(math.sin(cameraAngle) * cameraZoom, 0.7, math.cos(cameraAngle) * cameraZoom)
+        vpCam.CFrame = CFrame.new(focusPosition + offset, focusPosition)
+    end
 
-            -- Attempt 1: Clone workspace character if in current game
-            local inGamePlayer = Players:FindFirstChild(targetUser)
-            if inGamePlayer and inGamePlayer.Character then
-                inGamePlayer.Character.Archivable = true
-                charModel = inGamePlayer.Character:Clone()
-            end
+    -- Populate Viewport Character Model
+    task.spawn(function()
+        local Players = game:GetService("Players")
+        local charModel = nil
+        local resolvedId = targetUserId
 
-            -- Attempt 2: Fetch character model asynchronously via UserId
-            if not charModel and targetUserId and targetUserId > 0 then
-                pcall(function()
-                    charModel = Players:CreateHumanoidModelFromUserId(targetUserId)
-                end)
-            end
+        -- Attempt 1: Fetch from workspace if in the same game
+        local inGamePlayer = Players:FindFirstChild(targetUser)
+        if inGamePlayer and inGamePlayer.Character then
+            inGamePlayer.Character.Archivable = true
+            charModel = inGamePlayer.Character:Clone()
+        end
 
-            if charModel and SidePreviewMenu.Parent then
-                charModel.Parent = Viewport
-
-                local root = charModel:FindFirstChild("HumanoidRootPart") or charModel:FindFirstChild("Torso") or charModel.PrimaryPart
-                if root then
-                    local vpCam = Instance.new("Camera")
-                    vpCam.CFrame = CFrame.new(root.Position + Vector3.new(0, 1.2, 4.5), root.Position + Vector3.new(0, 0.5, 0))
-                    Viewport.CurrentCamera = vpCam
-                    vpCam.Parent = Viewport
-                end
-            end
-        end)
-        ------------------------------------------------------------------
-
-        local function CreateMenuOption(text, textColor, callback)
-            local btn = New("TextButton", {
-                BackgroundColor3 = Color3.fromRGB(18, 19, 22),
-                BackgroundTransparency = 0,
-                Size = UDim2.new(1, 0, 0, 28),
-                AutoButtonColor = false,
-                Text = text,
-                TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
-                TextSize = 12,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                ZIndex = 801,
-                Parent = ActiveContextMenu,
-            })
-            New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
-            New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), Parent = btn })
-
-            btn.MouseEnter:Connect(function()
-                btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            end)
-            btn.MouseLeave:Connect(function()
-                btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
-                btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
-            end)
-
-            btn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch or
-                   input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    CloseContextMenu()
-                    task.spawn(callback)
-                end
-            end)
-
-            btn.MouseButton1Down:Connect(function()
-                CloseContextMenu()
-                task.spawn(callback)
+        -- Fetch UserID asynchronously if missing
+        if not resolvedId or resolvedId == 0 then
+            pcall(function()
+                resolvedId = Players:GetUserIdFromNameAsync(targetUser)
             end)
         end
 
-        CreateMenuOption("Copy Username", nil, function()
-            if setclipboard then
-                setclipboard(targetUser)
-                Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
-            end
-        end)
+        -- Attempt 2: Load model via resolved UserID
+        if not charModel and resolvedId and resolvedId > 0 then
+            pcall(function()
+                charModel = Players:CreateHumanoidModelFromUserId(resolvedId)
+            end)
+        end
 
-        CreateMenuOption("Copy UserID", nil, function()
-            if setclipboard then
-                setclipboard(tostring(targetUserId or 0))
-                Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
-            end
-        end)
+        if charModel and SidePreviewMenu.Parent then
+            charModel.Parent = Viewport
+            local root = charModel:FindFirstChild("HumanoidRootPart") or charModel:FindFirstChild("Torso") or charModel.PrimaryPart
+            if root then
+                UpdateCameraPosition(root)
 
-        CreateMenuOption("Set Nickname", nil, function()
-            NicknameTarget = targetUser
-            MuteDurationTarget = nil
-            ReplyTarget = nil
-            ChatInput.Text = ""
-            UpdateInputLayout()
-            ChatInput:CaptureFocus()
-        end)
-
-        CreateMenuOption("InviteUser", nil, function()
-            if not HttpRequest then return end
-
-            local Players = game:GetService("Players")
-
-            local currentPlayers = Players.NumPlayers
-            local maxPlayers = Players.MaxPlayers
-
-            if currentPlayers >= maxPlayers then
-                pcall(function()
-                    Library:Notify({
-                        Title = "Invite Failed",
-                        Description = "Reason: Server Full try again.",
-                        Time = 3
-                    })
+                -- Mouse Rotation Controls
+                Viewport.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        isDragging = true
+                        lastMouseX = input.Position.X
+                    end
                 end)
-                return
-            end
 
-            local HttpService = game:GetService("HttpService")
-
-            local payload = {
-                invitedUsername = targetUser,
-                username = LocalPlayer.Name,
-                placeid = tostring(game.PlaceId),
-                jobid = game.JobId,
-                players = #Players:GetPlayers()
-            }
-
-            task.spawn(function()
-                pcall(function()
-                    HttpRequest({
-                        Url = "http://167.99.144.89:8081/chatbox",
-                        Method = "POST",
-                        Headers = {
-                            ["Content-Type"] = "application/json",
-                            ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                        },
-                        Body = HttpService:JSONEncode(payload)
-                    })
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        isDragging = false
+                    end
                 end)
+
+                UserInputService.InputChanged:Connect(function(input)
+                    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                        local delta = input.Position.X - lastMouseX
+                        lastMouseX = input.Position.X
+                        cameraAngle = cameraAngle - (delta * 0.02)
+                        UpdateCameraPosition(root)
+                    elseif input.UserInputType == Enum.UserInputType.MouseWheel then
+                        cameraZoom = math.clamp(cameraZoom - (input.Position.Z * 0.5), 2.5, 8.0)
+                        UpdateCameraPosition(root)
+                    end
+                end)
+            end
+        end
+    end)
+
+    ------------------------------------------------------------------
+    -- Options
+    ------------------------------------------------------------------
+    local function CreateMenuOption(text, textColor, callback)
+        local btn = New("TextButton", {
+            BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+            BackgroundTransparency = 0,
+            Size = UDim2.new(1, 0, 0, 28),
+            AutoButtonColor = false,
+            Text = text,
+            TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 801,
+            Parent = ActiveContextMenu,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = btn })
+        New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), Parent = btn })
+
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end)
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
+            btn.TextColor3 = textColor or Color3.fromRGB(185, 187, 190)
+        end)
+
+        btn.MouseButton1Down:Connect(function()
+            CloseContextMenu()
+            task.spawn(callback)
+        end)
+    end
+
+    CreateMenuOption("Copy Username", nil, function()
+        if setclipboard then
+            setclipboard(targetUser)
+            Library:Notify({ Title = "Clipboard", Description = "Copied Username: " .. targetUser, Time = 2 })
+        end
+    end)
+
+    CreateMenuOption("Copy UserID", nil, function()
+        if setclipboard then
+            setclipboard(tostring(targetUserId or 0))
+            Library:Notify({ Title = "Clipboard", Description = "Copied UserID: " .. tostring(targetUserId or 0), Time = 2 })
+        end
+    end)
+
+    CreateMenuOption("Set Nickname", nil, function()
+        NicknameTarget = targetUser
+        MuteDurationTarget = nil
+        ReplyTarget = nil
+        ChatInput.Text = ""
+        UpdateInputLayout()
+        ChatInput:CaptureFocus()
+    end)
+
+    CreateMenuOption("InviteUser", nil, function()
+        if not HttpRequest then return end
+
+        local Players = game:GetService("Players")
+        if Players.NumPlayers >= Players.MaxPlayers then
+            pcall(function()
+                Library:Notify({
+                    Title = "Invite Failed",
+                    Description = "Reason: Server Full try again.",
+                    Time = 3
+                })
+            end)
+            return
+        end
+
+        local HttpService = game:GetService("HttpService")
+        local payload = {
+            invitedUsername = targetUser,
+            username = LocalPlayer.Name,
+            placeid = tostring(game.PlaceId),
+            jobid = game.JobId,
+            players = #Players:GetPlayers()
+        }
+
+        task.spawn(function()
+            pcall(function()
+                HttpRequest({
+                    Url = "http://167.99.144.89:8081/chatbox",
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                    },
+                    Body = HttpService:JSONEncode(payload)
+                })
             end)
         end)
+    end)
 
-        if isAdminUser then
-            if isTargetMuted then
-                CreateMenuOption("Unmute User", Color3.fromRGB(255, 60, 60), function()
-                    local commandText = ",unmute " .. targetUser
-                    local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-                    local resolvedUserId = targetUserId
-                    if not resolvedUserId then
-                        local success, fetchedId = pcall(function()
-                            return game:GetService("Players"):GetUserIdFromNameAsync(targetUser)
-                        end)
-                        resolvedUserId = success and fetchedId or 0
-                    end
+    if isAdminUser then
+        if isTargetMuted then
+            CreateMenuOption("Unmute User", Color3.fromRGB(255, 60, 60), function()
+                local commandText = ",unmute " .. targetUser
+                local timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                local resolvedUserId = targetUserId
+                if not resolvedUserId then
+                    pcall(function()
+                        resolvedUserId = game:GetService("Players"):GetUserIdFromNameAsync(targetUser)
+                    end)
+                end
 
-                    MutedUsernamesMap[targetUser:lower()] = nil
-                    if resolvedUserId then MutedUsernamesMap[tostring(resolvedUserId):lower()] = nil end
-                    for _, rowData in pairs(ActiveMessageRows) do
-                        if rowData.RefreshName then rowData.RefreshName() end
-                    end
+                MutedUsernamesMap[targetUser:lower()] = nil
+                if resolvedUserId then MutedUsernamesMap[tostring(resolvedUserId):lower()] = nil end
+                for _, rowData in pairs(ActiveMessageRows) do
+                    if rowData.RefreshName then rowData.RefreshName() end
+                end
 
-                    local payload = {
-                        Username = LocalPlayer.Name,
-                        UserId = tostring(LocalPlayer.UserId),
-                        Roles = {"user"},
-                        Message = commandText,
-                        MessageId = "cmd_" .. math.random(100000, 999999),
-                        Time = timestamp,
-                        MuteUser = targetUser,
-                        MuteDuration = "unmute",
-                        MuteUserId = tostring(resolvedUserId)
-                    }
+                local payload = {
+                    Username = LocalPlayer.Name,
+                    UserId = tostring(LocalPlayer.UserId),
+                    Roles = {"user"},
+                    Message = commandText,
+                    MessageId = "cmd_" .. math.random(100000, 999999),
+                    Time = timestamp,
+                    MuteUser = targetUser,
+                    MuteDuration = "unmute",
+                    MuteUserId = tostring(resolvedUserId or 0)
+                }
 
-                    if HttpRequest then
-                        pcall(function()
-                            HttpRequest({
-                                Url = "http://167.99.144.89:8081/chatbox",
-                                Method = "POST",
-                                Headers = {
-                                    ["Content-Type"] = "application/json",
-                                    ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-                                },
-                                Body = game:GetService("HttpService"):JSONEncode(payload),
-                            })
-                        end)
-                    end
-                    Window.ChatAddMessage("System", "Successfully executed: " .. commandText, true)
-                end)
-            else
-                CreateMenuOption("Mute User", Color3.fromRGB(255, 60, 60), function()
-                    MuteDurationTarget = targetUser
-                    NicknameTarget = nil
-                    ReplyTarget = nil
-                    ChatInput.Text = ""
-                    UpdateInputLayout()
-                    ChatInput:CaptureFocus()
-                end)
-            end
+                if HttpRequest then
+                    pcall(function()
+                        HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox",
+                            Method = "POST",
+                            Headers = {
+                                ["Content-Type"] = "application/json",
+                                ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                            },
+                            Body = game:GetService("HttpService"):JSONEncode(payload),
+                        })
+                    end)
+                end
+                Window.ChatAddMessage("System", "Successfully executed: " .. commandText, true)
+            end)
+        else
+            CreateMenuOption("Mute User", Color3.fromRGB(255, 60, 60), function()
+                MuteDurationTarget = targetUser
+                NicknameTarget = nil
+                ReplyTarget = nil
+                ChatInput.Text = ""
+                UpdateInputLayout()
+                ChatInput:CaptureFocus()
+            end)
         end
     end
+end
 
 game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
