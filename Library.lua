@@ -10936,23 +10936,24 @@ end)
 
 
 -- Send Game Invite Request to VPS (Auto-waits for JobId)
+-- Send Game Invite Request to VPS (With Comprehensive Debug Prints)
 local function SendGameInviteToVPS(invitedUser)
-    if not HttpRequest or not invitedUser then return end
+    print("[DEBUG] SendGameInviteToVPS called for:", invitedUser)
+    
+    if not HttpRequest then 
+        warn("[DEBUG] Invite failed: HttpRequest function is nil!")
+        return 
+    end
+    if not invitedUser then 
+        warn("[DEBUG] Invite failed: invitedUser is nil!")
+        return 
+    end
+
+    local currentJobId = game.JobId
+    print("[DEBUG] Current JobId is:", currentJobId)
 
     task.spawn(function()
-        -- Wait up to 3 seconds for the JobId to load if it's currently empty
-        local startTime = tick()
-        while (not game.JobId or game.JobId == "") and (tick() - startTime < 3) do
-            task.wait(0.5)
-        end
-
-        local currentJobId = game.JobId
-        if not currentJobId or currentJobId == "" then
-            warn("Invite failed: JobId is still empty after waiting.")
-            Library:Notify({ Title = "Invite Failed", Description = "Server still loading. Try again.", Time = 2 })
-            return
-        end
-
+        print("[DEBUG] Starting HTTP request task...")
         local success, response = pcall(function()
             return HttpRequest({
                 Url = "http://167.99.144.89:8081/chatbox",
@@ -10972,12 +10973,32 @@ local function SendGameInviteToVPS(invitedUser)
         end)
 
         if success then
-            print("Invite sent successfully on first click!")
+            print("[DEBUG] HTTP Request success! Response:", response and response.Body or "No body returned")
         else
-            warn("Invite HTTP Error:", response)
+            warn("[DEBUG] HTTP Request threw an error:", response)
         end
     end)
 end
+
+-- Invite User Option with Click Debugging
+CreateMenuOption("Invite User", nil, function()
+    print("[DEBUG] 'Invite User' button was clicked!")
+    
+    local Players = game:GetService("Players")
+    if #Players:GetPlayers() >= Players.MaxPlayers then
+        print("[DEBUG] Invite aborted: Server is full.")
+        pcall(function()
+            Library:Notify({
+                Title = "Invite Failed",
+                Description = "Reason: Server Full try again.",
+                Time = 3
+            })
+        end)
+        return
+    end
+
+    SendGameInviteToVPS(targetUser)
+end)
 
 local function OpenUserContextMenu(targetUser, targetUserId)
     CloseContextMenu()
