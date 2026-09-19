@@ -10936,24 +10936,23 @@ end)
 
 
 -- Send Game Invite Request to VPS (Auto-waits for JobId)
--- Send Game Invite Request to VPS (With Comprehensive Debug Prints)
 local function SendGameInviteToVPS(invitedUser)
-    print("[DEBUG] SendGameInviteToVPS called for:", invitedUser)
-    
-    if not HttpRequest then 
-        warn("[DEBUG] Invite failed: HttpRequest function is nil!")
-        return 
-    end
-    if not invitedUser then 
-        warn("[DEBUG] Invite failed: invitedUser is nil!")
-        return 
-    end
-
-    local currentJobId = game.JobId
-    print("[DEBUG] Current JobId is:", currentJobId)
+    if not HttpRequest or not invitedUser then return end
 
     task.spawn(function()
-        print("[DEBUG] Starting HTTP request task...")
+        -- Wait up to 3 seconds for the JobId to load if it's currently empty
+        local startTime = tick()
+        while (not game.JobId or game.JobId == "") and (tick() - startTime < 3) do
+            task.wait(0.5)
+        end
+
+        local currentJobId = game.JobId
+        if not currentJobId or currentJobId == "" then
+            warn("Invite failed: JobId is still empty after waiting.")
+            Library:Notify({ Title = "Invite Failed", Description = "Server still loading. Try again.", Time = 2 })
+            return
+        end
+
         local success, response = pcall(function()
             return HttpRequest({
                 Url = "http://167.99.144.89:8081/chatbox",
@@ -10973,32 +10972,12 @@ local function SendGameInviteToVPS(invitedUser)
         end)
 
         if success then
-            print("[DEBUG] HTTP Request success! Response:", response and response.Body or "No body returned")
+            print("Invite sent successfully on first click!")
         else
-            warn("[DEBUG] HTTP Request threw an error:", response)
+            warn("Invite HTTP Error:", response)
         end
     end)
 end
-
--- Invite User Option with Click Debugging
-CreateMenuOption("Invite User", nil, function()
-    print("[DEBUG] 'Invite User' button was clicked!")
-    
-    local Players = game:GetService("Players")
-    if #Players:GetPlayers() >= Players.MaxPlayers then
-        print("[DEBUG] Invite aborted: Server is full.")
-        pcall(function()
-            Library:Notify({
-                Title = "Invite Failed",
-                Description = "Reason: Server Full try again.",
-                Time = 3
-            })
-        end)
-        return
-    end
-
-    SendGameInviteToVPS(targetUser)
-end)
 
 local function OpenUserContextMenu(targetUser, targetUserId)
     CloseContextMenu()
@@ -11209,19 +11188,6 @@ local function OpenUserContextMenu(targetUser, targetUserId)
         end
     end)
 
-New("UIListLayout", {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 4), -- Gives breathing room between buttons
-        Parent = ActiveContextMenu,
-    })
-    New("UIPadding", {
-        PaddingTop = UDim.new(0, 6),
-        PaddingBottom = UDim.new(0, 6),
-        PaddingLeft = UDim.new(0, 6),
-        PaddingRight = UDim.new(0, 6),
-        Parent = ActiveContextMenu,
-    })
-
     ------------------------------------------------------------------
     -- Context Options List
     ------------------------------------------------------------------
@@ -11229,7 +11195,7 @@ New("UIListLayout", {
         local btn = New("TextButton", {
             BackgroundColor3 = Color3.fromRGB(18, 19, 22),
             BackgroundTransparency = 0,
-            Size = UDim2.new(1, 0, 0, 24), -- Reduced height from 28 to 24 to prevent bottom-edge bleeding
+            Size = UDim2.new(1, 0, 0, 28),
             AutoButtonColor = false,
             Text = text,
             TextColor3 = textColor or Color3.fromRGB(185, 187, 190),
@@ -11280,8 +11246,34 @@ New("UIListLayout", {
         ChatInput:CaptureFocus()
     end)
 
-    -- Invite User Option using SendGameInviteToVPS helper function
-    CreateMenuOption("Invite User", nil, function()
+-- Invite User (uses MouseButton1Down to avoid race with menu-close handler)
+local inviteBtn = New("TextButton", {
+    BackgroundColor3 = Color3.fromRGB(18, 19, 22),
+    BackgroundTransparency = 0,
+    Size = UDim2.new(1, 0, 0, 28),
+    AutoButtonColor = false,
+    Text = "Invite User",
+    TextColor3 = Color3.fromRGB(185, 187, 190),
+    TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 801,
+    Parent = ActiveContextMenu,
+})
+New("UICorner", { CornerRadius = UDim.new(0, 4), Parent = inviteBtn })
+New("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), Parent = inviteBtn })
+
+inviteBtn.MouseEnter:Connect(function()
+    inviteBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+    inviteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+end)
+inviteBtn.MouseLeave:Connect(function()
+    inviteBtn.BackgroundColor3 = Color3.fromRGB(18, 19, 22)
+    inviteBtn.TextColor3 = Color3.fromRGB(185, 187, 190)
+end)
+
+inviteBtn.MouseButton1Down:Connect(function()
+    CloseContextMenu()
+    task.spawn(function()
         local Players = game:GetService("Players")
         if #Players:GetPlayers() >= Players.MaxPlayers then
             pcall(function()
@@ -11293,9 +11285,9 @@ New("UIListLayout", {
             end)
             return
         end
-
         SendGameInviteToVPS(targetUser)
     end)
+end)
 
     if isAdminUser then
         if isTargetMuted then
