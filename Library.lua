@@ -10975,7 +10975,7 @@ end)
     local SidePreviewMenu = New("Frame", {
         BackgroundColor3 = Color3.fromRGB(18, 19, 22),
         Position = UDim2.new(1, 6, 0, 0),
-        Size = UDim2.fromOffset(140, 210), -- Adjusted height to accommodate toggle button
+        Size = UDim2.fromOffset(140, 210), -- Expanded height
         ZIndex = 800,
         Parent = ActiveContextMenu,
     })
@@ -10999,7 +10999,7 @@ end)
         Parent = ViewportContainer,
     })
 
-    -- Hide / Show Avatar Toggle Button
+    -- Hide / Show Avatar Toggle Button (Minimizes Side Panel)
     local isAvatarVisible = true
     local ToggleAvatarBtn = New("TextButton", {
         BackgroundColor3 = Color3.fromRGB(28, 29, 34),
@@ -11027,7 +11027,14 @@ end)
     ToggleAvatarBtn.MouseButton1Down:Connect(function()
         isAvatarVisible = not isAvatarVisible
         ViewportContainer.Visible = isAvatarVisible
-        ToggleAvatarBtn.Text = isAvatarVisible and "Hide Avatar" or "Show Avatar"
+
+        if isAvatarVisible then
+            SidePreviewMenu.Size = UDim2.fromOffset(140, 210)
+            ToggleAvatarBtn.Text = "Hide Avatar"
+        else
+            SidePreviewMenu.Size = UDim2.fromOffset(140, 30)
+            ToggleAvatarBtn.Text = "Show Avatar"
+        end
     end)
 
     -- WorldModel wrapper for rendering
@@ -11035,9 +11042,9 @@ end)
     WorldModel.Parent = Viewport
 
     -- Interactive Camera Setup
-    local cameraAngle = 0 -- Relative angle setup
-    local cameraPitch = 0.5 -- Vertical angle offset
-    local cameraZoom = 5.5 -- Slightly zoomed out default distance
+    local cameraAngle = math.pi -- Set to math.pi (180 deg) so camera faces avatar FRONT
+    local cameraPitch = 0.3 -- Subtle upward camera angle offset
+    local cameraZoom = 5.5 -- Zoomed out distance
     local isDragging = false
     local lastMousePos = Vector2.zero
 
@@ -11048,15 +11055,17 @@ end)
     local function UpdateCameraPosition(targetRoot)
         if not targetRoot then return end
         
-        -- Target character's local front-facing direction
         local rootCFrame = targetRoot.CFrame
         local focusPosition = targetRoot.Position + Vector3.new(0, 0.5, 0)
 
-        -- Calculate position offset relative to the RootPart orientation
-        local horizontalOffset = Vector3.new(math.sin(cameraAngle) * math.cos(cameraPitch) * cameraZoom, math.sin(cameraPitch) * cameraZoom, math.cos(cameraAngle) * math.cos(cameraPitch) * cameraZoom)
+        -- Calculate position offset relative to RootPart orientation
+        local horizontalOffset = Vector3.new(
+            math.sin(cameraAngle) * math.cos(cameraPitch) * cameraZoom,
+            math.sin(cameraPitch) * cameraZoom,
+            math.cos(cameraAngle) * math.cos(cameraPitch) * cameraZoom
+        )
         
-        -- Apply orientation vector facing the character's front
-        local cameraPos = focusPosition + (rootCFrame:VectorToWorldSpace(horizontalOffset))
+        local cameraPos = focusPosition + rootCFrame:VectorToWorldSpace(horizontalOffset)
         vpCam.CFrame = CFrame.new(cameraPos, focusPosition)
     end
 
@@ -11102,7 +11111,7 @@ end)
             if root then
                 UpdateCameraPosition(root)
 
-                -- Dynamic Drag (Horizontal + Vertical) & Zoom Handling
+                -- Drag & Zoom Handling
                 Viewport.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                         isDragging = true
@@ -11123,7 +11132,7 @@ end)
                         lastMousePos = Vector2.new(input.Position.X, input.Position.Y)
 
                         cameraAngle = cameraAngle - (deltaX * 0.02)
-                        cameraPitch = math.clamp(cameraPitch + (deltaY * 0.01), -1.2, 1.2) -- Vertical rotation bounds
+                        cameraPitch = math.clamp(cameraPitch + (deltaY * 0.01), -1.2, 1.2)
                         UpdateCameraPosition(root)
                     elseif input.UserInputType == Enum.UserInputType.MouseWheel then
                         cameraZoom = math.clamp(cameraZoom - (input.Position.Z * 0.5), 3.0, 10.0)
