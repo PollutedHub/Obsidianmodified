@@ -12473,18 +12473,38 @@ local function translateToEnglish(text)
     local encodedText = TranslateService:UrlEncode(text)
 
     local function fetch(url)
-        local ok, res = pcall(function()
-            if HttpRequest then
-                local r = HttpRequest({ Url = url, Method = "GET" })
-                return r and r.Body
-            end
-            return game:HttpGet(url)
-        end)
-        if ok and res then return res end
+        for attempt = 1, 2 do
+            local ok, res = pcall(function()
+                if HttpRequest then
+                    local r = HttpRequest({ Url = url, Method = "GET" })
+                    if r and (r.StatusCode == nil or r.StatusCode == 200) then
+                        return r.Body
+                    end
+                    return nil
+                end
+                return game:HttpGet(url)
+            end)
+            if ok and res then return res end
+            task.wait(0.4)
+        end
         return nil
     end
 
-    -- API 1: Google Translate (auto-detects source language)
+    -- Guess the source language from the script (only used for the MyMemory fallback)
+    local function guessLang(str)
+        for _, cp in utf8.codes(str, true) do
+            if cp >= 0x0400 and cp <= 0x04FF then return "ru" end
+            if cp >= 0x3040 and cp <= 0x30FF then return "ja" end
+            if cp >= 0xAC00 and cp <= 0xD7AF then return "ko" end
+            if cp >= 0x4E00 and cp <= 0x9FFF then return "zh-CN" end
+            if cp >= 0x0600 and cp <= 0x06FF then return "ar" end
+            if cp >= 0x0E00 and cp <= 0x0E7F then return "th" end
+            if cp >= 0x0590 and cp <= 0x05FF then return "he" end
+        end
+        return nil
+    end
+
+    -- API 1: Google Translate (auto-detect, any language)
     local googleUrl = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=" .. encodedText
     local body = fetch(googleUrl)
     if body then
@@ -12500,17 +12520,38 @@ local function translateToEnglish(text)
         end
     end
 
-    -- API 2: MyMemory fallback (auto-detect)
-    local myMemoryUrl = "https://api.mymemory.translated.net/get?q=" .. encodedText .. "&langpair=autodetect|en"
-    local body2 = fetch(myMemoryUrl)
-    if body2 then
-        local ok, data = pcall(function() return TranslateService:JSONDecode(body2) end)
-        if ok and data and data.responseData and data.responseData.translatedText then
-            return data.responseData.translatedText
+    -- API 2: second Google endpoint (different rate limit)
+    local googleUrl2 = "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=en&q=" .. encodedText
+    local bodyB = fetch(googleUrl2)
+    if bodyB then
+        local ok, data = pcall(function() return TranslateService:JSONDecode(bodyB) end)
+        if ok and type(data) == "table" then
+            local first = data[1]
+            if type(first) == "table" and type(first[1]) == "string" then
+                return first[1]
+            elseif type(first) == "string" then
+                return first
+            end
         end
     end
 
-    return text -- final fallback
+    -- API 3: MyMemory (needs a real source language, so only if we can guess one)
+    local lang = guessLang(text)
+    if lang then
+        local myMemoryUrl = "https://api.mymemory.translated.net/get?q=" .. encodedText .. "&langpair=" .. lang .. "|en"
+        local body2 = fetch(myMemoryUrl)
+        if body2 then
+            local ok, data = pcall(function() return TranslateService:JSONDecode(body2) end)
+            if ok and data and data.responseData and type(data.responseData.translatedText) == "string" then
+                local t = data.responseData.translatedText
+                if not t:upper():find("PLEASE SELECT") and not t:upper():find("INVALID") then
+                    return t
+                end
+            end
+        end
+    end
+
+    return text -- final fallback: show the original
 end
 
     local MsgIndex = 0
