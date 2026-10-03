@@ -1202,7 +1202,13 @@ ParentUI(ScreenGui)
 Library.ScreenGui = ScreenGui
 
 ScreenGui.DescendantRemoving:Connect(function(Instance)
-    Library:RemoveFromRegistry(Instance)
+    task.defer(function()
+        if Instance and Instance.Parent then
+            return
+        end
+
+        Library:RemoveFromRegistry(Instance)
+    end)
 end)
 
 local ModalElement = New("TextButton", {
@@ -1630,6 +1636,7 @@ function Library:AddDraggableButton(Text: string, Func, ExcludeScaling: boolean?
         ZIndex = 10,
         Parent = ScreenGui,
     })
+
     table.insert(
         Library.Corners,
         New("UICorner", {
@@ -1637,6 +1644,7 @@ function Library:AddDraggableButton(Text: string, Func, ExcludeScaling: boolean?
             Parent = Button,
         })
     )
+
     if not ExcludeScaling then
         table.insert(
             Library.Scales,
@@ -1645,33 +1653,85 @@ function Library:AddDraggableButton(Text: string, Func, ExcludeScaling: boolean?
             })
         )
     end
+
     Library:AddOutline(Button)
 
     local DragThreshold = if ExcludeDragging then 0.25 else math.huge
+    local TouchHoldThread = nil
+    local TouchCancelled = false
+    local DragAllowed = false
+
+    -- Minimum pixel movement before considering it a scroll/swipe attempt
+    local ScrollThreshold = 8
+
     Button.InputBegan:Connect(function(Input: InputObject)
         if not IsClickInput(Input) then
             return
         end
 
-        local Start = tick()
+        local StartTime = tick()
+        local StartPos = Input.Position
+        local IsTouch = (Input.UserInputType == Enum.UserInputType.Touch)
 
-        local Changed
-        Changed = Input.Changed:Connect(function()
+        local ChangedConnection
+        local MovedConnection
+
+        local function CleanupConnections()
+            TouchCancelled = true
+            if TouchHoldThread then
+                task.cancel(TouchHoldThread)
+                TouchHoldThread = nil
+            end
+            if ChangedConnection then
+                ChangedConnection:Disconnect()
+                ChangedConnection = nil
+            end
+            if MovedConnection then
+                MovedConnection:Disconnect()
+                MovedConnection = nil
+            end
+        end
+
+                if (Library.IsMobile or IsTouch) and not ExcludeDragging then
+            DragAllowed = false
+            TouchCancelled = false
+
+            -- Cancel drag timer if finger moves before 3s (user is scrolling)
+            MovedConnection = Input.Changed:Connect(function()
+                if Input.UserInputState == Enum.UserInputState.Change then
+                    local Distance = (Input.Position - StartPos).Magnitude
+                    if Distance > ScrollThreshold and not DragAllowed then
+                        CleanupConnections()
+                    end
+                end
+            end)
+
+            -- Require finger to stay stationary for 3 seconds before picking up tab
+            TouchHoldThread = task.delay(3, function()
+                if not TouchCancelled then
+                    DragAllowed = true
+                end
+            end)
+        else
+            -- ExcludeDragging (or not mobile/touch): no hold-to-drag story here,
+            -- so DragAllowed must stay false — click detection is purely time-based.
+            DragAllowed = false
+        end
+
+        ChangedConnection = Input.Changed:Connect(function()
             if Input.UserInputState ~= Enum.UserInputState.End then
                 return
             end
 
-            local IsLikelyDragging = tick() - Start > DragThreshold
+            local IsLikelyDragging = (tick() - StartTime > DragThreshold) or DragAllowed
+
+            CleanupConnections()
+
             if IsLikelyDragging then
                 return
             end
 
             Library:SafeCallback(Func, Table)
-
-            if Changed and Changed.Connected then
-                Changed:Disconnect()
-                Changed = nil
-            end
         end)
     end)
 
@@ -2087,17 +2147,31 @@ function Library:OnUnload(Callback)
 end
 
 function Library:Unload()
+
+    -- Turn off every active toggle first
+    for Idx, Toggle in pairs(Toggles) do
+        if Toggle and Toggle.Value then
+            pcall(function()
+                Toggle:SetValue(false)
+            end)
+        end
+    end
+
+    -- Disconnect library connections
     for Index = #Library.Signals, 1, -1 do
         local Connection = table.remove(Library.Signals, Index)
+
         if Connection and Connection.Connected then
             Connection:Disconnect()
         end
     end
 
+    -- Run unload callbacks
     for _, Callback in Library.UnloadSignals do
         Library:SafeCallback(Callback)
     end
 
+    -- Destroy tooltips
     for _, Tooltip in Tooltips do
         Library:SafeCallback(Tooltip.Destroy, Tooltip)
     end
@@ -4115,32 +4189,38 @@ do
             Switch.BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.MainColor
             SwitchStroke.Color = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
 
-            Library.Registry[Switch].BackgroundColor3 = Toggle.Value and "AccentColor" or "MainColor"
-            Library.Registry[SwitchStroke].Color = Toggle.Value and "AccentColor" or "OutlineColor"
+            if Library.Registry[Switch] then
+    Library.Registry[Switch].BackgroundColor3 = Toggle.Value and "AccentColor" or "MainColor"
+end
+            if Library.Registry[SwitchStroke] then
+    Library.Registry[SwitchStroke].Color = Toggle.Value and "AccentColor" or "OutlineColor"
+end
 
             if Toggle.Disabled then
                 Label.TextTransparency = 0.8
                 Ball.AnchorPoint = Vector2.new(Offset, 0)
                 Ball.Position = UDim2.fromScale(Offset, 0)
 
-                Ball.BackgroundColor3 = Library:GetDarkerColor(Library.Scheme.FontColor)
-                Library.Registry[Ball].BackgroundColor3 = function()
-                    return Library:GetDarkerColor(Library.Scheme.FontColor)
-                end
+Ball.BackgroundColor3 = Library:GetDarkerColor(Library.Scheme.FontColor)
+
+Library.Registry[Ball] = Library.Registry[Ball] or {}
+Library.Registry[Ball].BackgroundColor3 = function()
+    return Library:GetDarkerColor(Library.Scheme.FontColor)
+end
 
                 return
             end
 
-            TweenService:Create(Label, Library.TweenInfo, {
-                TextTransparency = Toggle.Value and 0 or 0.4,
-            }):Play()
-            TweenService:Create(Ball, Library.TweenInfo, {
-                AnchorPoint = Vector2.new(Offset, 0),
-                Position = UDim2.fromScale(Offset, 0),
-            }):Play()
+TweenService:Create(Label, Library.TweenInfo, {
+    TextTransparency = Toggle.Value and 0 or 0.4,
+}):Play()
+Ball.AnchorPoint = Vector2.new(Offset, 0)
+Ball.Position = UDim2.fromScale(Offset, 0)
 
-            Ball.BackgroundColor3 = Library.Scheme.FontColor
-            Library.Registry[Ball].BackgroundColor3 = "FontColor"
+Ball.BackgroundColor3 = Library.Scheme.FontColor
+
+Library.Registry[Ball] = Library.Registry[Ball] or {}
+Library.Registry[Ball].BackgroundColor3 = "FontColor"
         end
 
         function Toggle:OnChanged(Func)
@@ -6713,155 +6793,988 @@ local function ReindexSide(Side)
     end
 
 local function SetupGroupboxDrag(BoxHolder, DragHandle, TabName, TabLeft, TabRight, GroupboxName)
-        local DragStartPos = nil
-        local IsDragging = false
-        local DragThreshold = 6
+    local DragStartPos = nil
+    local IsDragging = false
+    local DragThreshold = 6
 
-        DragHandle.InputBegan:Connect(function(Input)
-            if Input.UserInputType ~= Enum.UserInputType.MouseButton1
-                and Input.UserInputType ~= Enum.UserInputType.Touch then
-                return
+    local GhostClone = nil
+    local DropLine = nil
+
+    local function CleanupGroupboxDrag()
+        if GhostClone then
+            GhostClone:Destroy()
+            GhostClone = nil
+        end
+        if DropLine then
+            DropLine:Destroy()
+            DropLine = nil
+        end
+        BoxHolder.BackgroundTransparency = 1
+    end
+
+    local function CreateGroupboxGhost()
+        GhostClone = New("Frame", {
+            BackgroundColor3 = Library.Scheme.MainColor,
+            Size = UDim2.fromOffset(BoxHolder.AbsoluteSize.X, BoxHolder.AbsoluteSize.Y),
+            Position = UDim2.fromOffset(BoxHolder.AbsolutePosition.X, BoxHolder.AbsolutePosition.Y),
+            ZIndex = 999,
+            Parent = ScreenGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = GhostClone,
+        })
+        New("UIStroke", {
+            Color = Library.Scheme.AccentColor,
+            Thickness = 1,
+            Parent = GhostClone,
+        })
+        -- Show the groupbox name label in the ghost
+        local nameLabel = BoxHolder:FindFirstChild(GroupboxName, true)
+        local labelText = GroupboxName or ""
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(12, 0),
+            Size = UDim2.new(1, -12, 0, 34),
+            Text = labelText,
+            TextColor3 = Library.Scheme.FontColor,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 1000,
+            Parent = GhostClone,
+        })
+        GhostClone.BackgroundTransparency = 0.3
+    end
+
+    local function CreateGroupboxDropLine(yPos, xPos, width)
+        if DropLine then
+            DropLine:Destroy()
+        end
+        DropLine = New("Frame", {
+            BackgroundColor3 = Library.Scheme.AccentColor,
+            Position = UDim2.fromOffset(xPos, yPos - 1),
+            Size = UDim2.fromOffset(width, 2),
+            ZIndex = 998,
+            Parent = ScreenGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = DropLine,
+        })
+    end
+
+    local function GetSortedSideChildren(side)
+        local children = {}
+        for _, child in ipairs(side:GetChildren()) do
+            if child:IsA("Frame") and child.Name ~= "" and child ~= BoxHolder then
+                table.insert(children, child)
             end
-            DragStartPos = Input.Position
-            IsDragging = false
+        end
+        table.sort(children, function(a, b)
+            return a.LayoutOrder < b.LayoutOrder
         end)
+        return children
+    end
 
-        UserInputService.InputChanged:Connect(function(Input)
-            if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
-                and Input.UserInputType ~= Enum.UserInputType.Touch)
-                or not DragStartPos then
+    local function GetCurrentTabContext()
+        local ParentSide = BoxHolder.Parent
+        for _, Entry in Library.GroupboxDragTargets do
+            if Entry.TabLeft == ParentSide or Entry.TabRight == ParentSide then
+                return Entry.TabName, Entry.TabLeft, Entry.TabRight
+            end
+        end
+        return TabName, TabLeft, TabRight
+    end
+
+    DragHandle.InputBegan:Connect(function(Input)
+        if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and Input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        DragStartPos = Input.Position
+        IsDragging = false
+    end)
+
+    UserInputService.InputChanged:Connect(function(Input)
+        if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
+            and Input.UserInputType ~= Enum.UserInputType.Touch)
+            or not DragStartPos then
+            return
+        end
+
+        if not IsDragging then
+            local Delta = (Input.Position - DragStartPos).Magnitude
+            if Delta < DragThreshold then
                 return
             end
+            IsDragging = true
+            BoxHolder.BackgroundTransparency = 0.7
+            CreateGroupboxGhost()
+        end
 
-            if not IsDragging and (Input.Position - DragStartPos).Magnitude >= DragThreshold then
-                IsDragging = true
-            end
-        end)
+        local MouseX = Mouse.X
+        local MouseY = Mouse.Y
 
-        DragHandle.InputEnded:Connect(function(Input)
-            if Input.UserInputType ~= Enum.UserInputType.MouseButton1
-                and Input.UserInputType ~= Enum.UserInputType.Touch then
-                return
-            end
-            if not DragStartPos then return end
+        -- Move ghost with mouse, but keep it inside the main UI
+        -- (or inside a torn-off window if the mouse is over one)
+        if GhostClone then
+            local MouseVec = Vector2.new(MouseX, MouseY)
+            local BoundsFrame = MainFrame
 
-            if IsDragging then
-                local TabTarget = GetTabButtonDropTarget()
-
-               if TabTarget and TabTarget.TabName ~= TabName then
-                    --// Dropped onto a different tab's button -> move groupbox there
-                    local TargetSide, InsertOrder = GetGroupboxDropTarget(BoxHolder, TabTarget.TabLeft, TabTarget.TabRight)
-                    local SourceSide = BoxHolder.Parent
-
-                    BoxHolder.LayoutOrder = InsertOrder
-                    BoxHolder.Parent = TargetSide
-
-                    ReindexSide(TargetSide)
-                    ReindexSide(SourceSide)
-
-                    local SourceTab = Library.Tabs[TabName]
-                    local DestTab = Library.Tabs[TabTarget.TabName]
-                    if SourceTab and DestTab and GroupboxName then
-                        DestTab.Groupboxes[GroupboxName] = SourceTab.Groupboxes[GroupboxName]
-                        SourceTab.Groupboxes[GroupboxName] = nil
+            if not Library:MouseIsOverFrame(MainFrame, MouseVec) then
+                for _, Entry in Library.GroupboxDragTargets do
+                    local B = Entry.Button
+                    if B and B.Parent
+                        and B.Name:find("TearOffMain_", 1, true)
+                        and Library:MouseIsOverFrame(B, MouseVec) then
+                        BoundsFrame = B
+                        break
                     end
-
-                    SaveGroupboxOrder()
-                    SaveGroupboxOrder()
-                else
-                    local TargetSide, InsertOrder = GetGroupboxDropTarget(BoxHolder, TabLeft, TabRight)
-                    local SourceSide = BoxHolder.Parent
-
-                    BoxHolder.LayoutOrder = InsertOrder
-                    if SourceSide ~= TargetSide then
-                        BoxHolder.Parent = TargetSide
-                    end
-
-                    ReindexSide(TargetSide)
-                    if SourceSide ~= TargetSide then
-                        ReindexSide(SourceSide)
-                    end
-
-                    SaveGroupboxOrder()
                 end
             end
 
-            IsDragging = false
-            DragStartPos = nil
+            local GhostSize = GhostClone.AbsoluteSize
+            local MinX = BoundsFrame.AbsolutePosition.X
+            local MinY = BoundsFrame.AbsolutePosition.Y
+            local MaxX = MinX + BoundsFrame.AbsoluteSize.X - GhostSize.X
+            local MaxY = MinY + BoundsFrame.AbsoluteSize.Y - GhostSize.Y
+
+            local GhostX = math.clamp(MouseX - GhostSize.X / 2, MinX, math.max(MinX, MaxX))
+            local GhostY = math.clamp(MouseY - 17, MinY, math.max(MinY, MaxY))
+
+            GhostClone.Position = UDim2.fromOffset(GhostX, GhostY)
+        end
+
+        -- Determine which side the mouse is over (based on the groupbox's CURRENT tab)
+        local _, CurrentTabLeft, CurrentTabRight = GetCurrentTabContext()
+
+        local ActiveSide = CurrentTabLeft
+        if Library:MouseIsOverFrame(CurrentTabRight, Vector2.new(MouseX, MouseY)) then
+            ActiveSide = CurrentTabRight
+        elseif Library:MouseIsOverFrame(CurrentTabLeft, Vector2.new(MouseX, MouseY)) then
+            ActiveSide = CurrentTabLeft
+        end
+
+        local OtherBoxes = GetSortedSideChildren(ActiveSide)
+        local sideAbsPos = ActiveSide.AbsolutePosition
+        local sideAbsSize = ActiveSide.AbsoluteSize
+
+        if #OtherBoxes == 0 then
+            -- Drop line at top of the side
+            CreateGroupboxDropLine(
+                sideAbsPos.Y + 4,
+                sideAbsPos.X + 2,
+                sideAbsSize.X - 4
+            )
+        elseif MouseY < OtherBoxes[1].AbsolutePosition.Y + OtherBoxes[1].AbsoluteSize.Y / 2 then
+            -- Above all
+            local b = OtherBoxes[1]
+            CreateGroupboxDropLine(
+                b.AbsolutePosition.Y,
+                b.AbsolutePosition.X,
+                b.AbsoluteSize.X
+            )
+        elseif MouseY >= OtherBoxes[#OtherBoxes].AbsolutePosition.Y + OtherBoxes[#OtherBoxes].AbsoluteSize.Y / 2 then
+            -- Below all
+            local b = OtherBoxes[#OtherBoxes]
+            CreateGroupboxDropLine(
+                b.AbsolutePosition.Y + b.AbsoluteSize.Y,
+                b.AbsolutePosition.X,
+                b.AbsoluteSize.X
+            )
+        else
+            -- Between two boxes
+            for i = 1, #OtherBoxes - 1 do
+                local thisB = OtherBoxes[i]
+                local nextB = OtherBoxes[i + 1]
+                local thisMid = thisB.AbsolutePosition.Y + thisB.AbsoluteSize.Y / 2
+                local nextMid = nextB.AbsolutePosition.Y + nextB.AbsoluteSize.Y / 2
+                if MouseY >= thisMid and MouseY < nextMid then
+                    CreateGroupboxDropLine(
+                        nextB.AbsolutePosition.Y,
+                        nextB.AbsolutePosition.X,
+                        nextB.AbsoluteSize.X
+                    )
+                    break
+                end
+            end
+        end
+    end)
+
+    DragHandle.InputEnded:Connect(function(Input)
+        if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and Input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        if not DragStartPos then return end
+
+        if IsDragging then
+            CleanupGroupboxDrag()
+
+            local CurrentTabName, CurrentTabLeft, CurrentTabRight = GetCurrentTabContext()
+            local TabTarget = GetTabButtonDropTarget()
+
+            if TabTarget and TabTarget.TabName ~= CurrentTabName then
+                -- Dropped onto a different tab button -> move groupbox there
+                local TargetSide, InsertOrder = GetGroupboxDropTarget(BoxHolder, TabTarget.TabLeft, TabTarget.TabRight)
+                local SourceSide = BoxHolder.Parent
+
+                BoxHolder.LayoutOrder = InsertOrder
+                BoxHolder.Parent = TargetSide
+
+                ReindexSide(TargetSide)
+                ReindexSide(SourceSide)
+
+                local SourceTab = Library.Tabs[CurrentTabName]
+                local DestTab = Library.Tabs[TabTarget.TabName]
+                if SourceTab and DestTab and GroupboxName then
+                    DestTab.Groupboxes[GroupboxName] = SourceTab.Groupboxes[GroupboxName]
+                    SourceTab.Groupboxes[GroupboxName] = nil
+                end
+
+                SaveGroupboxOrder()
+            else
+                local TargetSide, InsertOrder = GetGroupboxDropTarget(BoxHolder, CurrentTabLeft, CurrentTabRight)
+                local SourceSide = BoxHolder.Parent
+
+                BoxHolder.LayoutOrder = InsertOrder
+                if SourceSide ~= TargetSide then
+                    BoxHolder.Parent = TargetSide
+                end
+
+                ReindexSide(TargetSide)
+                if SourceSide ~= TargetSide then
+                    ReindexSide(SourceSide)
+                end
+
+                SaveGroupboxOrder()
+            end
+        end
+        IsDragging = false
+        DragStartPos = nil
+    end)
+
+    return function() return IsDragging end
+end
+
+    -- Tear-off tab system
+    local TornOffTabs = {}
+
+    local function DockTab(TabName)
+        local torn = TornOffTabs[TabName]
+        if not torn then return end
+for _, Entry in Library.GroupboxDragTargets do
+    if Entry.TabName == TabName then
+        Entry.Button = torn.Button
+        break
+    end
+end
+        -- Move the TabContainer back into the main Container
+        torn.TabContainer.Parent = Container
+        torn.TabContainer.Size = UDim2.fromScale(1, 1)
+        torn.TabContainer.Position = UDim2.fromScale(0, 0)
+
+        -- Restore the tab button in the sidebar
+        torn.Button.Visible = true
+        torn.Button.BackgroundTransparency = 1
+
+-- Only show the docked tab if there is no active tab.
+-- Otherwise keep the current tab visible and hide this one.
+if Library.ActiveTab == nil then
+    torn.Tab:Show()
+else
+    torn.TabContainer.Visible = false
+end
+
+        -- Destroy the floating window
+        if torn.FloatGui and torn.FloatGui.Parent then
+            torn.FloatGui:Destroy()
+        end
+
+        TornOffTabs[TabName] = nil
+    end
+
+    local function TearOffTab(Button, Tab, TabName, TabContainer)
+        -- Don't tear off if already torn
+        if TornOffTabs[TabName] then return end
+        -- Don't tear off key tabs
+        if Tab.IsKeyTab then return end
+
+-- Only hide the tab if it was actually the active tab
+if Library.ActiveTab == Tab then
+    Library.ActiveTab = nil
+    Tab:Hide()
+end
+
+        -- Remove button from sidebar entirely
+        Button.Visible = false
+
+        -- Create the floating ScreenGui
+        local FloatGui = Instance.new("ScreenGui")
+        FloatGui.Name = "ObsidianTearOff_" .. TabName
+        FloatGui.DisplayOrder = 997
+        FloatGui.ResetOnSpawn = false
+        pcall(protectgui, FloatGui)
+        pcall(function()
+            FloatGui.Parent = gethui()
+        end)
+        if not FloatGui.Parent then
+            FloatGui.Parent = LocalPlayer:WaitForChild("PlayerGui", math.huge)
+        end
+
+        -- Floating window frame — same styling as MainFrame
+        local mousePos = UserInputService:GetMouseLocation()
+local FloatFrame = New("TextButton", {
+    BackgroundColor3 = function()
+        return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
+    end,
+    Name = "TearOffMain_" .. TabName,
+    Text = "",
+    AutoButtonColor = false,
+    Position = UDim2.fromOffset(
+        math.clamp(mousePos.X - 290, 6, workspace.CurrentCamera.ViewportSize.X - 586),
+        math.clamp(mousePos.Y - 24, 6, workspace.CurrentCamera.ViewportSize.Y - 406)
+    ),
+    Size = UDim2.fromOffset(580, 400),
+    ClipsDescendants = true,
+    Parent = FloatGui,
+})
+        table.insert(Library.Corners, New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = FloatFrame,
+        }))
+        table.insert(Library.Scales, New("UIScale", {
+            Parent = FloatFrame,
+        }))
+        Library:AddOutline(FloatFrame)
+
+        -- Title bar
+        local FloatTopBar = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 48),
+            Parent = FloatFrame,
+        })
+
+local FloatTitleLine = Library:MakeLine(FloatFrame, {
+    Position = UDim2.fromOffset(0, 48),
+    Size = UDim2.new(1, 0, 0, 1),
+    ZIndex = FloatFrame.ZIndex,
+})
+
+        -- Tab name label
+        local FloatTitleLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(12, 0),
+            Size = UDim2.new(1, -120, 1, 0),
+            Text = TabName,
+            TextSize = 18,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = FloatFrame.ZIndex,
+            Parent = FloatTopBar,
+        })
+
+        -- "Dock" button in title bar
+local DockBtn = New("TextButton", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    BackgroundColor3 = "MainColor",
+    Position = UDim2.new(1, -46, 0.5, 0),
+    Size = UDim2.fromOffset(52, 24),
+    Text = "Dock",
+    TextSize = 13,
+    ZIndex = FloatFrame.ZIndex + 1,
+    Parent = FloatTopBar,
+})
+        table.insert(Library.Corners, New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = DockBtn,
+        }))
+        Library:AddOutline(DockBtn)
+
+        -- Close button
+        local FloatCloseBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(30, 24),
+Text = "−",
+TextColor3 = Library.Scheme.FontColor,
+            TextSize = 14,
+            ZIndex = FloatFrame.ZIndex + 1,
+            Parent = FloatTopBar,
+        })
+        table.insert(Library.Corners, New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            Parent = FloatCloseBtn,
+        }))
+        Library:AddOutline(FloatCloseBtn)
+local function SetupFloatButtonHover(Button)
+    Button.MouseEnter:Connect(function()
+        TweenService:Create(Button, Library.TweenInfo, {
+            BackgroundColor3 = Library.Scheme.BackgroundColor,
+        }):Play()
+    end)
+
+    Button.MouseLeave:Connect(function()
+        TweenService:Create(Button, Library.TweenInfo, {
+            BackgroundColor3 = Library.Scheme.MainColor,
+        }):Play()
+    end)
+end
+
+SetupFloatButtonHover(DockBtn)
+SetupFloatButtonHover(FloatCloseBtn)
+        -- Bottom bar (footer + resize)
+        local FloatBottomBg = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = function()
+                return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
+            end,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 20 + Library.CornerRadius),
+            Parent = FloatFrame,
+        })
+        table.insert(Library.Corners, New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = FloatBottomBg,
+        }))
+        local FloatBottomLine = Library:MakeLine(FloatFrame, {
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 0, 1, -20),
+            Size = UDim2.new(1, 0, 0, 1),
+        })
+
+        local FloatBottomBar = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 20),
+            Parent = FloatFrame,
+        })
+
+        -- Floating window footer label
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = TabName .. " — Torn Off",
+            TextSize = 13,
+            TextTransparency = 0.5,
+            Parent = FloatBottomBar,
+        })
+
+        -- Resize handle
+        local FloatResizeBtn = New("TextButton", {
+            AnchorPoint = Vector2.new(1, 0),
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, -Library.CornerRadius / 4, 0, 0),
+            Size = UDim2.fromScale(1, 1),
+            SizeConstraint = Enum.SizeConstraint.RelativeYY,
+            Text = "",
+            Parent = FloatBottomBar,
+        })
+        if ResizeIcon then
+            New("ImageLabel", {
+                Image = ResizeIcon.Url,
+                ImageColor3 = "FontColor",
+                ImageRectOffset = ResizeIcon.ImageRectOffset,
+                ImageRectSize = ResizeIcon.ImageRectSize,
+                ImageTransparency = 0.5,
+                Position = UDim2.fromOffset(2, 2),
+                Size = UDim2.new(1, -4, 1, -4),
+                Parent = FloatResizeBtn,
+            })
+        end
+        Library:MakeResizable(FloatFrame, FloatResizeBtn)
+
+        -- Move the tab's container into this float window
+        TabContainer.Parent = FloatFrame
+        TabContainer.Visible = true
+TabContainer.Position = UDim2.fromOffset(5, 49)
+TabContainer.Size = UDim2.new(1, -10, 1, -70)
+
+-- Make the torn-off window a valid groupbox drop target
+-- This lets groupboxes from other tabs be dragged into this torn-off tab.
+for _, Entry in Library.GroupboxDragTargets do
+    if Entry.TabName == TabName then
+        Entry.Button = FloatFrame
+        break
+    end
+end
+
+        -- Make it draggable (title bar drag)
+        Library:MakeDraggable(FloatFrame, FloatTopBar, true)
+
+        -- Track this torn-off tab
+        TornOffTabs[TabName] = {
+            Button = Button,
+            Tab = Tab,
+            TabContainer = TabContainer,
+            FloatGui = FloatGui,
+            FloatFrame = FloatFrame,
+        }
+
+        -- Dock button click
+DockBtn.MouseButton1Click:Connect(function()
+    DockTab(TabName)
+end)
+
+-- Minimize button
+local IsMinimized = false
+local NormalSize = FloatFrame.Size
+
+FloatCloseBtn.MouseButton1Click:Connect(function()
+    IsMinimized = not IsMinimized
+
+    if IsMinimized then
+        -- Capture the CURRENT size (which may have been resized by the user)
+        -- right before shrinking, so restoring uses the latest size, not the
+        -- size from when the tab was originally torn off.
+        NormalSize = FloatFrame.Size
+
+        FloatTitleLine.Visible = false
+        FloatBottomLine.Visible = false
+        TabContainer.Visible = false
+        FloatBottomBg.Visible = false
+        FloatBottomBar.Visible = false
+        FloatFrame.Size = UDim2.new(NormalSize.X.Scale, NormalSize.X.Offset, 0, 47)
+    else
+        FloatTitleLine.Visible = true
+        FloatBottomLine.Visible = true
+        TabContainer.Visible = true
+        FloatBottomBg.Visible = true
+        FloatBottomBar.Visible = true
+        FloatFrame.Size = NormalSize
+    end
+end)
+
+        -- Re-dock on title bar drag: on InputEnded check if over MainFrame
+        local IsTitleDragging = false
+        FloatTopBar.InputBegan:Connect(function(Input)
+            if IsMouseInput(Input) then
+                IsTitleDragging = true
+            end
         end)
 
-        return function() return IsDragging end
+        Library:GiveSignal(UserInputService.InputEnded:Connect(function(Input)
+            if Library.Unloaded then return end
+            if not IsTitleDragging then return end
+            if not IsMouseInput(Input) then return end
+
+            IsTitleDragging = false
+
+            -- Check if mouse is over the main window
+            local mPos = Vector2.new(Mouse.X, Mouse.Y)
+            if TornOffTabs[TabName] and Library:MouseIsOverFrame(MainFrame, mPos) then
+                DockTab(TabName)
+            end
+        end))
+
+        -- Show drop hint on main window when dragging float title bar over it
+        local DropHint = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = Library.Scheme.AccentColor,
+            BackgroundTransparency = 0.75,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromScale(1, 1),
+            Visible = false,
+            ZIndex = 900,
+            Parent = MainFrame,
+        })
+        table.insert(Library.Corners, New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = DropHint,
+        }))
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "Drop to dock \"" .. TabName .. "\"",
+            TextColor3 = Library.Scheme.FontColor,
+            TextSize = 16,
+            ZIndex = 901,
+            Parent = DropHint,
+        })
+
+        Library:GiveSignal(UserInputService.InputChanged:Connect(function(Input)
+            if Library.Unloaded then return end
+            if not TornOffTabs[TabName] then
+                DropHint.Visible = false
+                return
+            end
+            if not IsTitleDragging then
+                DropHint.Visible = false
+                return
+            end
+            local mPos = Vector2.new(Mouse.X, Mouse.Y)
+            DropHint.Visible = Library:MouseIsOverFrame(MainFrame, mPos)
+        end))
+
+        -- Ensure hint is cleaned up when docked
+        local origDock = DockTab
+        -- (DropHint is parented to MainFrame so it goes away when FloatGui is destroyed,
+        --  but we also hide it explicitly on dock)
+        Library:GiveSignal(FloatGui.DescendantRemoving:Connect(function()
+            if DropHint and DropHint.Parent then
+                DropHint:Destroy()
+            end
+        end))
+
+        Library:AddToRegistry(FloatFrame, {
+            BackgroundColor3 = function()
+                return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
+            end,
+        })
+        Library:AddToRegistry(FloatBottomBg, {
+            BackgroundColor3 = function()
+                return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
+            end,
+        })
     end
-    
+
 local TabOrderCounter = 0
         local DraggingTab = nil
         local DraggingButton = nil
 
-        local function SetupTabDrag(Button)
-TabOrderCounter = TabOrderCounter + 1
-        Button.LayoutOrder = TabOrderCounter
-        Button.Name = "TabButton_" .. TabOrderCounter
+local function SetupTabDrag(Button)
+    TabOrderCounter = TabOrderCounter + 1
+    Button.LayoutOrder = TabOrderCounter
+    Button.Name = "TabButton_" .. TabOrderCounter
 
-            local DragStartY = nil
-            local IsDragging = false
-            local DragThreshold = 6
+    local DragStartY = nil
+    local IsDragging = false
+    local DragThreshold = 6
+    local ScrollThreshold = 8
+    local DragAllowed = false
+    local TouchHoldThread = nil
+    local TouchCancelled = false
+    local GhostClone = nil
+    local DropLine = nil
+    local TearOffLabel = nil  -- small floating label near cursor when outside
 
-            Button.InputBegan:Connect(function(Input)
-                if Input.UserInputType ~= Enum.UserInputType.MouseButton1
-                    and Input.UserInputType ~= Enum.UserInputType.Touch then
-                    return
-                end
-                DragStartY = Input.Position.Y
-                IsDragging = false
-            end)
+    local function CleanupDrag()
+        if GhostClone then
+            GhostClone:Destroy()
+            GhostClone = nil
+        end
+        if DropLine then
+            DropLine:Destroy()
+            DropLine = nil
+        end
+        if TearOffLabel then
+            TearOffLabel:Destroy()
+            TearOffLabel = nil
+        end
+        Button.BackgroundTransparency = 1
+    end
 
-           UserInputService.InputChanged:Connect(function(Input)
-                if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
-                    and Input.UserInputType ~= Enum.UserInputType.Touch)
-                    or DragStartY == nil then
-                    return
-                end
+    local function CreateGhost()
+        GhostClone = New("Frame", {
+            BackgroundColor3 = Library.Scheme.MainColor,
+            Size = UDim2.fromOffset(Button.AbsoluteSize.X, Button.AbsoluteSize.Y),
+            Position = UDim2.fromOffset(Button.AbsolutePosition.X, Button.AbsolutePosition.Y),
+            ZIndex = 999,
+            Parent = ScreenGui,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius),
+            Parent = GhostClone,
+        })
+        New("UIStroke", {
+            Color = Library.Scheme.AccentColor,
+            Thickness = 1,
+            Parent = GhostClone,
+        })
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(30, 0),
+            Size = UDim2.new(1, -30, 1, 0),
+            Text = Button:FindFirstChildWhichIsA("TextLabel") and Button:FindFirstChildWhichIsA("TextLabel").Text or "",
+            TextColor3 = Library.Scheme.FontColor,
+            TextSize = 16,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 1000,
+            Parent = GhostClone,
+        })
+        GhostClone.BackgroundTransparency = 0.3
+    end
 
-                if not IsDragging then
-                    if math.abs(Input.Position.Y - DragStartY) < DragThreshold then
-                        return
+    local function CreateDropLine(yPos)
+        if DropLine then
+            DropLine:Destroy()
+        end
+        DropLine = New("Frame", {
+            BackgroundColor3 = Library.Scheme.AccentColor,
+            Position = UDim2.fromOffset(Button.AbsolutePosition.X, yPos - 1),
+            Size = UDim2.fromOffset(Button.AbsoluteSize.X, 2),
+            ZIndex = 998,
+            Parent = ScreenGui,
+        })
+    end
+
+    -- Small pill label that follows cursor outside the window
+    local function ShowTearOffLabel(show, mouseX, mouseY)
+        if show then
+            local TabLabel = Button:FindFirstChildWhichIsA("TextLabel")
+            local TabName = TabLabel and TabLabel.Text or "Tab"
+            if not TearOffLabel then
+                TearOffLabel = New("Frame", {
+                    BackgroundColor3 = Library.Scheme.MainColor,
+                    Size = UDim2.fromOffset(180, 26),
+                    ZIndex = 1001,
+                    Parent = ScreenGui,
+                })
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, Library.CornerRadius),
+                    Parent = TearOffLabel,
+                })
+                New("UIStroke", {
+                    Color = Library.Scheme.AccentColor,
+                    Thickness = 1,
+                    Parent = TearOffLabel,
+                })
+                New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    Text = "🪟 Pop out \"" .. TabName .. "\"",
+                    TextColor3 = Library.Scheme.FontColor,
+                    TextSize = 13,
+                    ZIndex = 1002,
+                    Parent = TearOffLabel,
+                })
+            end
+            -- Follow cursor, offset so it doesn't cover the ghost
+            TearOffLabel.Position = UDim2.fromOffset(mouseX + 14, mouseY - 13)
+        else
+            if TearOffLabel then
+                TearOffLabel:Destroy()
+                TearOffLabel = nil
+            end
+        end
+    end
+
+    -- Walk Container's children to find which Frame contains this tab's sides
+    local function FindTabContainer(tab)
+        if not tab or not tab.Sides then return nil end
+        for _, child in ipairs(Container:GetChildren()) do
+            if child:IsA("Frame") or child:IsA("ScrollingFrame") then
+                for _, side in ipairs(tab.Sides) do
+                    if side.Parent == child then
+                        return child
                     end
-                    IsDragging = true
-                    DraggingButton = Button
                 end
+            end
+        end
+        return nil
+    end
 
-                local MouseY = Input.Position.Y
-                for _, OtherButton in Tabs:GetChildren() do
-                    if not OtherButton:IsA("TextButton") or OtherButton == Button then
-                        continue
-                    end
-                    local AbsY = OtherButton.AbsolutePosition.Y
-                    local AbsH = OtherButton.AbsoluteSize.Y
-                    if MouseY >= AbsY and MouseY <= AbsY + AbsH then
-                        local MyOrder = Button.LayoutOrder
-                        Button.LayoutOrder = OtherButton.LayoutOrder
-                        OtherButton.LayoutOrder = MyOrder
-                        break
-                    end
+    -- Match this button to its Library.Tabs entry by TextLabel text
+    local function FindTabForButton()
+        local lbl = Button:FindFirstChildWhichIsA("TextLabel")
+        if not lbl then return nil, nil end
+        local labelText = lbl.Text
+        for tabName, tab in pairs(Library.Tabs) do
+            if tabName == labelText then
+                return tabName, tab
+            end
+        end
+        return nil, nil
+    end
+
+    Button.InputBegan:Connect(function(Input)
+        if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and Input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        DragStartY = Input.Position.Y
+        IsDragging = false
+
+        local IsTouch = (Input.UserInputType == Enum.UserInputType.Touch)
+
+        if Library.IsMobile or IsTouch then
+            DragAllowed = false
+            TouchCancelled = false
+
+            if TouchHoldThread then
+                task.cancel(TouchHoldThread)
+                TouchHoldThread = nil
+            end
+
+            -- Require finger to stay stationary for 3 seconds before drag/tear-off is armed
+            TouchHoldThread = task.delay(3, function()
+                if not TouchCancelled then
+                    DragAllowed = true
                 end
             end)
+        else
+            DragAllowed = true
+        end
+    end)
 
-            Button.InputEnded:Connect(function(Input)
-                if Input.UserInputType ~= Enum.UserInputType.MouseButton1
-                    and Input.UserInputType ~= Enum.UserInputType.Touch then
-                    return
-                end
-                if IsDragging then
-                    IsDragging = false
-                    DraggingButton = nil
-                    DragStartY = nil
-                    SaveTabOrder()
-                    return
-                end
-                DragStartY = nil
-            end)
+    UserInputService.InputChanged:Connect(function(Input)
+        if (Input.UserInputType ~= Enum.UserInputType.MouseMovement
+            and Input.UserInputType ~= Enum.UserInputType.Touch)
+            or DragStartY == nil then
+            return
         end
 
+        if not IsDragging then
+            local Distance = math.abs(Input.Position.Y - DragStartY)
+            local IsTouchLike = (Library.IsMobile or Input.UserInputType == Enum.UserInputType.Touch)
+
+            if IsTouchLike and not DragAllowed then
+                -- Still inside the hold window. If the finger is moving like a scroll,
+                -- cancel the hold so the ScrollingFrame gets the gesture instead.
+                if Distance > ScrollThreshold then
+                    TouchCancelled = true
+                    if TouchHoldThread then
+                        task.cancel(TouchHoldThread)
+                        TouchHoldThread = nil
+                    end
+                    DragStartY = nil
+                end
+                return
+            end
+
+            if Distance < DragThreshold then
+                return
+            end
+
+            IsDragging = true
+            DraggingButton = Button
+            Button.BackgroundTransparency = 0.7
+            CreateGhost()
+        end
+
+        if not IsDragging then return end
+
+        local MouseX = Input.Position.X
+        local MouseY = Input.Position.Y
+
+        -- Move ghost with cursor, but keep it inside the sidebar
+        if GhostClone then
+            local MinY = Tabs.AbsolutePosition.Y
+            local MaxY = Tabs.AbsolutePosition.Y + Tabs.AbsoluteSize.Y - Button.AbsoluteSize.Y
+            local GhostY = math.clamp(MouseY - Button.AbsoluteSize.Y / 2, MinY, math.max(MinY, MaxY))
+
+            GhostClone.Position = UDim2.fromOffset(
+                Button.AbsolutePosition.X,
+                GhostY
+            )
+        end
+
+        local mouseVec = Vector2.new(MouseX, MouseY)
+        local isOutside = not Library:MouseIsOverFrame(MainFrame, mouseVec)
+
+        if isOutside then
+            -- Hide drop line, show small tear-off label near cursor
+            if DropLine then
+                DropLine:Destroy()
+                DropLine = nil
+            end
+            ShowTearOffLabel(true, MouseX, MouseY)
+            return
+        end
+
+        -- Inside: hide tear-off label, show normal drop indicator
+        ShowTearOffLabel(false)
+
+        local OtherButtons = {}
+        for _, OtherButton in Tabs:GetChildren() do
+            if OtherButton:IsA("TextButton") and OtherButton ~= Button then
+                table.insert(OtherButtons, OtherButton)
+            end
+        end
+        table.sort(OtherButtons, function(a, b)
+            return a.LayoutOrder < b.LayoutOrder
+        end)
+
+        if #OtherButtons == 0 then return end
+
+        local TargetOrder = nil
+
+        if MouseY < OtherButtons[1].AbsolutePosition.Y + OtherButtons[1].AbsoluteSize.Y / 2 then
+            TargetOrder = OtherButtons[1].LayoutOrder - 1
+            CreateDropLine(OtherButtons[1].AbsolutePosition.Y)
+
+        elseif MouseY > OtherButtons[#OtherButtons].AbsolutePosition.Y + OtherButtons[#OtherButtons].AbsoluteSize.Y / 2 then
+            TargetOrder = OtherButtons[#OtherButtons].LayoutOrder + 1
+            CreateDropLine(OtherButtons[#OtherButtons].AbsolutePosition.Y + OtherButtons[#OtherButtons].AbsoluteSize.Y)
+
+        else
+            for i = 1, #OtherButtons - 1 do
+                local thisBtn = OtherButtons[i]
+                local nextBtn = OtherButtons[i + 1]
+                local thisMid = thisBtn.AbsolutePosition.Y + thisBtn.AbsoluteSize.Y / 2
+                local nextMid = nextBtn.AbsolutePosition.Y + nextBtn.AbsoluteSize.Y / 2
+
+                if MouseY >= thisMid and MouseY < nextMid then
+                    TargetOrder = thisBtn.LayoutOrder + 0.5
+                    CreateDropLine(nextBtn.AbsolutePosition.Y)
+                    break
+                end
+            end
+        end
+
+        if TargetOrder == nil then return end
+        Button.LayoutOrder = TargetOrder
+    end)
+    Button.InputEnded:Connect(function(Input)
+        if Input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and Input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+
+        -- Always clear the hold-timer state on release, whether or not a drag happened
+        TouchCancelled = true
+        if TouchHoldThread then
+            task.cancel(TouchHoldThread)
+            TouchHoldThread = nil
+        end
+        DragAllowed = false
+
+        if IsDragging then
+            IsDragging = false
+            DraggingButton = nil
+
+            local mouseVec = Vector2.new(Mouse.X, Mouse.Y)
+            local isOutside = not Library:MouseIsOverFrame(MainFrame, mouseVec)
+
+            -- Capture final drag position before we reset
+            local finalDragY = DragStartY
+            DragStartY = nil
+
+            CleanupDrag()
+
+            if isOutside then
+                local tabName, tab = FindTabForButton()
+
+                if tabName and tab and not tab.IsKeyTab and not TornOffTabs[tabName] then
+                    local tabContainer = FindTabContainer(tab)
+                    if tabContainer then
+                        TearOffTab(Button, tab, tabName, tabContainer)
+                    end
+                end
+            else
+                -- Normal reorder inside window
+                local AllButtons = {}
+                for _, btn in Tabs:GetChildren() do
+                    if btn:IsA("TextButton") then
+                        table.insert(AllButtons, btn)
+                    end
+                end
+                table.sort(AllButtons, function(a, b)
+                    return a.LayoutOrder < b.LayoutOrder
+                end)
+                for i, btn in ipairs(AllButtons) do
+                    btn.LayoutOrder = i
+                end
+                SaveTabOrder()
+            end
+            return
+        end
+
+        DragStartY = nil
+        CleanupDrag()
+    end)
+end
 
 
     local function LoadTabOrder()
@@ -7168,8 +8081,7 @@ local SavedGroupboxOrder = LoadGroupboxOrder()
             Parent = BottomBar,
         })
 
-local LocalVersion = "1.0.6"
-
+local LocalVersion = tostring(_G.ScriptVersion or "v0.0.0"):gsub("^v", "")
 
         -- Status Circle
 local StatusCircle = New("Frame", {
@@ -7221,14 +8133,39 @@ UpdateButton.MouseButton1Click:Connect(function()
         return
     end
 
-    Library:Unload()
-    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/544f64759db6021216af8ca483bb53c4.lua"))()
+    local remoteVersion = game:HttpGet("https://raw.githubusercontent.com/mg8308379-design/Obsidiantesting/refs/heads/main/Version.txt"):gsub("%s+", "")
+
+    local UpdateDialog = Window:AddDialog("UpdateDialog", {
+        Title = "Update",
+        Description = "Do you wish to update to UI version: " .. remoteVersion,
+        AutoDismiss = true,
+        OutsideClickDismiss = true,
+        FooterButtons = {
+            Cancel = {
+                Title = "Cancel",
+                Variant = "Ghost",
+                Order = 1,
+                Callback = function()
+                    -- just closes
+                end
+            },
+            Confirm = {
+                Title = "Confirm",
+                Variant = "Primary",
+                Order = 2,
+                Callback = function()
+                    Library:Unload()
+                    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/7f4c9b056ecd55df7bd4721a04b217ff.lua"))()
+                end
+            }
+        }
+    })
 end)
 
 task.spawn(function()
     while not Library.Unloaded do
         local success, result = pcall(function()
-            return game:HttpGet("https://raw.githubusercontent.com/PollutedHub/Obsidianmodified/main/version.txt")
+            return game:HttpGet("https://raw.githubusercontent.com/mg8308379-design/Obsidiantesting/refs/heads/main/Version.txt")
         end)
 
         if success and result then
@@ -8473,6 +9410,8 @@ end)
         end)
         TabButton.MouseButton1Click:Connect(Tab.Show)
 
+
+
         Library.Tabs[Name] = Tab
 
         return Tab
@@ -9431,7 +10370,7 @@ end
     end))
 
 
-    
+
 
 -- CHATBOX WINDOW_2.lua
 -- CHATBOX WINDOW_2.lua
@@ -11350,22 +12289,13 @@ end
 
 game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.MouseButton2 then
+        or input.UserInputType == Enum.UserInputType.MouseButton2
+        or input.UserInputType == Enum.UserInputType.Touch then
         if ActiveContextMenu then
-            local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+            local p = Vector2.new(input.Position.X, input.Position.Y)
             local absPos = ActiveContextMenu.AbsolutePosition
             local absSize = ActiveContextMenu.AbsoluteSize
-            if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
-                CloseContextMenu()
-            end
-        end
-    end
-    if input.UserInputType == Enum.UserInputType.Touch then
-        if ActiveContextMenu then
-            local mousePos = game:GetService("UserInputService"):GetMouseLocation()
-            local absPos = ActiveContextMenu.AbsolutePosition
-            local absSize = ActiveContextMenu.AbsoluteSize
-            if not (mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y) then
+            if not (p.X >= absPos.X and p.X <= absPos.X + absSize.X and p.Y >= absPos.Y and p.Y <= absPos.Y + absSize.Y) then
                 CloseContextMenu()
             end
         end
@@ -11463,13 +12393,31 @@ end)
 
     local LastMessageTime = 0
     local SpamCooldown = 2
-local BannedWords = {"sex", "dick", "pussy", "nigger", "nigga", "fanny"}
+local BannedWords = {
+    "sex",
+    "dick",
+    "pussy",
+    "nigger",
+    "nigga",
+    "fanny",
+    "nig3a",
+    "nig3r",
+    "loadstring",
+    "https",
+    "pastefy"
+}
 
 local function ContainsBannedWord(Msg)
+    if type(Msg) ~= "string" then return false end
+
     local Lower = Msg:lower()
+
     for _, Word in ipairs(BannedWords) do
-        if Lower:find(Word:lower(), 1, true) then return true end
+        if Lower:find(Word:lower(), 1, true) then
+            return true
+        end
     end
+
     return false
 end
 
@@ -11517,9 +12465,64 @@ local function FormatDiscordTime(isoTimeStr)
     end
 end
 
+local TranslateService = game:GetService("HttpService")
+
+local function translateToEnglish(text)
+    if not text or text == "" then return "" end
+
+    local encodedText = TranslateService:UrlEncode(text)
+
+    local function fetch(url)
+        local ok, res = pcall(function()
+            if HttpRequest then
+                local r = HttpRequest({ Url = url, Method = "GET" })
+                return r and r.Body
+            end
+            return game:HttpGet(url)
+        end)
+        if ok and res then return res end
+        return nil
+    end
+
+    -- API 1: Google Translate (auto-detects source language)
+    local googleUrl = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=" .. encodedText
+    local body = fetch(googleUrl)
+    if body then
+        local ok, data = pcall(function() return TranslateService:JSONDecode(body) end)
+        if ok and type(data) == "table" and type(data[1]) == "table" then
+            local out = {}
+            for _, seg in ipairs(data[1]) do
+                if type(seg) == "table" and type(seg[1]) == "string" then
+                    table.insert(out, seg[1])
+                end
+            end
+            if #out > 0 then return table.concat(out) end
+        end
+    end
+
+    -- API 2: MyMemory fallback (auto-detect)
+    local myMemoryUrl = "https://api.mymemory.translated.net/get?q=" .. encodedText .. "&langpair=autodetect|en"
+    local body2 = fetch(myMemoryUrl)
+    if body2 then
+        local ok, data = pcall(function() return TranslateService:JSONDecode(body2) end)
+        if ok and data and data.responseData and data.responseData.translatedText then
+            return data.responseData.translatedText
+        end
+    end
+
+    return text -- final fallback
+end
+
     local MsgIndex = 0
-    local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature, msgTime)
-        local msgIdStr = messageId or tostring(math.random(1000,9999))
+local function AddMessage(sender, text, isSystem, senderUserId, messageId, replyData, reactions, customSignature, msgTime)
+
+    -- Never render messages containing a banned word.
+    -- This also catches messages that existed before the word was added.
+    if not isSystem and ContainsBannedWord(text) then
+        return nil
+    end
+
+    local msgIdStr = messageId or tostring(math.random(1000,9999))
 
         if ActiveMessageRows[msgIdStr] then
             if ActiveMessageRows[msgIdStr].UpdateReactions then
@@ -11552,7 +12555,7 @@ end
 
         local btnWidth = isMobile and 44 or 28
         local barHeight = isMobile and 36 or 24
-        local barWidth = btnWidth * 3
+        local barWidth = btnWidth * 4
 
         local ActionBar = New("Frame", {
             AnchorPoint = Vector2.new(1, 0),
@@ -11592,6 +12595,17 @@ end
             Position = UDim2.new(0, btnWidth * 2, 0, 0),
             Size = UDim2.new(0, btnWidth, 1, 0),
             Text = "🗑️",
+            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextSize = isMobile and 14 or 11,
+            ZIndex = 511,
+            Parent = ActionBar,
+        })
+
+        local TranslateBtn = New("TextButton", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, btnWidth * 3, 0, 0),
+            Size = UDim2.new(0, btnWidth, 1, 0),
+            Text = "📻",
             TextColor3 = Color3.fromRGB(200, 200, 200),
             TextSize = isMobile and 14 or 11,
             ZIndex = 511,
@@ -11987,6 +13001,51 @@ end)
             Parent = ContentLayout,
         })
         table.insert(MessageBodyLabels, MsgBodyLabel)
+        -- 📻 Translate (local only, only changes YOUR screen)
+        local originalText = text
+        local translatedText = nil
+        local showingTranslation = false
+        local isTranslating = false
+
+        TranslateBtn.MouseButton1Click:Connect(function()
+            if isTranslating then return end
+
+            -- Toggle back to the original
+            if showingTranslation then
+                showingTranslation = false
+                MsgBodyLabel.Text = originalText
+                TranslateBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                return
+            end
+
+            -- Use the cached translation if we already have it
+            if translatedText then
+                showingTranslation = true
+                MsgBodyLabel.Text = translatedText
+                TranslateBtn.TextColor3 = Color3.fromRGB(88, 101, 242)
+                return
+            end
+
+            isTranslating = true
+            MsgBodyLabel.Text = "Translating..."
+            task.spawn(function()
+                local result = translateToEnglish(originalText)
+                translatedText = result
+                isTranslating = false
+                if MsgBodyLabel and MsgBodyLabel.Parent then
+                    showingTranslation = true
+                    MsgBodyLabel.Text = translatedText
+                    TranslateBtn.TextColor3 = Color3.fromRGB(88, 101, 242)
+                end
+            end)
+        end)
+
+        -- Mobile: stop the row tap handler from toggling the bar when you press this button
+        TranslateBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touchStartedOnButton = true
+            end
+        end)
 
         local reactionContainer = New("Frame", {
             AutomaticSize = Enum.AutomaticSize.XY,
@@ -12054,6 +13113,9 @@ end)
         RenderReactions(currentRowReactions)
 
         ActiveMessageRows[msgIdStr] = {
+
+                Row = Row,
+    Text = tostring(text),
             SetHighlight = SetRowHighlight,
             HideActionBar = function()
                 actionBarShown = false
@@ -12208,6 +13270,17 @@ if ContainsBannedWord(Msg) then AddMessage("System", "Your message contains a bl
     end
 
 local function FetchMessages()
+
+        -- Remove already-rendered messages that are now banned.
+    for msgId, rowData in pairs(ActiveMessageRows) do
+        if rowData.Text and ContainsBannedWord(rowData.Text) then
+            if rowData.Row and rowData.Row.Parent then
+                rowData.Row:Destroy()
+            end
+
+            ActiveMessageRows[msgId] = nil
+        end
+    end
         pcall(function()
             if HttpRequest then
                 local Result = HttpRequest({
