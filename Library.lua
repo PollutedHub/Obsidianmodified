@@ -13249,51 +13249,59 @@ end)
             UpdateInputLayout()
             return
         end
-if BanTarget then
-    local input = ChatInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
-    
-    if input == "" then
-        return
-    end
+        if BanTarget then
+            local input = ChatInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
 
-    -- First word is the ban duration, everything after it is the reason
-    local duration, reason = input:match("^(%S+)%s+(.+)$")
+            if input == "" then
+                return
+            end
 
-    if not duration or not reason then
-        warn("Ban format: duration reason")
-        return
-    end
+            -- First word = duration, everything after = reason
+            local duration, reason = input:match("^(%S+)%s+(.+)$")
 
-    local timestamp = os.time()
+            if not duration or not reason then
+                warn("Ban format: duration reason")
+                return
+            end
 
-    local payload = {
-        Username = LocalPlayer.Name,
-        UserId = tostring(LocalPlayer.UserId),
-        Roles = {"user"},
-        Message = reason,
-        MessageId = "ban_" .. math.random(100000, 999999),
-        Time = timestamp,
+            local payload = {
+                Username = LocalPlayer.Name,
+                UserId = tostring(LocalPlayer.UserId),
+                Roles = {"user"},
+                Message = reason,
+                MessageId = "ban_" .. math.random(100000, 999999),
+                Time = os.time(),
 
-        BanUsername = BanTarget,
-        BanDuration = duration,
-        BanReason = reason,
-        BanUser = BanTarget
-    }
+                BanUsername = BanTarget,
+                BanDuration = duration,
+                BanReason = reason,
+                BanUser = BanTarget
+            }
 
-    HttpRequest({
-        Url = "http://167.99.144.89:8081/chatbox",
-        Method = "POST",
-        Headers = {
-            ["Content-Type"] = "application/json",
-            ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
-        },
-       Body = game:GetService("HttpService"):JSONEncode(payload)
-    })
+            if HttpRequest then
+                task.spawn(function()
+                    pcall(function()
+                        HttpRequest({
+                            Url = "http://167.99.144.89:8081/chatbox",
+                            Method = "POST",
+                            Headers = {
+                                ["Content-Type"] = "application/json",
+                                ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+                            },
+                            Body = game:GetService("HttpService"):JSONEncode(payload)
+                        })
+                    end)
+                end)
+            else
+                warn("Ban failed: HttpRequest is unavailable")
+                return
+            end
 
-    BanTarget = nil
-    ChatInput.Text = ""
-    UpdateInputLayout()
-    ChatInput:ReleaseFocus()
+            BanTarget = nil
+            ChatInput.Text = ""
+            UpdateInputLayout()
+            return
+        end
         local Msg = ChatInput.Text
         if not Msg or Msg:gsub("%s", "") == "" then return end
 
