@@ -13640,14 +13640,6 @@ end)
     Window.ChatAddMessage = AddMessage
 end
 
-
-
------- end of chatbox
-
-    --testing388811111
-    return Window
-end
-
 -- Automatic local-player ban checker
 task.spawn(function()
     local HttpService = game:GetService("HttpService")
@@ -13744,6 +13736,14 @@ task.spawn(function()
         end
     end
 end)
+
+------ end of chatbox
+
+    --testing388811111
+    return Window
+end
+
+
 
 
 
