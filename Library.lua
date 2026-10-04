@@ -13287,7 +13287,7 @@ if BanTarget then
             ["Content-Type"] = "application/json",
             ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
         },
-        Body = HttpService:JSONEncode(payload)
+       Body = game:GetService("HttpService"):JSONEncode(payload)
     })
 
     BanTarget = nil
