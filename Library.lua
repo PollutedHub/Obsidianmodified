@@ -13637,9 +13637,16 @@ ChatTabButton.MouseButton1Click:Connect(function()
         end
     end
 end)
-Window.ChatAddMessage = AddMessage
+    Window.ChatAddMessage = AddMessage
+end
+
+
 
 ------ end of chatbox
+
+    --testing388811111
+    return Window
+end
 
 -- Automatic local-player ban checker
 task.spawn(function()
@@ -13715,10 +13722,6 @@ task.spawn(function()
         end
     end
 end)
-
-return Window
-end
-
 
 
 
