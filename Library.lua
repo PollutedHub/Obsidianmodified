@@ -10380,6 +10380,7 @@ do
     local ReplyTarget = nil
     local NicknameTarget = nil
     local MuteDurationTarget = nil
+    local BanTarget = nil
     local ActiveMessageRows = {}
 local DeniedInviteIds = {}
     local MutedUsernamesMap = {}
@@ -11833,13 +11834,16 @@ end)
             SendBtn.Active = true
             SendBtn.BackgroundColor3 = Library.Scheme.AccentColor
 
-            if NicknameTarget then
-                ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
-                SendBtn.Text = "Set"
-            elseif MuteDurationTarget then
-                ChatInput.PlaceholderText = "Type time. Example : 1d 1h 1m 1s"
-                SendBtn.Text = "Mute"
-            else
+if NicknameTarget then
+    ChatInput.PlaceholderText = "Type nickname for " .. GetDisplayName(NicknameTarget) .. " here"
+    SendBtn.Text = "Set"
+elseif MuteDurationTarget then
+    ChatInput.PlaceholderText = "Type time. Example : 1d 1h 1m 1s"
+    SendBtn.Text = "Mute"
+elseif BanTarget then
+    ChatInput.PlaceholderText = "Type duration + reason. Example: 1d Spamming"
+    SendBtn.Text = "Ban"
+else
                 SendBtn.Text = "Send"
                 if not ReplyTarget then
                     ChatInput.PlaceholderText = "Send a message..."
@@ -12277,6 +12281,17 @@ end)
         else
             CreateMenuOption("Mute User", Color3.fromRGB(255, 60, 60), function()
                 MuteDurationTarget = targetUser
+                BanTarget = nil
+                NicknameTarget = nil
+                ReplyTarget = nil
+                ChatInput.Text = ""
+                UpdateInputLayout()
+                ChatInput:CaptureFocus()
+            end)
+
+            CreateMenuOption("Ban User", Color3.fromRGB(255, 60, 60), function()
+                BanTarget = targetUser
+                MuteDurationTarget = nil
                 NicknameTarget = nil
                 ReplyTarget = nil
                 ChatInput.Text = ""
@@ -12286,7 +12301,6 @@ end)
         end
     end
 end
-
 game:GetService("UserInputService").InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.MouseButton2
@@ -13235,7 +13249,51 @@ end)
             UpdateInputLayout()
             return
         end
+if BanTarget then
+    local input = ChatInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    
+    if input == "" then
+        return
+    end
 
+    -- First word is the ban duration, everything after it is the reason
+    local duration, reason = input:match("^(%S+)%s+(.+)$")
+
+    if not duration or not reason then
+        warn("Ban format: duration reason")
+        return
+    end
+
+    local timestamp = os.time()
+
+    local payload = {
+        Username = LocalPlayer.Name,
+        UserId = tostring(LocalPlayer.UserId),
+        Roles = {"user"},
+        Message = reason,
+        MessageId = "ban_" .. math.random(100000, 999999),
+        Time = timestamp,
+
+        BanUsername = BanTarget,
+        BanDuration = duration,
+        BanReason = reason,
+        BanUser = BanTarget
+    }
+
+    HttpRequest({
+        Url = "http://167.99.144.89:8081/chatbox",
+        Method = "POST",
+        Headers = {
+            ["Content-Type"] = "application/json",
+            ["Authorization"] = "Bearer " .. (_G.ChatboxSecretKey or "")
+        },
+        Body = HttpService:JSONEncode(payload)
+    })
+
+    BanTarget = nil
+    ChatInput.Text = ""
+    UpdateInputLayout()
+    ChatInput:ReleaseFocus()
         local Msg = ChatInput.Text
         if not Msg or Msg:gsub("%s", "") == "" then return end
 
