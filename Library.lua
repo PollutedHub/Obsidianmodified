@@ -13651,14 +13651,14 @@ end
 -- Automatic local-player ban checker
 task.spawn(function()
     local HttpService = game:GetService("HttpService")
-    local handledBan = false
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
 
-    while task.wait(5) do
-        if handledBan then
-            break
-        end
+    while true do
+        task.wait(2)
 
         if not HttpRequest or not LocalPlayer then
+            warn("[BAN CHECK] HttpRequest or LocalPlayer unavailable")
             continue
         end
 
@@ -13676,49 +13676,71 @@ task.spawn(function()
             })
         end)
 
-        if success and response then
-            local body = response.Body or response.body
+        if not success then
+            warn("[BAN CHECK] HTTP request failed:", response)
+            continue
+        end
 
-            if body then
-                local decodedSuccess, data = pcall(function()
-                    return HttpService:JSONDecode(body)
-                end)
+        if not response then
+            warn("[BAN CHECK] No response received")
+            continue
+        end
 
-                if decodedSuccess and data and data.banned == true then
-                    handledBan = true
+        local body = response.Body or response.body
 
-                    local reason =
-                        tostring(data.reason or "No reason specified")
+        if not body then
+            warn("[BAN CHECK] Response has no Body")
+            continue
+        end
 
-                    local banTime
+        -- Debug the actual server response
+        print("[BAN CHECK] Server response:", body)
 
-                    if data.permanent == true then
-                        banTime = "Permanent"
-                    elseif data.remainingSeconds then
-                        banTime = FormatDuration(
-                            tonumber(data.remainingSeconds)
-                        )
-                    else
-                        banTime =
-                            tostring(data.length or "Unknown")
-                    end
+        local decodedSuccess, data = pcall(function()
+            return HttpService:JSONDecode(body)
+        end)
 
-                    local kickMessage =
-                        "You are banned.\n\n"
-                        .. "Reason: " .. reason
-                        .. "\nTime remaining: " .. banTime
+        if not decodedSuccess then
+            warn("[BAN CHECK] Invalid JSON:", data)
+            continue
+        end
 
-                    task.delay(3, function()
-                        pcall(function()
-                            game:Shutdown()
-                        end)
-                    end)
+        if type(data) ~= "table" then
+            warn("[BAN CHECK] JSON response is not a table")
+            continue
+        end
 
-                    LocalPlayer:Kick(kickMessage)
+        print("[BAN CHECK] banned =", data.banned)
 
-                    break
-                end
+        if data.banned == true then
+            local reason = tostring(data.reason or "No reason specified")
+
+            local banTime
+
+            if data.permanent == true then
+                banTime = "Permanent"
+            elseif data.remainingSeconds ~= nil then
+                banTime = FormatDuration(
+                    tonumber(data.remainingSeconds) or 0
+                )
+            else
+                banTime = tostring(data.length or "Unknown")
             end
+
+            local kickMessage =
+                "You are banned.\n\n"
+                .. "Reason: " .. reason
+                .. "\nTime remaining: " .. banTime
+
+            warn("[BAN CHECK] BAN FOUND - KICKING PLAYER")
+
+            -- Kick immediately
+            pcall(function()
+                LocalPlayer:Kick(kickMessage)
+            end)
+
+            -- Don't keep polling after detecting the ban
+            break
         end
     end
 end)
