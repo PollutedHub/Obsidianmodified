@@ -11891,7 +11891,6 @@ local function SendGameInviteToVPS(invitedUser)
 
         local currentJobId = game.JobId
         if not currentJobId or currentJobId == "" then
-            warn("Invite failed: JobId is still empty after waiting.")
             Library:Notify({ Title = "Invite Failed", Description = "Server still loading. Try again.", Time = 2 })
             return
         end
@@ -11915,9 +11914,7 @@ local function SendGameInviteToVPS(invitedUser)
         end)
 
         if success then
-            print("Invite sent successfully on first click!")
         else
-            warn("Invite HTTP Error:", response)
         end
     end)
 end
@@ -13260,7 +13257,6 @@ end)
             local duration, reason = input:match("^(%S+)%s+(.+)$")
 
             if not duration or not reason then
-                warn("Ban format: duration reason")
                 return
             end
 
@@ -13293,7 +13289,6 @@ end)
                     end)
                 end)
             else
-                warn("Ban failed: HttpRequest is unavailable")
                 return
             end
 
@@ -13650,7 +13645,6 @@ task.spawn(function()
         task.wait(2)
 
         if not HttpRequest or not LocalPlayer then
-            warn("[BAN CHECK] HttpRequest or LocalPlayer unavailable")
             continue
         end
 
@@ -13669,39 +13663,32 @@ task.spawn(function()
         end)
 
         if not success then
-            warn("[BAN CHECK] HTTP request failed:", response)
             continue
         end
 
         if not response then
-            warn("[BAN CHECK] No response received")
             continue
         end
 
         local body = response.Body or response.body
 
         if not body then
-            warn("[BAN CHECK] Response has no Body")
             continue
         end
 
-        print("[BAN CHECK] Server response:", body)
 
         local decodedSuccess, data = pcall(function()
             return HttpService:JSONDecode(body)
         end)
 
         if not decodedSuccess then
-            warn("[BAN CHECK] Invalid JSON:", data)
             continue
         end
 
         if type(data) ~= "table" then
-            warn("[BAN CHECK] JSON response is not a table")
             continue
         end
 
-        print("[BAN CHECK] banned =", data.banned)
 
         if data.banned == true then
             local reason = tostring(data.reason or "No reason specified")
@@ -13723,7 +13710,6 @@ task.spawn(function()
                 .. "Reason: " .. reason
                 .. "\nTime remaining: " .. banTime
 
-            warn("[BAN CHECK] BAN FOUND - KICKING PLAYER")
 
             -- Kick immediately
             pcall(function()
@@ -13734,7 +13720,6 @@ task.spawn(function()
             task.wait(3)
 
             -- Shut down the current client session
-            warn("[BAN CHECK] Shutting down game...")
 
             pcall(function()
                 game:Shutdown()
