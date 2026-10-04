@@ -13647,7 +13647,80 @@ end
     --testing388811111
     return Window
 end
+-- Automatic local-player ban checker
+task.spawn(function()
+    local HttpService = game:GetService("HttpService")
+    local handledBan = false
 
+    while task.wait(5) do
+        if handledBan then
+            break
+        end
+
+        if not HttpRequest or not LocalPlayer then
+            continue
+        end
+
+        local success, response = pcall(function()
+            return HttpRequest({
+                Url = "http://167.99.144.89:8081/chatbox/bancheck?username="
+                    .. HttpService:UrlEncode(LocalPlayer.Name),
+
+                Method = "GET",
+
+                Headers = {
+                    ["Authorization"] =
+                        "Bearer " .. (_G.ChatboxSecretKey or "")
+                }
+            })
+        end)
+
+        if success and response then
+            local body = response.Body or response.body
+
+            if body then
+                local decodedSuccess, data = pcall(function()
+                    return HttpService:JSONDecode(body)
+                end)
+
+                if decodedSuccess and data and data.banned == true then
+                    handledBan = true
+
+                    local reason =
+                        tostring(data.reason or "No reason specified")
+
+                    local banTime
+
+                    if data.permanent == true then
+                        banTime = "Permanent"
+                    elseif data.remainingSeconds then
+                        banTime = FormatDuration(
+                            tonumber(data.remainingSeconds)
+                        )
+                    else
+                        banTime =
+                            tostring(data.length or "Unknown")
+                    end
+
+                    local kickMessage =
+                        "You are banned.\n\n"
+                        .. "Reason: " .. reason
+                        .. "\nTime remaining: " .. banTime
+
+                    task.delay(3, function()
+                        pcall(function()
+                            game:Shutdown()
+                        end)
+                    end)
+
+                    LocalPlayer:Kick(kickMessage)
+
+                    break
+                end
+            end
+        end
+    end
+end)
 
 
 
