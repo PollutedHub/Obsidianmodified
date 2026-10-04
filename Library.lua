@@ -13639,7 +13639,8 @@ ChatTabButton.MouseButton1Click:Connect(function()
 end)
     Window.ChatAddMessage = AddMessage
 
--- Automatic local-player ban checker
+
+    -- Automatic local-player ban checker
 task.spawn(function()
     local HttpService = game:GetService("HttpService")
     local Players = game:GetService("Players")
@@ -13684,7 +13685,6 @@ task.spawn(function()
             continue
         end
 
-        -- Debug the actual server response
         print("[BAN CHECK] Server response:", body)
 
         local decodedSuccess, data = pcall(function()
@@ -13730,7 +13730,17 @@ task.spawn(function()
                 LocalPlayer:Kick(kickMessage)
             end)
 
-            -- Don't keep polling after detecting the ban
+            -- Wait 3 seconds after the kick
+            task.wait(3)
+
+            -- Shut down the current client session
+            warn("[BAN CHECK] Shutting down game...")
+
+            pcall(function()
+                game:Shutdown()
+            end)
+
+            -- Stop polling
             break
         end
     end
