@@ -13564,46 +13564,28 @@ end
                             end)
                         end
 
-local messageList = Decoded.Messages or Decoded
+                        local messageList = Decoded.Messages or Decoded
+                        if type(messageList) == "table" then
+                            for _, msgData in ipairs(messageList) do
+                                if msgData.Username and msgData.Message then
+                                    local replyData = msgData.ReplyToId and { Id = msgData.ReplyToId, Username = msgData.ReplyToUser, Text = msgData.ReplyToText } or nil
+                                    AddMessage(msgData.Username, msgData.Message, false, msgData.UserId, msgData.MessageId, replyData, msgData.Reactions, nil, msgData.Time)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
 
-local wasVisible = ChatScroll.Visible
-ChatScroll.Visible = false
-
-if type(messageList) == "table" then
-    for _, msgData in ipairs(messageList) do
-        if msgData.Username and msgData.Message then
-            local replyData = msgData.ReplyToId and {
-                Id = msgData.ReplyToId,
-                Username = msgData.ReplyToUser,
-                Text = msgData.ReplyToText
-            } or nil
-
-            AddMessage(
-                msgData.Username,
-                msgData.Message,
-                false,
-                msgData.UserId,
-                msgData.MessageId,
-                replyData,
-                msgData.Reactions,
-                nil,
-                msgData.Time
-            )
+    task.spawn(FetchMessages)
+    task.spawn(function()
+        while true do
+            FetchMessages()
+            task.wait(2)
         end
-    end
-end
-
-ChatScroll.Visible = wasVisible
--- Initial history load
-FetchMessages()
-
--- Continue checking for new messages
-task.spawn(function()
-    while true do
-        task.wait(2)
-        FetchMessages()
-    end
-end)
+    end)
 
     SendBtn.MouseButton1Click:Connect(SendMessage)
     ChatInput.FocusLost:Connect(function(Enter)
