@@ -11574,9 +11574,9 @@ end)
         BackgroundColor3 = Color3.fromRGB(50, 52, 58),
         Position = UDim2.new(1, -4, 0.5, 0),
         Size = UDim2.fromOffset(16, 16),
-        Text = "X",
+        Text = "✕",
         TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 11,
+        TextSize = 10,
         ZIndex = 504,
         Parent = ReplyBanner,
     })
@@ -11807,11 +11807,10 @@ end)
             MentionMenu.Position = UDim2.new(0, 8, 1, -50)
         end
 
-if ReplyTarget then
-    ReplyBanner.Visible = true
-    ReplyBanner.Position = UDim2.new(0, 8, 0, 4)
-    ReplyBannerText.Text = "Replying to: " .. GetDisplayName(ReplyTarget.Username)
-    ChatInput.PlaceholderText = "Message @" .. GetDisplayName(ReplyTarget.Username)
+        if ReplyTarget then
+            ReplyBanner.Visible = true
+            ReplyBanner.Position = UDim2.new(0, 8, 0, 4)
+            ChatInput.PlaceholderText = "Message @" .. GetDisplayName(ReplyTarget.Username)
         else
             ReplyBanner.Visible = false
         end
