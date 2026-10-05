@@ -10373,8 +10373,6 @@ end
 
 
 -- start of chatbox
-
-
 do
         local ChatOpen = false
     local ChatMessages = {}
@@ -13789,6 +13787,8 @@ end
     --testing388811111
     return Window
 end
+
+
 
 
 
