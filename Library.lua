@@ -6860,19 +6860,43 @@ function Library:AddNotch(Info)
     Notch.Holder = Holder
     Notch.Content = Content
 
-    --// Expand / collapse \\--
+   --// Expand / collapse \\--
+    local CachedWidth = 120
+    local Token = 0
+    Content.Visible = false -- hidden while minimised
+
     local function GetExpandedWidth()
-        return math.max(Content.AbsoluteSize.X + 28, 120)
+        -- AbsoluteSize can read 0 while hidden, so remember the last real width
+        if Content.AbsoluteSize.X > 0 then
+            CachedWidth = math.max(Content.AbsoluteSize.X + 28, 120)
+        end
+        return CachedWidth
     end
 
     local function Apply()
+        Token += 1
+        local MyToken = Token
         local State = Notch.Expanded
+
+        if State then
+            Content.Visible = true
+        end
+
         local Size = State and UDim2.fromOffset(GetExpandedWidth(), ExpandedHeight)
             or UDim2.fromOffset(CollapsedSize.X, CollapsedSize.Y)
 
         TweenService:Create(Holder, NotchTween, { Size = Size }):Play()
         TweenService:Create(Content, NotchTween, { GroupTransparency = State and 0 or 1 }):Play()
         TweenService:Create(Dot, NotchTween, { BackgroundTransparency = State and 1 or 0 }):Play()
+
+        -- once the shrink animation finishes, fully hide the text
+        if not State then
+            task.delay(NotchTween.Time, function()
+                if Token == MyToken and not Notch.Expanded then
+                    Content.Visible = false
+                end
+            end)
+        end
     end
 
     function Notch:SetExpanded(State)
