@@ -1154,15 +1154,13 @@ function Library:SetGlass(Enabled: boolean)
 
     for Inst, Props in Library.Registry do
         if typeof(Inst) == "Instance" and Inst.Parent then
+            Library:RemoveGlass(Inst) -- always reset so new settings are picked up
             if Enabled then
                 Library:ApplyGlass(Inst, Props)
-            else
-                Library:RemoveGlass(Inst)
             end
         end
     end
 
-    -- rounder corners look more "liquid"
     if Library.Window then
         Library.Window:SetCornerRadius(Enabled and 14 or 4)
     end
@@ -8537,12 +8535,33 @@ local ExecutorName = (identifyexecutor and identifyexecutor())
     end
 
     if WindowInfo.BackgroundImage then
-        function Window:SetBackgroundImage(Image: string)
-            assert(typeof(Image) == "string", "Expected string for Image got: " .. typeof(Image))
+function Window:SetBackgroundImage(Image: string)
+    assert(typeof(Image) == "string", "Expected string for Image got: " .. typeof(Image))
 
-            BackgroundImage.Image = Image
-            WindowInfo.BackgroundImage = Image
-        end
+    if not BackgroundImage then
+        BackgroundImage = New("ImageLabel", {
+            Position = UDim2.fromScale(0, 0),
+            Size = UDim2.fromScale(1, 1),
+            ScaleType = Enum.ScaleType.Stretch,
+            ZIndex = 999,
+            BackgroundTransparency = 1,
+            ImageTransparency = 0.75,
+            Visible = false,
+            Parent = MainFrame,
+        })
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                Parent = BackgroundImage,
+            })
+        )
+    end
+
+    BackgroundImage.Image = Image
+    BackgroundImage.Visible = Image ~= ""
+    WindowInfo.BackgroundImage = Image
+end
     end
 
     function Window:SetFooter(footer: string)
