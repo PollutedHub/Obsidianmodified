@@ -6627,12 +6627,13 @@ function Library:CreateWindow(WindowInfo)
     --// Loading screen (runs before the main UI is built) \\--
     do
         local Loading = Library:CreateLoading({
-            Title = "mspaint",
-            Icon = 95816097006870,
+            Title = "Polluted",
+            Icon = 125303123867736,
             TotalSteps = 4,
+            LoadingIconColor = Color3.fromRGB(255, 83, 0),
         })
 
-        Loading:SetMessage("Initializing...")
+        Loading:SetMessage("Working")
 
         -- Step 1 (2 seconds)
         Loading:SetDescription("Connecting to vps")
@@ -14099,7 +14100,7 @@ function Library:CreateLoading(LoadingInfo)
     table.insert(Library.Corners, New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius / 2), Parent = SliderBar }))
 
     local SliderFill = New("Frame", {
-        BackgroundColor3 = "AccentColor",
+        BackgroundColor3 = Color3.fromRGB(255, 83, 0),
         BorderSizePixel = 0,
         Size = UDim2.fromScale(0, 1),
         Parent = SliderBar,
