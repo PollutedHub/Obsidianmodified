@@ -1082,16 +1082,71 @@ function Library:RemoveGlass(Inst)
 end
 
 function Library:UpdateGlassBlur()
-    local Lighting = cloneref(game:GetService("Lighting"))
+    local Active = Library.GlassEnabled and Library.Toggled and Library.GlassBlurSize > 0
 
-    if not Library.GlassBlur or not Library.GlassBlur.Parent then
-        Library.GlassBlur = Instance.new("BlurEffect")
-        Library.GlassBlur.Size = 0
-        Library.GlassBlur.Parent = Lighting
+    if not Active then
+        if Library.GlassBlurConn then
+            Library.GlassBlurConn:Disconnect()
+            Library.GlassBlurConn = nil
+        end
+        if Library.GlassBlur then Library.GlassBlur:Destroy() Library.GlassBlur = nil end
+        if Library.GlassBlurPart then Library.GlassBlurPart:Destroy() Library.GlassBlurPart = nil end
+        return
     end
 
-    local Target = (Library.GlassEnabled and Library.Toggled) and Library.GlassBlurSize or 0
-    TweenService:Create(Library.GlassBlur, TweenInfo.new(0.25), { Size = Target }):Play()
+    if Library.GlassBlurConn then
+        Library.GlassBlur.NearIntensity = math.clamp(Library.GlassBlurSize / 20, 0, 1)
+        return
+    end
+
+    local Lighting = cloneref(game:GetService("Lighting"))
+    local GuiService = cloneref(game:GetService("GuiService"))
+
+    local DoF = Instance.new("DepthOfFieldEffect")
+    DoF.Name = "ObsidianGlassDoF"
+    DoF.FarIntensity = 0
+    DoF.NearIntensity = math.clamp(Library.GlassBlurSize / 20, 0, 1)
+    DoF.FocusDistance = 1      -- only things nearer than ~1 stud get blurred
+    DoF.InFocusRadius = 1000   -- everything else stays sharp
+    DoF.Parent = Lighting
+    Library.GlassBlur = DoF
+
+    local Part = Instance.new("Part")
+    Part.Name = "ObsidianGlassPane"
+    Part.Anchored = true
+    Part.CanCollide = false
+    Part.CanQuery = false
+    Part.CanTouch = false
+    Part.CastShadow = false
+    Part.Material = Enum.Material.Glass
+    Part.Color = Color3.new(1, 1, 1)
+    Part.Transparency = 0.98
+    Library.GlassBlurPart = Part
+
+    local PaneDepth = 0.25 -- distance in front of the camera (studs)
+
+    Library.GlassBlurConn = RunService.RenderStepped:Connect(function()
+        local Camera = workspace.CurrentCamera
+        local Main = Library.ScreenGui and Library.ScreenGui:FindFirstChild("Main")
+        if not (Camera and Main and Main.Visible) then
+            Part.Parent = nil
+            return
+        end
+
+        local View = Camera.ViewportSize
+        local Inset = GuiService:GetGuiInset().Y
+        local Pos, Size = Main.AbsolutePosition, Main.AbsoluteSize
+
+        local HalfH = math.tan(math.rad(Camera.FieldOfView) / 2) * PaneDepth
+        local HalfW = HalfH * (View.X / View.Y)
+
+        local CenterX = (Pos.X + Size.X / 2) / View.X * 2 - 1
+        local CenterY = 1 - (Pos.Y + Inset + Size.Y / 2) / View.Y * 2
+
+        Part.Size = Vector3.new(Size.X / View.X * 2 * HalfW, Size.Y / View.Y * 2 * HalfH, 0.001)
+        Part.CFrame = Camera.CFrame * CFrame.new(CenterX * HalfW, CenterY * HalfH, -PaneDepth)
+        Part.Parent = Camera
+    end)
 end
 
 function Library:SetGlass(Enabled: boolean)
@@ -2286,10 +2341,8 @@ function Library:Unload()
         Library:SafeCallback(Tooltip.Destroy, Tooltip)
     end
 
-    if Library.GlassBlur then
-        Library.GlassBlur:Destroy()
-        Library.GlassBlur = nil
-    end
+    Library.GlassEnabled = false
+    Library:UpdateGlassBlur()
 
     Library.Unloaded = true
 
