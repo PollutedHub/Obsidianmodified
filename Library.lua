@@ -6792,24 +6792,60 @@ function Library:AddNotch(Info)
     if Library.IsMobile then
         return nil -- PC only
     end
-    Info = Info or {}
+    if Library.Notch then
+        return Library.Notch -- only ever one notch
+    end
 
-    local Notch = { Items = {}, Visible = true }
+    Info = Info or {}
+    local CollapsedSize = Vector2.new(72, 22)
+    local ExpandedHeight = 40
+    local TopOffset = Info.TopOffset or 0 -- gap from the top of the screen (0 = flush)
+    local NotchTween = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+    local Notch = { Items = {}, Visible = true, Expanded = false, AlwaysOpen = Info.AlwaysOpen == true }
+
+    -- Own ScreenGui with IgnoreGuiInset so it touches the real top of the screen
+    local NotchGui = New("ScreenGui", {
+        Name = "ObsidianNotch",
+        DisplayOrder = 998,
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+    })
+    ParentUI(NotchGui)
+    Library:OnUnload(function()
+        NotchGui:Destroy()
+    end)
 
     local Holder = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
         BackgroundColor3 = Color3.fromRGB(8, 8, 8),
-        AutomaticSize = Enum.AutomaticSize.X,
-        Position = UDim2.new(0.5, 0, 0, 6),
-        Size = UDim2.fromOffset(0, 40),
+        ClipsDescendants = true,
+        Position = UDim2.new(0.5, 0, 0, TopOffset),
+        Size = UDim2.fromOffset(CollapsedSize.X, CollapsedSize.Y),
         ZIndex = 50,
-        Parent = ScreenGui,
+        Parent = NotchGui,
     })
     New("UICorner", { CornerRadius = UDim.new(0, 20), Parent = Holder })
     New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = Holder })
-    New("UIPadding", {
-        PaddingLeft = UDim.new(0, 14),
-        PaddingRight = UDim.new(0, 14),
+
+    -- little dot shown while minimised
+    local Dot = New("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundColor3 = "AccentColor",
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(8, 8),
+        Parent = Holder,
+    })
+    New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Dot })
+
+    -- everything lives in here, fades in/out
+    local Content = New("CanvasGroup", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        AutomaticSize = Enum.AutomaticSize.XY,
+        BackgroundTransparency = 1,
+        GroupTransparency = 1,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(0, 0),
         Parent = Holder,
     })
     New("UIListLayout", {
@@ -6817,15 +6853,78 @@ function Library:AddNotch(Info)
         VerticalAlignment = Enum.VerticalAlignment.Center,
         SortOrder = Enum.SortOrder.LayoutOrder,
         Padding = UDim.new(0, 10),
-        Parent = Holder,
+        Parent = Content,
     })
-    table.insert(Library.Scales, New("UIScale", { Parent = Holder }))
 
-    if Info.Draggable then
-        Library:MakeDraggable(Holder, Holder, true)
+    Notch.Gui = NotchGui
+    Notch.Holder = Holder
+    Notch.Content = Content
+
+    --// Expand / collapse \\--
+    local function GetExpandedWidth()
+        return math.max(Content.AbsoluteSize.X + 28, 120)
     end
 
-    Notch.Holder = Holder
+    local function Apply()
+        local State = Notch.Expanded
+        local Size = State and UDim2.fromOffset(GetExpandedWidth(), ExpandedHeight)
+            or UDim2.fromOffset(CollapsedSize.X, CollapsedSize.Y)
+
+        TweenService:Create(Holder, NotchTween, { Size = Size }):Play()
+        TweenService:Create(Content, NotchTween, { GroupTransparency = State and 0 or 1 }):Play()
+        TweenService:Create(Dot, NotchTween, { BackgroundTransparency = State and 1 or 0 }):Play()
+    end
+
+    function Notch:SetExpanded(State)
+        if Notch.Expanded == State then
+            return
+        end
+        Notch.Expanded = State
+        Apply()
+    end
+
+    -- resize smoothly if items get added while open
+    Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+        if Notch.Expanded then
+            Apply()
+        end
+    end)
+
+    -- hover detection (polled so it can't get stuck)
+    local LeftAt = 0
+    Library:GiveSignal(RunService.RenderStepped:Connect(function()
+        if Library.Unloaded or not Notch.Visible then
+            return
+        end
+
+        if Notch.AlwaysOpen then
+            Notch:SetExpanded(true)
+            return
+        end
+
+        local MousePos = UserInputService:GetMouseLocation()
+        local Width = Notch.Expanded and GetExpandedWidth() or CollapsedSize.X
+        local Height = Notch.Expanded and ExpandedHeight or CollapsedSize.Y
+        local CenterX = NotchGui.AbsoluteSize.X / 2
+
+        local Hovering = math.abs(MousePos.X - CenterX) <= (Width / 2 + 8)
+            and MousePos.Y >= 0
+            and MousePos.Y <= (TopOffset + Height + 8)
+
+        if Hovering then
+            LeftAt = 0
+            Notch:SetExpanded(true)
+        elseif Notch.Expanded then
+            if LeftAt == 0 then
+                LeftAt = tick()
+            elseif tick() - LeftAt > 0.25 then -- small delay so it doesn't flicker
+                LeftAt = 0
+                Notch:SetExpanded(false)
+            end
+        end
+    end))
+
+    --// Element helpers \\--
     local Order = 0
     local function NextOrder()
         Order += 1
@@ -6834,7 +6933,7 @@ function Library:AddNotch(Info)
 
     function Notch:SetVisible(Visible)
         Notch.Visible = Visible
-        Holder.Visible = Visible
+        NotchGui.Enabled = Visible
     end
 
     function Notch:AddDivider()
@@ -6842,7 +6941,7 @@ function Library:AddNotch(Info)
             BackgroundColor3 = "OutlineColor",
             LayoutOrder = NextOrder(),
             Size = UDim2.fromOffset(1, 20),
-            Parent = Holder,
+            Parent = Content,
         })
     end
 
@@ -6855,7 +6954,7 @@ function Library:AddNotch(Info)
             Size = UDim2.fromOffset(0, 26),
             Text = Text,
             TextSize = 13,
-            Parent = Holder,
+            Parent = Content,
         })
         function Label:SetText(NewText)
             Label.Text = NewText
@@ -6865,17 +6964,22 @@ function Library:AddNotch(Info)
         return Label
     end
 
-    -- FPS | Ping | Time
+    -- FPS | Ping | Time (safe to call more than once)
     function Notch:AddStats()
-        local StatLabel = Notch:AddLabel("")
+        if Notch.StatLabel then
+            return Notch.StatLabel
+        end
+
+        local StatLabel = Notch:AddLabel("-- fps  |  -- ms  |  " .. os.date("%H:%M:%S"))
+        Notch.StatLabel = StatLabel
+
         local Stats = cloneref(game:GetService("Stats"))
         local Frames, Last = 0, tick()
-        local FPS = 60
 
         Library:GiveSignal(RunService.RenderStepped:Connect(function()
             Frames += 1
             if tick() - Last >= 1 then
-                FPS = Frames
+                local FPS = Frames
                 Frames = 0
                 Last = tick()
 
@@ -6886,11 +6990,11 @@ function Library:AddNotch(Info)
                 StatLabel:SetText(string.format("%d fps  |  %d ms  |  %s", FPS, Ping, os.date("%H:%M:%S")))
             end
         end))
+
         return StatLabel
     end
 
-    -- Standalone toggle with optional keybind
-    -- Key = "X", "F", "RightShift"... (Enum.KeyCode name)
+    -- Standalone toggle with optional keybind (Key = Enum.KeyCode name, e.g. "X")
     function Notch:AddToggle(Text, Default, Callback, Key)
         local Toggle = { Value = Default == true, Text = Text, Callback = Callback }
 
@@ -6900,7 +7004,7 @@ function Library:AddNotch(Info)
             LayoutOrder = NextOrder(),
             Size = UDim2.fromOffset(0, 26),
             Text = "",
-            Parent = Holder,
+            Parent = Content,
         })
         New("UICorner", { CornerRadius = UDim.new(0, 13), Parent = Button })
         New("UIStroke", { Color = "OutlineColor", Parent = Button })
@@ -6912,17 +7016,18 @@ function Library:AddNotch(Info)
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             VerticalAlignment = Enum.VerticalAlignment.Center,
+            SortOrder = Enum.SortOrder.LayoutOrder,
             Padding = UDim.new(0, 6),
             Parent = Button,
         })
 
-        local Dot = New("Frame", {
+        local StateDot = New("Frame", {
             BackgroundColor3 = "OutlineColor",
             LayoutOrder = 1,
             Size = UDim2.fromOffset(8, 8),
             Parent = Button,
         })
-        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Dot })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = StateDot })
 
         local Label = New("TextLabel", {
             AutomaticSize = Enum.AutomaticSize.X,
@@ -6949,7 +7054,7 @@ function Library:AddNotch(Info)
         end
 
         function Toggle:Display()
-            TweenService:Create(Dot, Library.TweenInfo, {
+            TweenService:Create(StateDot, Library.TweenInfo, {
                 BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor,
             }):Play()
             TweenService:Create(Label, Library.TweenInfo, {
@@ -6969,7 +7074,9 @@ function Library:AddNotch(Info)
 
         if Key then
             Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input, Processed)
-                if Processed or UserInputService:GetFocusedTextBox() then return end
+                if Processed or UserInputService:GetFocusedTextBox() then
+                    return
+                end
                 if Input.KeyCode.Name == Key then
                     Toggle:SetValue(not Toggle.Value)
                 end
@@ -6985,10 +7092,10 @@ function Library:AddNotch(Info)
         return Toggle
     end
 
-    -- Mirrors an existing Toggles[Idx] from your menu (stays in sync both ways)
+    -- Mirrors an existing Toggles[Idx] from your menu (synced both ways)
     function Notch:AddLinkedToggle(Idx, Text, Key)
         local Linked = Toggles[Idx]
-        assert(Linked, "Toggle '" .. tostring(Idx) .. "' doesn't exist yet - add the notch after creating it.")
+        assert(Linked, "Toggle '" .. tostring(Idx) .. "' doesn't exist yet - add it to the notch after creating it.")
 
         local NotchToggle
         NotchToggle = Notch:AddToggle(Text or Linked.Text, Linked.Value, function(Value)
@@ -6997,7 +7104,6 @@ function Library:AddNotch(Info)
             end
         end, Key)
 
-        -- when the menu toggle changes, update the notch
         local OldSetValue = Linked.SetValue
         Linked.SetValue = function(self, Value)
             OldSetValue(self, Value)
@@ -7013,7 +7119,6 @@ function Library:AddNotch(Info)
     Library.Notch = Notch
     return Notch
 end
-
 function Library:CreateWindow(WindowInfo)
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
 
@@ -14263,6 +14368,7 @@ end
 
     --testing388811111
     Library.Window = Window
+    Library:AddNotch() -- shows the minimised pill even if you never add toggles
     return Window
 end
 
