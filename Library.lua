@@ -4312,7 +4312,7 @@ do
             Parent = Button,
         })
 
-        
+
 --// PC-only Notch pill
 local NotchToggle = nil
 local InNotch = false
@@ -4363,10 +4363,23 @@ NotchPill.MouseButton1Click:Connect(function()
         return
     end
 
-    if not NotchToggle then
-        NotchToggle = Notch:AddLinkedToggle(Idx)
-        NotchToggle.Button.Visible = false
-    end
+if not NotchToggle then
+    print("[NotchPill] Idx:", Idx)
+    print("[NotchPill] Notch:", Notch)
+    print("[NotchPill] AddLinkedToggle:", Notch.AddLinkedToggle)
+
+    assert(
+        type(Notch.AddLinkedToggle) == "function",
+        "Notch.AddLinkedToggle is missing or not a function"
+    )
+
+    NotchToggle = Notch:AddLinkedToggle(Idx)
+
+    assert(NotchToggle, "AddLinkedToggle returned nil")
+    assert(NotchToggle.Button, "NotchToggle.Button is missing")
+
+    NotchToggle.Button.Visible = false
+end
 
 InNotch = not InNotch
 NotchToggle.Button.Visible = InNotch
