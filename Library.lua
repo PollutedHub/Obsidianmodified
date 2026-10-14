@@ -4315,7 +4315,7 @@ do
 
 --// PC-only Notch pill
 local NotchToggle = nil
-local InNotch = false
+local InNotch = Library.NotchPillSelections[tostring(Idx)] == true
 
 local NotchPill = New("TextButton", {
     AnchorPoint = Vector2.new(1, 0),
@@ -4351,6 +4351,19 @@ local function UpdateNotchPill()
         or Library.Scheme.OutlineColor
 end
 
+-- Auto-add to the notch on startup if previously saved as selected
+if InNotch then
+    task.defer(function()
+        local Notch = Library.Notch
+        if Notch then
+            NotchToggle = Notch:AddLinkedToggle(Idx)
+            NotchToggle.Button.Visible = true
+        end
+    end)
+end
+
+UpdateNotchPill()
+
 NotchPill.MouseButton1Click:Connect(function()
     if not (UserInputService.MouseEnabled
         and not UserInputService.TouchEnabled) then
@@ -4363,31 +4376,17 @@ NotchPill.MouseButton1Click:Connect(function()
         return
     end
 
-if not NotchToggle then
-    print("[NotchPill] Idx:", Idx)
-    print("[NotchPill] Notch:", Notch)
-    print("[NotchPill] AddLinkedToggle:", Notch.AddLinkedToggle)
+    InNotch = not InNotch
 
-    assert(
-        type(Notch.AddLinkedToggle) == "function",
-        "Notch.AddLinkedToggle is missing or not a function"
-    )
+    if not NotchToggle then
+        NotchToggle = Notch:AddLinkedToggle(Idx)
+    end
+    NotchToggle.Button.Visible = InNotch
 
-    NotchToggle = Notch:AddLinkedToggle(Idx)
+    Library.NotchPillSelections[tostring(Idx)] = InNotch
+    SaveNotchPills()
 
-    assert(NotchToggle, "AddLinkedToggle returned nil")
-    assert(NotchToggle.Button, "NotchToggle.Button is missing")
-
-    NotchToggle.Button.Visible = false
-end
-
-InNotch = not InNotch
-NotchToggle.Button.Visible = InNotch
-
-Library.NotchPillSelections[tostring(Idx)] = InNotch
-SaveNotchPills()
-
-UpdateNotchPill()
+    UpdateNotchPill()
 end)
 
 
