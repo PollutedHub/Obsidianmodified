@@ -177,7 +177,7 @@ local Library = {
     TabButtons = {},
     DependencyBoxes = {},
     GroupboxDragTargets = {},
-
+    NotchPillSelections = {},
     KeybindFrame = nil,
     KeybindContainer = nil,
     KeybindToggles = {},
@@ -4368,10 +4368,13 @@ NotchPill.MouseButton1Click:Connect(function()
         NotchToggle.Button.Visible = false
     end
 
-    InNotch = not InNotch
-    NotchToggle.Button.Visible = InNotch
+InNotch = not InNotch
+NotchToggle.Button.Visible = InNotch
 
-    UpdateNotchPill()
+Library.NotchPillSelections[tostring(Idx)] = InNotch
+SaveNotchPills()
+
+UpdateNotchPill()
 end)
 
 
@@ -7370,6 +7373,46 @@ end
         return (ok2 and decoded) or {}
     end
 
+    local HttpService = game:GetService("HttpService")
+local NotchPillFile = "ObsidianNotchPills.json"
+
+local function LoadNotchPills()
+    if not readfile or not isfile then
+        return {}
+    end
+
+    local ok, data = pcall(function()
+        if not isfile(NotchPillFile) then
+            return "{}"
+        end
+        return readfile(NotchPillFile)
+    end)
+
+    if not ok or not data then
+        return {}
+    end
+
+    local decodedOk, result = pcall(function()
+        return HttpService:JSONDecode(data)
+    end)
+
+    return decodedOk and result or {}
+end
+
+local function SaveNotchPills()
+    if not writefile then
+        return
+    end
+
+    pcall(function()
+        writefile(
+            NotchPillFile,
+            HttpService:JSONEncode(Library.NotchPillSelections)
+        )
+    end)
+end
+
+Library.NotchPillSelections = LoadNotchPills()
 
 local function ReindexSide(Side)
         local Children = {}
