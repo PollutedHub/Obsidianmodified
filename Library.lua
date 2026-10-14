@@ -4289,7 +4289,7 @@ do
 
         local Label = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -40, 1, 0),
+            Size = UDim2.new(1, -58, 1, 0),
             Text = Toggle.Text,
             TextSize = 14,
             TextTransparency = 0.4,
@@ -4311,6 +4311,70 @@ do
             Size = UDim2.fromOffset(32, 18),
             Parent = Button,
         })
+
+        
+--// PC-only Notch pill
+local NotchToggle = nil
+local InNotch = false
+
+local NotchPill = New("TextButton", {
+    AnchorPoint = Vector2.new(1, 0),
+    BackgroundColor3 = Color3.fromRGB(55, 55, 55),
+    Position = UDim2.new(1, -38, 0, 4),
+    Size = UDim2.fromOffset(14, 10),
+    Text = "",
+    Visible = UserInputService.MouseEnabled
+        and not UserInputService.TouchEnabled,
+    ZIndex = Button.ZIndex + 2,
+    Parent = Button,
+})
+
+New("UICorner", {
+    CornerRadius = UDim.new(1, 0),
+    Parent = NotchPill,
+})
+
+local NotchPillStroke = New("UIStroke", {
+    Color = Library.Scheme.OutlineColor,
+    Thickness = 1,
+    Parent = NotchPill,
+})
+
+local function UpdateNotchPill()
+    local Color = InNotch
+        and Color3.fromRGB(40, 200, 100)
+        or Color3.fromRGB(55, 55, 55)
+
+    NotchPill.BackgroundColor3 = Color
+    NotchPillStroke.Color = InNotch
+        and Color
+        or Library.Scheme.OutlineColor
+end
+
+NotchPill.MouseButton1Click:Connect(function()
+    if not (UserInputService.MouseEnabled
+        and not UserInputService.TouchEnabled) then
+        return
+    end
+
+    local Notch = Library.Notch
+    if not Notch then
+        warn("Create the Notch before selecting toggles.")
+        return
+    end
+
+    if not NotchToggle then
+        NotchToggle = Notch:AddLinkedToggle(Idx)
+        NotchToggle.Button.Visible = false
+    end
+
+    InNotch = not InNotch
+    NotchToggle.Button.Visible = InNotch
+
+    UpdateNotchPill()
+end)
+
+
         New("UICorner", {
             CornerRadius = UDim.new(1, 0),
             Parent = Switch,
@@ -7021,7 +7085,12 @@ local function Apply()
 
     -- Standalone toggle with optional keybind (Key = Enum.KeyCode name, e.g. "X")
     function Notch:AddToggle(Text, Default, Callback, Key)
-        local Toggle = { Value = Default == true, Text = Text, Callback = Callback }
+local Toggle = {
+    Value = Default == true,
+    Text = Text,
+    Callback = Callback,
+    Button = nil,
+}
 
         local Button = New("TextButton", {
             AutomaticSize = Enum.AutomaticSize.X,
@@ -7108,10 +7177,11 @@ local function Apply()
             end))
         end
 
-        Toggle:Display()
-        if Toggle.Value then
-            Library:SafeCallback(Callback, true)
-        end
+Toggle.Button = Button
+Toggle:Display()
+if Toggle.Value then
+    Library:SafeCallback(Callback, true)
+end
 
         table.insert(Notch.Items, Toggle)
         return Toggle
