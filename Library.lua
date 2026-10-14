@@ -6787,6 +6787,233 @@ function Library:Notify(...)
     return Data
 end
 
+--// Notch (PC only) \\--
+function Library:AddNotch(Info)
+    if Library.IsMobile then
+        return nil -- PC only
+    end
+    Info = Info or {}
+
+    local Notch = { Items = {}, Visible = true }
+
+    local Holder = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        BackgroundColor3 = Color3.fromRGB(8, 8, 8),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Position = UDim2.new(0.5, 0, 0, 6),
+        Size = UDim2.fromOffset(0, 40),
+        ZIndex = 50,
+        Parent = ScreenGui,
+    })
+    New("UICorner", { CornerRadius = UDim.new(0, 20), Parent = Holder })
+    New("UIStroke", { Color = "OutlineColor", Thickness = 1, Parent = Holder })
+    New("UIPadding", {
+        PaddingLeft = UDim.new(0, 14),
+        PaddingRight = UDim.new(0, 14),
+        Parent = Holder,
+    })
+    New("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 10),
+        Parent = Holder,
+    })
+    table.insert(Library.Scales, New("UIScale", { Parent = Holder }))
+
+    if Info.Draggable then
+        Library:MakeDraggable(Holder, Holder, true)
+    end
+
+    Notch.Holder = Holder
+    local Order = 0
+    local function NextOrder()
+        Order += 1
+        return Order
+    end
+
+    function Notch:SetVisible(Visible)
+        Notch.Visible = Visible
+        Holder.Visible = Visible
+    end
+
+    function Notch:AddDivider()
+        New("Frame", {
+            BackgroundColor3 = "OutlineColor",
+            LayoutOrder = NextOrder(),
+            Size = UDim2.fromOffset(1, 20),
+            Parent = Holder,
+        })
+    end
+
+    function Notch:AddLabel(Text)
+        local Label = { Text = Text }
+        local TextLabel = New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            LayoutOrder = NextOrder(),
+            Size = UDim2.fromOffset(0, 26),
+            Text = Text,
+            TextSize = 13,
+            Parent = Holder,
+        })
+        function Label:SetText(NewText)
+            Label.Text = NewText
+            TextLabel.Text = NewText
+        end
+        Label.Instance = TextLabel
+        return Label
+    end
+
+    -- FPS | Ping | Time
+    function Notch:AddStats()
+        local StatLabel = Notch:AddLabel("")
+        local Stats = cloneref(game:GetService("Stats"))
+        local Frames, Last = 0, tick()
+        local FPS = 60
+
+        Library:GiveSignal(RunService.RenderStepped:Connect(function()
+            Frames += 1
+            if tick() - Last >= 1 then
+                FPS = Frames
+                Frames = 0
+                Last = tick()
+
+                local Ping = 0
+                pcall(function()
+                    Ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+                end)
+                StatLabel:SetText(string.format("%d fps  |  %d ms  |  %s", FPS, Ping, os.date("%H:%M:%S")))
+            end
+        end))
+        return StatLabel
+    end
+
+    -- Standalone toggle with optional keybind
+    -- Key = "X", "F", "RightShift"... (Enum.KeyCode name)
+    function Notch:AddToggle(Text, Default, Callback, Key)
+        local Toggle = { Value = Default == true, Text = Text, Callback = Callback }
+
+        local Button = New("TextButton", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = "MainColor",
+            LayoutOrder = NextOrder(),
+            Size = UDim2.fromOffset(0, 26),
+            Text = "",
+            Parent = Holder,
+        })
+        New("UICorner", { CornerRadius = UDim.new(0, 13), Parent = Button })
+        New("UIStroke", { Color = "OutlineColor", Parent = Button })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+            Parent = Button,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 6),
+            Parent = Button,
+        })
+
+        local Dot = New("Frame", {
+            BackgroundColor3 = "OutlineColor",
+            LayoutOrder = 1,
+            Size = UDim2.fromOffset(8, 8),
+            Parent = Button,
+        })
+        New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Dot })
+
+        local Label = New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            LayoutOrder = 2,
+            Size = UDim2.fromOffset(0, 26),
+            Text = Text,
+            TextSize = 13,
+            TextTransparency = 0.5,
+            Parent = Button,
+        })
+
+        if Key then
+            New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                LayoutOrder = 3,
+                Size = UDim2.fromOffset(0, 26),
+                Text = "[" .. Key .. "]",
+                TextSize = 11,
+                TextTransparency = 0.6,
+                Parent = Button,
+            })
+        end
+
+        function Toggle:Display()
+            TweenService:Create(Dot, Library.TweenInfo, {
+                BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor,
+            }):Play()
+            TweenService:Create(Label, Library.TweenInfo, {
+                TextTransparency = Toggle.Value and 0 or 0.5,
+            }):Play()
+        end
+
+        function Toggle:SetValue(Value)
+            Toggle.Value = Value
+            Toggle:Display()
+            Library:SafeCallback(Toggle.Callback, Value)
+        end
+
+        Button.MouseButton1Click:Connect(function()
+            Toggle:SetValue(not Toggle.Value)
+        end)
+
+        if Key then
+            Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input, Processed)
+                if Processed or UserInputService:GetFocusedTextBox() then return end
+                if Input.KeyCode.Name == Key then
+                    Toggle:SetValue(not Toggle.Value)
+                end
+            end))
+        end
+
+        Toggle:Display()
+        if Toggle.Value then
+            Library:SafeCallback(Callback, true)
+        end
+
+        table.insert(Notch.Items, Toggle)
+        return Toggle
+    end
+
+    -- Mirrors an existing Toggles[Idx] from your menu (stays in sync both ways)
+    function Notch:AddLinkedToggle(Idx, Text, Key)
+        local Linked = Toggles[Idx]
+        assert(Linked, "Toggle '" .. tostring(Idx) .. "' doesn't exist yet - add the notch after creating it.")
+
+        local NotchToggle
+        NotchToggle = Notch:AddToggle(Text or Linked.Text, Linked.Value, function(Value)
+            if Linked.Value ~= Value then
+                Linked:SetValue(Value)
+            end
+        end, Key)
+
+        -- when the menu toggle changes, update the notch
+        local OldSetValue = Linked.SetValue
+        Linked.SetValue = function(self, Value)
+            OldSetValue(self, Value)
+            if NotchToggle.Value ~= Linked.Value then
+                NotchToggle.Value = Linked.Value
+                NotchToggle:Display()
+            end
+        end
+
+        return NotchToggle
+    end
+
+    Library.Notch = Notch
+    return Notch
+end
+
 function Library:CreateWindow(WindowInfo)
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
 
