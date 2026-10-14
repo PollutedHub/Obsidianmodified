@@ -249,6 +249,48 @@ local Library = {
     ShowCursorBinding = string.sub(tostring({}), 10),
 }
 
+--// Notch Pill Persistence Setup \\--
+local HttpService = game:GetService("HttpService")
+local NotchPillFile = "ObsidianNotchPills.json"
+
+local function LoadNotchPills()
+    if not readfile or not isfile then
+        return {}
+    end
+
+    local ok, data = pcall(function()
+        if not isfile(NotchPillFile) then
+            return "{}"
+        end
+        return readfile(NotchPillFile)
+    end)
+
+    if not ok or not data then
+        return {}
+    end
+
+    local decodedOk, result = pcall(function()
+        return HttpService:JSONDecode(data)
+    end)
+
+    return decodedOk and result or {}
+end
+
+local function SaveNotchPills()
+    if not writefile then
+        return
+    end
+
+    pcall(function()
+        writefile(
+            NotchPillFile,
+            HttpService:JSONEncode(Library.NotchPillSelections)
+        )
+    end)
+end
+
+Library.NotchPillSelections = LoadNotchPills()
+
 if RunService:IsStudio() then
     if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
         Library.IsMobile = true
@@ -7385,46 +7427,7 @@ end
         return (ok2 and decoded) or {}
     end
 
-    local HttpService = game:GetService("HttpService")
-local NotchPillFile = "ObsidianNotchPills.json"
 
-local function LoadNotchPills()
-    if not readfile or not isfile then
-        return {}
-    end
-
-    local ok, data = pcall(function()
-        if not isfile(NotchPillFile) then
-            return "{}"
-        end
-        return readfile(NotchPillFile)
-    end)
-
-    if not ok or not data then
-        return {}
-    end
-
-    local decodedOk, result = pcall(function()
-        return HttpService:JSONDecode(data)
-    end)
-
-    return decodedOk and result or {}
-end
-
-local function SaveNotchPills()
-    if not writefile then
-        return
-    end
-
-    pcall(function()
-        writefile(
-            NotchPillFile,
-            HttpService:JSONEncode(Library.NotchPillSelections)
-        )
-    end)
-end
-
-Library.NotchPillSelections = LoadNotchPills()
 
 local function ReindexSide(Side)
         local Children = {}
