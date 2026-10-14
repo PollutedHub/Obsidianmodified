@@ -6636,7 +6636,7 @@ function Library:CreateWindow(WindowInfo)
         Loading:SetMessage("Working")
 
         -- Step 1 (2 seconds)
-        Loading:SetDescription("Connecting to vps")
+        Loading:SetDescription("Connecting to Server")
         task.wait(2)
         Loading:SetCurrentStep(1)
 
@@ -11175,7 +11175,11 @@ end
     })
     New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = PingSwitch })
     New("UIStroke", { Color = "OutlineColor", Parent = PingSwitch })
-    Library:RemoveFromRegistry(PingSwitch)
+        Library:AddToRegistry(PingSwitch, {
+        BackgroundColor3 = function()
+            return ChatSettings.EnablePings and Library.Scheme.AccentColor or Library.Scheme.MainColor
+        end,
+    })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 2),
         PaddingLeft = UDim.new(0, 2),
@@ -11257,7 +11261,11 @@ end
     })
     New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = InviteSwitch })
     New("UIStroke", { Color = "OutlineColor", Parent = InviteSwitch })
-    Library:RemoveFromRegistry(InviteSwitch)
+        Library:AddToRegistry(InviteSwitch, {
+        BackgroundColor3 = function()
+            return ChatSettings.EnableInvites and Library.Scheme.AccentColor or Library.Scheme.MainColor
+        end,
+    })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 2),
         PaddingLeft = UDim.new(0, 2),
