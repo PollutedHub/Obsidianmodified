@@ -6873,7 +6873,7 @@ function Library:AddNotch(Info)
         return CachedWidth
     end
 
-    local function Apply()
+local function Apply()
         Token += 1
         local MyToken = Token
         local State = Notch.Expanded
@@ -6889,8 +6889,9 @@ function Library:AddNotch(Info)
         TweenService:Create(Content, NotchTween, { GroupTransparency = State and 0 or 1 }):Play()
         TweenService:Create(Dot, NotchTween, { BackgroundTransparency = State and 1 or 0 }):Play()
 
-        -- once the shrink animation finishes, fully hide the text
+        -- Immediately hide content when collapsed to prevent text lingering
         if not State then
+            Content.Visible = false
             task.delay(NotchTween.Time, function()
                 if Token == MyToken and not Notch.Expanded then
                     Content.Visible = false
@@ -12258,7 +12259,7 @@ local function PopulateMentionMenu(filterText)
 
         local matches = {}
         local filterLower = filterText:lower()
-        
+
         -- Loop through users, but cap the search to prevent freezing if the table is massive
         local maxResultsToFind = 30
         for user in pairs(SeenUsers) do
