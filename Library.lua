@@ -220,7 +220,7 @@ local Library = {
 
     --// Liquid Glass \\--
     GlassEnabled = false,
-    GlassTransparency = 0.45,
+    GlassTransparency = 0.3,
     GlassBlurSize = 14,
     GlassOriginals = setmetatable({}, { __mode = "k" }),
     GlassBlur = nil,
@@ -1032,11 +1032,21 @@ function Library:ApplyGlass(Inst, Props)
     end
     if Orig >= 1 then return end
 
-    Inst.BackgroundTransparency = math.max(Orig, Library.GlassTransparency)
+    local T
+    if Inst.Name == "Main" or Inst.Parent == Library.ScreenGui then
+        T = Library.GlassTransparency
+    elseif Inst.Name == "Container" or (Inst:IsA("ScrollingFrame") and Inst.Parent and Inst.Parent.Name == "Main") then
+        T = 1
+    else
+        T = Library.GlassInnerTransparency
+    end
+
+    Inst.BackgroundTransparency = math.max(Orig, T)
+    if T >= 1 then return end
 
     if Inst:FindFirstChild("GlassEdge") then return end
 
-    -- soft sheen over the fill (bright top-left, fades toward bottom-right)
+    -- soft sheen over the fill
     local Sheen = Instance.new("UIGradient")
     Sheen.Name = "GlassSheen"
     Sheen.Rotation = 45
