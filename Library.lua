@@ -6621,39 +6621,42 @@ function Library:Notify(...)
     return Data
 end
 
--- Example of where your window is created
-local Window = Library:CreateWindow({
-    Title = "mspaint",
-    -- ... other window options ...
-})
-
--- PASTE THE LOADING SCREEN CODE RIGHT HERE:
-local Loading = Library:CreateLoading({
-    Title = "mspaint",
-    Icon = 95816097006870,
-    TotalSteps = 4
-})
-
-Loading:SetMessage("Initializing...")
-Loading:SetDescription("Connecting to vps")
-task.wait(2)
-Loading:SetCurrentStep(1)
-
-Loading:SetDescription("Checking For Updates")
-task.wait(1)
-Loading:SetCurrentStep(2)
-
-Loading:SetDescription("Loading Chatbox")
-task.wait(1)
-Loading:SetCurrentStep(3)
-
-Loading:SetDescription("Loading ui")
-task.wait(1)
-Loading:SetCurrentStep(4)
-Loading:Continue()
-
 function Library:CreateWindow(WindowInfo)
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
+
+    --// Loading screen (runs before the main UI is built) \\--
+    do
+        local Loading = Library:CreateLoading({
+            Title = "mspaint",
+            Icon = 95816097006870,
+            TotalSteps = 4,
+        })
+
+        Loading:SetMessage("Initializing...")
+
+        -- Step 1 (2 seconds)
+        Loading:SetDescription("Connecting to vps")
+        task.wait(2)
+        Loading:SetCurrentStep(1)
+
+        -- Step 2 (1 second)
+        Loading:SetDescription("Checking For Updates")
+        task.wait(1)
+        Loading:SetCurrentStep(2)
+
+        -- Step 3 (1 second)
+        Loading:SetDescription("Loading Chatbox")
+        task.wait(1)
+        Loading:SetCurrentStep(3)
+
+        -- Step 4 (1 second)
+        Loading:SetDescription("Loading UI")
+        task.wait(1)
+        Loading:SetCurrentStep(4)
+
+        Loading:Continue() -- closes the loader, main UI builds right after
+    end
+
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
     if RunService:IsStudio() and ViewportSize.X <= 5 and ViewportSize.Y <= 5 then
         repeat
@@ -6677,7 +6680,6 @@ function Library:CreateWindow(WindowInfo)
         WindowInfo.Font = Font.fromEnum(WindowInfo.Font)
     end
     WindowInfo.CornerRadius = math.min(WindowInfo.CornerRadius, 20)
-
     --// Old Naming \\--
     if WindowInfo.Compact ~= nil then
         WindowInfo.SidebarCompacted = WindowInfo.Compact
@@ -11703,7 +11705,7 @@ local function PopulateMentionMenu(filterText)
 
         local matches = {}
         local filterLower = filterText:lower()
-
+        
         -- Loop through users, but cap the search to prevent freezing if the table is massive
         local maxResultsToFind = 30
         for user in pairs(SeenUsers) do
