@@ -666,7 +666,9 @@ function ThemeManager:ApplyThemeData(ThemeData: any): (boolean, string?)
 
         elseif Index == "BackgroundImage" then
             if typeof(Value) ~= "string" then continue end
-            ThemeManager.Library:SetBackgroundImage(Value)
+            if ThemeManager.Library.SetBackgroundImage then
+                ThemeManager.Library:SetBackgroundImage(Value)
+            end
 
         elseif table.find(SchemeIndexes, Index) then
             local SuccessColor, Color = pcall(Color3.fromHex, Value)
