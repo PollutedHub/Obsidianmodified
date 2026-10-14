@@ -218,6 +218,14 @@ local Library = {
     CornerRadius = 4,
     CornerRadiusDropdown = false, -- Temporary
 
+    --// Liquid Glass \\--
+    GlassEnabled = false,
+    GlassTransparency = 0.45,
+    GlassBlurSize = 14,
+    GlassOriginals = setmetatable({}, { __mode = "k" }),
+    GlassBlur = nil,
+    Window = nil,
+
     IsLightTheme = false,
     Scheme = {
         BackgroundColor = Color3.fromRGB(15, 15, 15),
@@ -1010,6 +1018,103 @@ function Library:UpdateColorsUsingRegistry()
     end
 end
 
+--// Liquid Glass \\--
+function Library:ApplyGlass(Inst, Props)
+    if not Library.GlassEnabled or not Inst:IsA("GuiObject") then return end
+
+    local C = Props and Props.BackgroundColor3
+    if not (C == "BackgroundColor" or C == "MainColor" or typeof(C) == "function") then return end
+
+    local Orig = Library.GlassOriginals[Inst]
+    if Orig == nil then
+        Orig = Inst.BackgroundTransparency
+        Library.GlassOriginals[Inst] = Orig
+    end
+    if Orig >= 1 then return end
+
+    Inst.BackgroundTransparency = math.max(Orig, Library.GlassTransparency)
+
+    if Inst:FindFirstChild("GlassEdge") then return end
+
+    -- soft sheen over the fill (bright top-left, fades toward bottom-right)
+    local Sheen = Instance.new("UIGradient")
+    Sheen.Name = "GlassSheen"
+    Sheen.Rotation = 45
+    Sheen.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.5, 0.25),
+        NumberSequenceKeypoint.new(1, 0.1),
+    })
+    Sheen.Parent = Inst
+
+    -- bright rim light on opposite corners
+    local Edge = Instance.new("UIStroke")
+    Edge.Name = "GlassEdge"
+    Edge.Color = Color3.new(1, 1, 1)
+    Edge.Thickness = 1.2
+    Edge.Transparency = 0.2
+    Edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    Edge.Parent = Inst
+
+    local EdgeGrad = Instance.new("UIGradient")
+    EdgeGrad.Rotation = 45
+    EdgeGrad.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.45, 0.9),
+        NumberSequenceKeypoint.new(0.55, 0.9),
+        NumberSequenceKeypoint.new(1, 0.1),
+    })
+    EdgeGrad.Parent = Edge
+end
+
+function Library:RemoveGlass(Inst)
+    local Orig = Library.GlassOriginals[Inst]
+    if Orig ~= nil then
+        Inst.BackgroundTransparency = Orig
+        Library.GlassOriginals[Inst] = nil
+    end
+
+    local Sheen = Inst:FindFirstChild("GlassSheen")
+    if Sheen then Sheen:Destroy() end
+
+    local Edge = Inst:FindFirstChild("GlassEdge")
+    if Edge then Edge:Destroy() end
+end
+
+function Library:UpdateGlassBlur()
+    local Lighting = cloneref(game:GetService("Lighting"))
+
+    if not Library.GlassBlur or not Library.GlassBlur.Parent then
+        Library.GlassBlur = Instance.new("BlurEffect")
+        Library.GlassBlur.Size = 0
+        Library.GlassBlur.Parent = Lighting
+    end
+
+    local Target = (Library.GlassEnabled and Library.Toggled) and Library.GlassBlurSize or 0
+    TweenService:Create(Library.GlassBlur, TweenInfo.new(0.25), { Size = Target }):Play()
+end
+
+function Library:SetGlass(Enabled: boolean)
+    Library.GlassEnabled = Enabled
+
+    for Inst, Props in Library.Registry do
+        if typeof(Inst) == "Instance" and Inst.Parent then
+            if Enabled then
+                Library:ApplyGlass(Inst, Props)
+            else
+                Library:RemoveGlass(Inst)
+            end
+        end
+    end
+
+    -- rounder corners look more "liquid"
+    if Library.Window then
+        Library.Window:SetCornerRadius(Enabled and 14 or 4)
+    end
+
+    Library:UpdateGlassBlur()
+end
+
 function Library:SetDPIScale(DPIScale: number)
     Library.DPIScale = DPIScale / 70
     Library.MinSize = Library.OriginalMinSize * Library.DPIScale
@@ -1156,6 +1261,11 @@ local function New(ClassName: string, Properties: { [string]: any }): any
         pcall(function()
             Instance.ZIndex = Properties.Parent.ZIndex
         end)
+    end
+
+    --// Liquid Glass: style newly created elements too \\--
+    if Library.GlassEnabled and Library.Registry[Instance] then
+        Library:ApplyGlass(Instance, Library.Registry[Instance])
     end
 
     return Instance
@@ -2174,6 +2284,11 @@ function Library:Unload()
     -- Destroy tooltips
     for _, Tooltip in Tooltips do
         Library:SafeCallback(Tooltip.Destroy, Tooltip)
+    end
+
+    if Library.GlassBlur then
+        Library.GlassBlur:Destroy()
+        Library.GlassBlur = nil
     end
 
     Library.Unloaded = true
@@ -6633,7 +6748,7 @@ function Library:CreateWindow(WindowInfo)
             LoadingIconColor = Color3.fromRGB(255, 83, 0),
         })
 
-        Loading:SetMessage("Working")
+        Loading:SetMessage("Working On It...")
 
         -- Step 1 (2 seconds)
         Loading:SetDescription("Connecting to Server")
@@ -6651,7 +6766,7 @@ function Library:CreateWindow(WindowInfo)
         Loading:SetCurrentStep(3)
 
         -- Step 4 (1 second)
-        Loading:SetDescription("Loading UI")
+        Loading:SetDescription("Loaded enjoy <3")
         task.wait(1)
         Loading:SetCurrentStep(4)
 
@@ -10211,6 +10326,7 @@ if SavedTabOrder and SavedTabOrder[TabButton.Name] then
         end
 
         MainFrame.Visible = Library.Toggled
+        Library:UpdateGlassBlur()
 
         if WindowInfo.UnlockMouseWhileOpen then
             ModalElement.Modal = Library.Toggled
@@ -13847,6 +13963,7 @@ end
 ------ end of chatbox
 
     --testing388811111
+    Library.Window = Window
     return Window
 end
 
