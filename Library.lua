@@ -1233,6 +1233,8 @@ end
 function Library:SetTabScale(TabScale: number)
     local ScaleFactor = TabScale / 100
 
+    if not Library.TabButtons then return end
+
     for _, TabButtonData in ipairs(Library.TabButtons) do
         if TabButtonData and TabButtonData.Padding then
             TabButtonData.Padding.PaddingLeft = UDim.new(0, math.round(12 * ScaleFactor))
