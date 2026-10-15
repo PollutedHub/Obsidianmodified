@@ -1229,32 +1229,40 @@ function Library:SetDPIScale(DPIScale: number)
     end
 end
 
+Library.TabButtonScale = 1
 
-function Library:SetTabScale(TabScale: number)
-    TabScale = math.clamp(tonumber(TabScale) or 100, 10, 100)
-    Library.TabScale = TabScale
-    local S = TabScale / 100
+function Library:SetTabButtonScale(Scale: number)
+    Scale = math.clamp(Scale, 0.3, 3)
+    Library.TabButtonScale = Scale
 
-    for _, Data in ipairs(Library.TabButtons) do
-        if Data.Button then
-            Data.Button.Size = UDim2.new(1, 0, 0, math.max(math.round(40 * S), 8))
+    local Compact = Library.Window and Library.Window:IsSidebarCompacted() or false
+    local PadV = math.floor((Compact and 6 or 11) * Scale)
+    local PadH = math.floor((Compact and 6 or 12) * Scale)
+
+    for _, Data in Library.TabButtons do
+        local Button = Data.Button
+        if not (Button and Button.Parent) then
+            continue
         end
+
+        Button.Size = UDim2.new(1, 0, 0, math.floor(40 * Scale))
+
         if Data.Padding then
-            local IsCompactNow = Library.SidebarCompacted == true
-            local V = math.round((IsCompactNow and 6 or 11) * S)
-            local H = math.round((IsCompactNow and 6 or 12) * S)
-            Data.Padding.PaddingTop = UDim.new(0, V)
-            Data.Padding.PaddingBottom = UDim.new(0, V)
-            Data.Padding.PaddingLeft = UDim.new(0, H)
-            Data.Padding.PaddingRight = UDim.new(0, H)
+            Data.Padding.PaddingTop = UDim.new(0, PadV)
+            Data.Padding.PaddingBottom = UDim.new(0, PadV)
+            Data.Padding.PaddingLeft = UDim.new(0, PadH)
+            Data.Padding.PaddingRight = UDim.new(0, PadH)
         end
+
         if Data.Label then
-            Data.Label.TextSize = math.max(math.round(16 * S), 4)
-            Data.Label.Position = UDim2.fromOffset(math.round(30 * S), 0)
-            Data.Label.Size = UDim2.new(1, -math.round(30 * S), 1, 0)
+            Data.Label.TextSize = math.max(8, math.floor(16 * Scale))
+            Data.Label.Position = UDim2.fromOffset(math.floor(30 * Scale), 0)
+            Data.Label.Size = UDim2.new(1, -math.floor(30 * Scale), 1, 0)
         end
+        -- the icon is sized with RelativeYY, so it scales automatically with the button height
     end
 end
+
 
 function Library:GiveSignal(Connection: RBXScriptConnection | RBXScriptSignal)
     local ConnectionType = typeof(Connection)
@@ -9118,7 +9126,6 @@ end
             IsCompact = Window:GetSidebarWidth() <= WindowInfo.CompactWidthActivation
         end
 
-        Library.SidebarCompacted = IsCompact
         WindowTitle.Visible = not IsCompact
         if not WindowInfo.Icon then
             WindowIcon.Visible = IsCompact
@@ -9130,11 +9137,11 @@ end
             end
 
             Button.Label.Visible = not IsCompact
-            local TS = (Library.TabScale or 100) / 100
-            Button.Padding.PaddingBottom = UDim.new(0, math.round((IsCompact and 6 or 11) * TS))
-            Button.Padding.PaddingLeft = UDim.new(0, math.round((IsCompact and 6 or 12) * TS))
-            Button.Padding.PaddingRight = UDim.new(0, math.round((IsCompact and 6 or 12) * TS))
-            Button.Padding.PaddingTop = UDim.new(0, math.round((IsCompact and 6 or 11) * TS))
+local S = Library.TabButtonScale
+Button.Padding.PaddingBottom = UDim.new(0, math.floor((IsCompact and 6 or 11) * S))
+Button.Padding.PaddingLeft   = UDim.new(0, math.floor((IsCompact and 6 or 12) * S))
+Button.Padding.PaddingRight  = UDim.new(0, math.floor((IsCompact and 6 or 12) * S))
+Button.Padding.PaddingTop    = UDim.new(0, math.floor((IsCompact and 6 or 11) * S))
             Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
         end
     end
@@ -9259,13 +9266,12 @@ end
                 })
             end
 
-            table.insert(Library.TabButtons, {
-                Button = TabButton,
-                Label = TabLabel,
-                Padding = ButtonPadding,
-                Icon = TabIcon,
-            })
-
+table.insert(Library.TabButtons, {
+    Button = TabButton,   -- ADD
+    Label = TabLabel,
+    Padding = ButtonPadding,
+    Icon = TabIcon,
+})
             --// Tab Container \\--
             TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
@@ -10225,13 +10231,12 @@ if SavedTabOrder and SavedTabOrder[TabButton.Name] then
                     Parent = TabButton,
                 })
             end
-
-            table.insert(Library.TabButtons, {
-                Button = TabButton,
-                Label = TabLabel,
-                Padding = ButtonPadding,
-                Icon = TabIcon,
-            })
+table.insert(Library.TabButtons, {
+    Button = TabButton,   -- ADD
+    Label = TabLabel,
+    Padding = ButtonPadding,
+    Icon = TabIcon,
+})
 
             --// Tab Container \\--
             TabContainer = New("ScrollingFrame", {
@@ -14407,7 +14412,7 @@ if ChatIcon then
 end
 
 table.insert(Library.TabButtons, {
-    Button = ChatTabButton,
+    Button = ChatTabButton,   -- ADD
     Label = ChatBtnLabel,
     Padding = ChatButtonPadding,
     Icon = ChatBtnIcon,
