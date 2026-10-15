@@ -1229,6 +1229,20 @@ function Library:SetDPIScale(DPIScale: number)
     end
 end
 
+
+function Library:SetTabScale(TabScale: number)
+    local ScaleFactor = TabScale / 100
+
+    for _, TabButtonData in ipairs(Library.TabButtons) do
+        if TabButtonData and TabButtonData.Padding then
+            TabButtonData.Padding.PaddingLeft = UDim.new(0, math.round(12 * ScaleFactor))
+            TabButtonData.Padding.PaddingRight = UDim.new(0, math.round(12 * ScaleFactor))
+            TabButtonData.Padding.PaddingTop = UDim.new(0, math.round(11 * ScaleFactor))
+            TabButtonData.Padding.PaddingBottom = UDim.new(0, math.round(11 * ScaleFactor))
+        end
+    end
+end
+
 function Library:GiveSignal(Connection: RBXScriptConnection | RBXScriptSignal)
     local ConnectionType = typeof(Connection)
     if Connection and (ConnectionType == "RBXScriptConnection" or ConnectionType == "RBXScriptSignal") then
@@ -7372,15 +7386,11 @@ function Library:CreateWindow(WindowInfo)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
-local function IsTabItem(Obj)
-    return Obj:IsA("TextButton") or Obj:GetAttribute("TabDivider") == true
-end
-
 local function SaveTabOrder()
         if not writefile then return end
         local Order = {}
         for _, Button in Tabs:GetChildren() do
-            if IsTabItem(Button) and Button.Name ~= "" then
+            if Button:IsA("TextButton") and Button.Name ~= "" then
                 Order[Button.Name] = Button.LayoutOrder
             end
         end
@@ -8119,18 +8129,6 @@ end)
     end
 
 local TabOrderCounter = 0
-
-local TabDividerHolders = {}
-
-local function GetTabMetrics(Size)
-    Size = math.clamp(tonumber(Size) or WindowInfo.TabSize or 3, 1, 8)
-    local Height = math.floor(16 + Size * 5)      -- tab height
-    local TextSize = math.floor(9 + Size * 1.6)   -- label size
-    local PadV = math.floor(Height * 0.27)        -- top/bottom padding
-    local IconSize = Height - PadV * 2
-    return Height, TextSize, PadV, IconSize
-end
-
         local DraggingTab = nil
         local DraggingButton = nil
 
@@ -8379,7 +8377,7 @@ local function SetupTabDrag(Button)
 
         local OtherButtons = {}
         for _, OtherButton in Tabs:GetChildren() do
-                if IsTabItem(OtherButton) and OtherButton ~= Button and OtherButton.Visible then
+            if OtherButton:IsA("TextButton") and OtherButton ~= Button then
                 table.insert(OtherButtons, OtherButton)
             end
         end
@@ -8457,7 +8455,7 @@ local function SetupTabDrag(Button)
                 -- Normal reorder inside window
                 local AllButtons = {}
                 for _, btn in Tabs:GetChildren() do
-                        if IsTabItem(btn) then
+                    if btn:IsA("TextButton") then
                         table.insert(AllButtons, btn)
                     end
                 end
@@ -9112,21 +9110,16 @@ end
             WindowIcon.Visible = IsCompact
         end
 
-        for _, Divider in TabDividerHolders do
-            Divider.Visible = not IsCompact
-        end
-
         for _, Button in Library.TabButtons do
             if not Button.Icon then
                 continue
             end
 
-            local PadV = IsCompact and 6 or (Button.PadV or 11)
             Button.Label.Visible = not IsCompact
-            Button.Padding.PaddingBottom = UDim.new(0, PadV)
+            Button.Padding.PaddingBottom = UDim.new(0, IsCompact and 6 or 11)
             Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
-            Button.Padding.PaddingTop = UDim.new(0, PadV)
+            Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
             Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
         end
     end
@@ -9177,81 +9170,21 @@ end
         end
     end
 
-
-        function Window:AddTabTextDivider(Text, TextSize)
-        TabOrderCounter = TabOrderCounter + 1
-        TextSize = tonumber(TextSize) or 12
-
-        local Holder = New("Frame", {
-            BackgroundTransparency = 1,
-            LayoutOrder = TabOrderCounter,
-            Name = "TabDivider_" .. TabOrderCounter,
-            Size = UDim2.new(1, 0, 0, TextSize + 14),
-            Visible = not IsCompact,
-            Parent = Tabs,
-        })
-        Holder:SetAttribute("TabDivider", true)
-
-        if SavedTabOrder and SavedTabOrder[Holder.Name] then
-            Holder.LayoutOrder = SavedTabOrder[Holder.Name]
-        end
-
-        New("UIPadding", {
-            PaddingLeft = UDim.new(0, 12),
-            PaddingTop = UDim.new(0, 6),
-            Parent = Holder,
-        })
-
-        local Label = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 1),
-            Text = Text,
-            TextSize = TextSize,
-            TextTransparency = 0.5,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Center,
-            Parent = Holder,
-        })
-
-        table.insert(TabDividerHolders, Holder)
-
-        return {
-            Holder = Holder,
-            Label = Label,
-            SetText = function(_, NewText)
-                Label.Text = NewText
-            end,
-        }
-    end
-
-    Window.AddTabDivider = Window.AddTabTextDivider -- short alias
-
-       function Window:AddTab(...)
+    function Window:AddTab(...)
         local Name = nil
         local Icon = nil
         local Description = nil
-        local TabSize = nil
 
         if select("#", ...) == 1 and typeof(...) == "table" then
             local Info = select(1, ...)
             Name = Info.Name or "Tab"
             Icon = Info.Icon
             Description = Info.Description
-            TabSize = Info.Size
         else
             Name = select(1, ...)
             Icon = select(2, ...)
             Description = select(3, ...)
-            TabSize = select(4, ...)
         end
-
-        -- allow Window:AddTab("AutoFarm", "tractor", 4)
-        if typeof(Description) == "number" then
-            TabSize = Description
-            Description = nil
-        end
-
-        local TabHeight, TabTextSize, TabPadV, TabIconSize = GetTabMetrics(TabSize)
 
         local TabButton: TextButton
         local TabLabel
@@ -9261,12 +9194,12 @@ end
         local TabLeft
         local TabRight
 
-               Icon = Library:GetCustomIcon(Icon)
+        Icon = Library:GetCustomIcon(Icon)
         do
             TabButton = New("TextButton", {
                 BackgroundColor3 = "MainColor",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, TabHeight),
+                Size = UDim2.new(1, 0, 0, 40),
                 Text = "",
                 Parent = Tabs,
             })
@@ -9278,19 +9211,19 @@ end
             end
 
             local ButtonPadding = New("UIPadding", {
-                PaddingBottom = UDim.new(0, IsCompact and 6 or TabPadV),
+                PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
                 PaddingRight = UDim.new(0, IsCompact and 6 or 12),
-                PaddingTop = UDim.new(0, IsCompact and 6 or TabPadV),
+                PaddingTop = UDim.new(0, IsCompact and 6 or 11),
                 Parent = TabButton,
             })
 
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(TabIconSize + 10, 0),
-                Size = UDim2.new(1, -(TabIconSize + 10), 1, 0),
+                Position = UDim2.fromOffset(30, 0),
+                Size = UDim2.new(1, -30, 1, 0),
                 Text = Name,
-                TextSize = TabTextSize,
+                TextSize = 16,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
@@ -9315,7 +9248,6 @@ end
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
-                PadV = TabPadV,
             })
 
             --// Tab Container \\--
