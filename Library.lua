@@ -1231,16 +1231,27 @@ end
 
 
 function Library:SetTabScale(TabScale: number)
-    local ScaleFactor = TabScale / 100
+    TabScale = math.clamp(tonumber(TabScale) or 100, 10, 100)
+    Library.TabScale = TabScale
+    local S = TabScale / 100
 
-    if not Library.TabButtons then return end
-
-    for _, TabButtonData in ipairs(Library.TabButtons) do
-        if TabButtonData and TabButtonData.Padding then
-            TabButtonData.Padding.PaddingLeft = UDim.new(0, math.round(12 * ScaleFactor))
-            TabButtonData.Padding.PaddingRight = UDim.new(0, math.round(12 * ScaleFactor))
-            TabButtonData.Padding.PaddingTop = UDim.new(0, math.round(11 * ScaleFactor))
-            TabButtonData.Padding.PaddingBottom = UDim.new(0, math.round(11 * ScaleFactor))
+    for _, Data in ipairs(Library.TabButtons) do
+        if Data.Button then
+            Data.Button.Size = UDim2.new(1, 0, 0, math.max(math.round(40 * S), 8))
+        end
+        if Data.Padding then
+            local IsCompactNow = Library.SidebarCompacted == true
+            local V = math.round((IsCompactNow and 6 or 11) * S)
+            local H = math.round((IsCompactNow and 6 or 12) * S)
+            Data.Padding.PaddingTop = UDim.new(0, V)
+            Data.Padding.PaddingBottom = UDim.new(0, V)
+            Data.Padding.PaddingLeft = UDim.new(0, H)
+            Data.Padding.PaddingRight = UDim.new(0, H)
+        end
+        if Data.Label then
+            Data.Label.TextSize = math.max(math.round(16 * S), 4)
+            Data.Label.Position = UDim2.fromOffset(math.round(30 * S), 0)
+            Data.Label.Size = UDim2.new(1, -math.round(30 * S), 1, 0)
         end
     end
 end
@@ -9107,6 +9118,7 @@ end
             IsCompact = Window:GetSidebarWidth() <= WindowInfo.CompactWidthActivation
         end
 
+        Library.SidebarCompacted = IsCompact
         WindowTitle.Visible = not IsCompact
         if not WindowInfo.Icon then
             WindowIcon.Visible = IsCompact
@@ -9118,10 +9130,11 @@ end
             end
 
             Button.Label.Visible = not IsCompact
-            Button.Padding.PaddingBottom = UDim.new(0, IsCompact and 6 or 11)
-            Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
-            Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
-            Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
+            local TS = (Library.TabScale or 100) / 100
+            Button.Padding.PaddingBottom = UDim.new(0, math.round((IsCompact and 6 or 11) * TS))
+            Button.Padding.PaddingLeft = UDim.new(0, math.round((IsCompact and 6 or 12) * TS))
+            Button.Padding.PaddingRight = UDim.new(0, math.round((IsCompact and 6 or 12) * TS))
+            Button.Padding.PaddingTop = UDim.new(0, math.round((IsCompact and 6 or 11) * TS))
             Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
         end
     end
@@ -9247,6 +9260,7 @@ end
             end
 
             table.insert(Library.TabButtons, {
+                Button = TabButton,
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
@@ -10213,6 +10227,7 @@ if SavedTabOrder and SavedTabOrder[TabButton.Name] then
             end
 
             table.insert(Library.TabButtons, {
+                Button = TabButton,
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
@@ -14392,6 +14407,7 @@ if ChatIcon then
 end
 
 table.insert(Library.TabButtons, {
+    Button = ChatTabButton,
     Label = ChatBtnLabel,
     Padding = ChatButtonPadding,
     Icon = ChatBtnIcon,
