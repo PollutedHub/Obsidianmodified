@@ -9659,6 +9659,7 @@ end
 
             local GroupboxHolder
             local GroupboxLabel
+local GroupboxCorner -- NEW
 
             local GroupboxContainer
             local GroupboxList
@@ -9669,14 +9670,12 @@ GroupboxHolder = New("Frame", {
     Size = UDim2.new(1, 0, 0, 34),
     Parent = BoxHolder,
 })
-                table.insert(
-                    Library.Corners,
-                    New("UICorner", {
-                        CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
-                        Parent = GroupboxHolder,
-                    })
-                )
-                Library:AddOutline(GroupboxHolder)
+GroupboxCorner = New("UICorner", {
+    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+    Parent = GroupboxHolder,
+})
+table.insert(Library.Corners, GroupboxCorner)
+Library:AddOutline(GroupboxHolder)
 
                 Library:MakeLine(GroupboxHolder, {
                     Position = UDim2.fromOffset(0, 34),
@@ -9797,6 +9796,31 @@ function Groupbox:Resize()
     end
 end
 
+Groupbox.BubbleBox = false
+
+function Groupbox:SetBubble(State: boolean)
+    Groupbox.BubbleBox = State and true or false
+
+    local Idx = table.find(Library.Corners, GroupboxCorner)
+
+    if Groupbox.BubbleBox then
+        -- remove from Library.Corners so Window:SetCornerRadius doesn't overwrite it
+        if Idx then
+            table.remove(Library.Corners, Idx)
+        end
+        GroupboxCorner.CornerRadius = UDim.new(0, 16) -- bubble roundness, raise for rounder
+    else
+        if not Idx then
+            table.insert(Library.Corners, GroupboxCorner)
+        end
+        GroupboxCorner.CornerRadius = UDim.new(0, Library.CornerRadius)
+    end
+end
+
+if Info.BubbleBox == true then
+    Groupbox:SetBubble(true)
+end
+
 GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     if IsOpen and GroupboxContainer.Visible then
         GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
@@ -9820,14 +9844,13 @@ end)
             return Groupbox
         end
 
-        function Tab:AddLeftGroupbox(Name, IconName)
-            return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName })
-        end
+function Tab:AddLeftGroupbox(Name, IconName, BubbleBox)
+    return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, BubbleBox = BubbleBox })
+end
 
-        function Tab:AddRightGroupbox(Name, IconName)
-            return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName })
-        end
-
+function Tab:AddRightGroupbox(Name, IconName, BubbleBox)
+    return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, BubbleBox = BubbleBox })
+end
         function Tab:AddTabbox(Info)
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
