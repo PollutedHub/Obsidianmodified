@@ -9788,13 +9788,29 @@ Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or V
                 Elements = {},
             }
 
-function Groupbox:Resize()
-    if IsOpen then
-        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-    else
-        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-    end
-end
+            -- DEBUG TRACE (remove after testing)
+            if Info.Name == "Steal Settings" then
+                GroupboxHolder:GetPropertyChangedSignal("Size"):Connect(function()
+                    print("[Steal] Holder Size ->", GroupboxHolder.Size, "IsOpen:", IsOpen)
+                    print(debug.traceback())
+                end)
+                GroupboxContainer:GetPropertyChangedSignal("Visible"):Connect(function()
+                    print("[Steal] Container Visible ->", GroupboxContainer.Visible, "IsOpen:", IsOpen)
+                    print(debug.traceback())
+                end)
+                BoxHolder:GetPropertyChangedSignal("Parent"):Connect(function()
+                    print("[Steal] BoxHolder Parent ->", BoxHolder.Parent)
+                    print(debug.traceback())
+                end)
+            end
+
+            function Groupbox:Resize()
+                if IsOpen then
+                    GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                else
+                    GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+                end
+            end
 
 Groupbox.BubbleBox = false
 
