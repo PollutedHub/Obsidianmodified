@@ -9748,6 +9748,37 @@ GroupboxContainer = New("Frame", {
     Parent = GroupboxHolder,
 })
 
+
+-- DEBUG: Detect unexpected groupbox size changes
+GroupboxHolder:GetPropertyChangedSignal("Size"):Connect(function()
+    print(
+        "[Groupbox DEBUG] SIZE CHANGED:",
+        Info.Name,
+        "| Height:", GroupboxHolder.Size.Y.Offset,
+        "| IsOpen:", IsOpen,
+        "| Container.Visible:", GroupboxContainer.Visible
+    )
+
+    if not IsOpen and GroupboxHolder.Size.Y.Offset ~= 34 then
+        warn("[Groupbox DEBUG] COLLAPSED HEIGHT CHANGED:", Info.Name)
+    end
+end)
+
+-- DEBUG: Detect contents becoming visible unexpectedly
+GroupboxContainer:GetPropertyChangedSignal("Visible"):Connect(function()
+    print(
+        "[Groupbox DEBUG] VISIBILITY CHANGED:",
+        Info.Name,
+        "| Visible:", GroupboxContainer.Visible,
+        "| IsOpen:", IsOpen
+    )
+
+    if not IsOpen and GroupboxContainer.Visible then
+        warn("[Groupbox DEBUG] CONTAINER REOPENED:", Info.Name)
+    end
+end)
+
+
                 GroupboxList = New("UIListLayout", {
                     Padding = UDim.new(0, 8),
                     Parent = GroupboxContainer,
@@ -9760,23 +9791,59 @@ New("UIPadding", {
                     Parent = GroupboxContainer,
                 })
 
-CollapseButton.MouseButton1Click:Connect(function()
-                    if IsGroupboxDragging() then return end
 
-                    IsOpen = not IsOpen
-                    GroupboxContainer.Visible = IsOpen
-                    Arrow.Image = IsOpen and (ArrowUpIcon and ArrowUpIcon.Url or "") or (ArrowDownIcon and ArrowDownIcon.Url or "")
-Arrow.ImageRectOffset = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
-Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
-                    task.defer(function()
-                        if IsOpen then
-                            GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-                        else
-                            GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-                        end
-                    end)
-                end)
-            end
+CollapseButton.MouseButton1Click:Connect(function()
+    if IsGroupboxDragging() then
+        print("[Groupbox DEBUG] Dragging - click ignored:", Info.Name)
+        return
+    end
+
+    IsOpen = not IsOpen
+
+    print("[Groupbox DEBUG] Clicked:", Info.Name, "| IsOpen:", IsOpen)
+
+    GroupboxContainer.Visible = IsOpen
+
+    Arrow.Image = IsOpen
+        and (ArrowUpIcon and ArrowUpIcon.Url or "")
+        or (ArrowDownIcon and ArrowDownIcon.Url or "")
+
+    Arrow.ImageRectOffset = IsOpen
+        and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero)
+        or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
+
+    Arrow.ImageRectSize = IsOpen
+        and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero)
+        or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
+
+    local CurrentState = IsOpen
+
+    task.defer(function()
+        -- Ignore stale resize callbacks
+        if IsOpen ~= CurrentState then
+            print("[Groupbox DEBUG] Stale resize ignored:", Info.Name)
+            return
+        end
+
+        if IsOpen then
+            GroupboxHolder.Size = UDim2.new(
+                1, 0, 0,
+                (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49
+            )
+        else
+            GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+        end
+
+        print(
+            "[Groupbox DEBUG] Resize finished:",
+            Info.Name,
+            "| IsOpen:", IsOpen,
+            "| Height:", GroupboxHolder.Size.Y.Offset,
+            "| Container visible:", GroupboxContainer.Visible
+        )
+    end)
+end)
+
 
             local Groupbox = {
                 BoxHolder = BoxHolder,
@@ -9788,29 +9855,13 @@ Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or V
                 Elements = {},
             }
 
-            -- DEBUG TRACE (remove after testing)
-            if Info.Name == "Steal Settings" then
-                GroupboxHolder:GetPropertyChangedSignal("Size"):Connect(function()
-                    print("[Steal] Holder Size ->", GroupboxHolder.Size, "IsOpen:", IsOpen)
-                    print(debug.traceback())
-                end)
-                GroupboxContainer:GetPropertyChangedSignal("Visible"):Connect(function()
-                    print("[Steal] Container Visible ->", GroupboxContainer.Visible, "IsOpen:", IsOpen)
-                    print(debug.traceback())
-                end)
-                BoxHolder:GetPropertyChangedSignal("Parent"):Connect(function()
-                    print("[Steal] BoxHolder Parent ->", BoxHolder.Parent)
-                    print(debug.traceback())
-                end)
-            end
-
-            function Groupbox:Resize()
-                if IsOpen then
-                    GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
-                else
-                    GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-                end
-            end
+function Groupbox:Resize()
+    if IsOpen then
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+    else
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+    end
+end
 
 Groupbox.BubbleBox = false
 
