@@ -9659,7 +9659,6 @@ end
 
             local GroupboxHolder
             local GroupboxLabel
-local GroupboxCorner -- NEW
 
             local GroupboxContainer
             local GroupboxList
@@ -9670,12 +9669,14 @@ GroupboxHolder = New("Frame", {
     Size = UDim2.new(1, 0, 0, 34),
     Parent = BoxHolder,
 })
-GroupboxCorner = New("UICorner", {
-    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
-    Parent = GroupboxHolder,
-})
-table.insert(Library.Corners, GroupboxCorner)
-Library:AddOutline(GroupboxHolder)
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                        Parent = GroupboxHolder,
+                    })
+                )
+                Library:AddOutline(GroupboxHolder)
 
                 Library:MakeLine(GroupboxHolder, {
                     Position = UDim2.fromOffset(0, 34),
@@ -9748,37 +9749,6 @@ GroupboxContainer = New("Frame", {
     Parent = GroupboxHolder,
 })
 
-
--- DEBUG: Detect unexpected groupbox size changes
-GroupboxHolder:GetPropertyChangedSignal("Size"):Connect(function()
-    print(
-        "[Groupbox DEBUG] SIZE CHANGED:",
-        Info.Name,
-        "| Height:", GroupboxHolder.Size.Y.Offset,
-        "| IsOpen:", IsOpen,
-        "| Container.Visible:", GroupboxContainer.Visible
-    )
-
-    if not IsOpen and GroupboxHolder.Size.Y.Offset ~= 34 then
-        warn("[Groupbox DEBUG] COLLAPSED HEIGHT CHANGED:", Info.Name)
-    end
-end)
-
--- DEBUG: Detect contents becoming visible unexpectedly
-GroupboxContainer:GetPropertyChangedSignal("Visible"):Connect(function()
-    print(
-        "[Groupbox DEBUG] VISIBILITY CHANGED:",
-        Info.Name,
-        "| Visible:", GroupboxContainer.Visible,
-        "| IsOpen:", IsOpen
-    )
-
-    if not IsOpen and GroupboxContainer.Visible then
-        warn("[Groupbox DEBUG] CONTAINER REOPENED:", Info.Name)
-    end
-end)
-
-
                 GroupboxList = New("UIListLayout", {
                     Padding = UDim.new(0, 8),
                     Parent = GroupboxContainer,
@@ -9791,59 +9761,23 @@ New("UIPadding", {
                     Parent = GroupboxContainer,
                 })
 
-
 CollapseButton.MouseButton1Click:Connect(function()
-    if IsGroupboxDragging() then
-        print("[Groupbox DEBUG] Dragging - click ignored:", Info.Name)
-        return
-    end
+                    if IsGroupboxDragging() then return end
 
-    IsOpen = not IsOpen
-
-    print("[Groupbox DEBUG] Clicked:", Info.Name, "| IsOpen:", IsOpen)
-
-    GroupboxContainer.Visible = IsOpen
-
-    Arrow.Image = IsOpen
-        and (ArrowUpIcon and ArrowUpIcon.Url or "")
-        or (ArrowDownIcon and ArrowDownIcon.Url or "")
-
-    Arrow.ImageRectOffset = IsOpen
-        and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero)
-        or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
-
-    Arrow.ImageRectSize = IsOpen
-        and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero)
-        or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
-
-    local CurrentState = IsOpen
-
-    task.defer(function()
-        -- Ignore stale resize callbacks
-        if IsOpen ~= CurrentState then
-            print("[Groupbox DEBUG] Stale resize ignored:", Info.Name)
-            return
-        end
-
-        if IsOpen then
-            GroupboxHolder.Size = UDim2.new(
-                1, 0, 0,
-                (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49
-            )
-        else
-            GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
-        end
-
-        print(
-            "[Groupbox DEBUG] Resize finished:",
-            Info.Name,
-            "| IsOpen:", IsOpen,
-            "| Height:", GroupboxHolder.Size.Y.Offset,
-            "| Container visible:", GroupboxContainer.Visible
-        )
-    end)
-end)
-
+                    IsOpen = not IsOpen
+                    GroupboxContainer.Visible = IsOpen
+                    Arrow.Image = IsOpen and (ArrowUpIcon and ArrowUpIcon.Url or "") or (ArrowDownIcon and ArrowDownIcon.Url or "")
+Arrow.ImageRectOffset = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectOffset or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectOffset or Vector2.zero)
+Arrow.ImageRectSize = IsOpen and (ArrowUpIcon and ArrowUpIcon.ImageRectSize or Vector2.zero) or (ArrowDownIcon and ArrowDownIcon.ImageRectSize or Vector2.zero)
+                    task.defer(function()
+                        if IsOpen then
+                            GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                        else
+                            GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
+                        end
+                    end)
+                end)
+            end
 
             local Groupbox = {
                 BoxHolder = BoxHolder,
@@ -9861,31 +9795,6 @@ function Groupbox:Resize()
     else
         GroupboxHolder.Size = UDim2.new(1, 0, 0, 34)
     end
-end
-
-Groupbox.BubbleBox = false
-
-function Groupbox:SetBubble(State: boolean)
-    Groupbox.BubbleBox = State and true or false
-
-    local Idx = table.find(Library.Corners, GroupboxCorner)
-
-    if Groupbox.BubbleBox then
-        -- remove from Library.Corners so Window:SetCornerRadius doesn't overwrite it
-        if Idx then
-            table.remove(Library.Corners, Idx)
-        end
-        GroupboxCorner.CornerRadius = UDim.new(0, 16) -- bubble roundness, raise for rounder
-    else
-        if not Idx then
-            table.insert(Library.Corners, GroupboxCorner)
-        end
-        GroupboxCorner.CornerRadius = UDim.new(0, Library.CornerRadius)
-    end
-end
-
-if Info.BubbleBox == true then
-    Groupbox:SetBubble(true)
 end
 
 GroupboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -9911,13 +9820,14 @@ end)
             return Groupbox
         end
 
-function Tab:AddLeftGroupbox(Name, IconName, BubbleBox)
-    return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, BubbleBox = BubbleBox })
-end
+        function Tab:AddLeftGroupbox(Name, IconName)
+            return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName })
+        end
 
-function Tab:AddRightGroupbox(Name, IconName, BubbleBox)
-    return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, BubbleBox = BubbleBox })
-end
+        function Tab:AddRightGroupbox(Name, IconName)
+            return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName })
+        end
+
         function Tab:AddTabbox(Info)
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
